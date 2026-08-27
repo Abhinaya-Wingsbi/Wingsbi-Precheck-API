@@ -1,0 +1,6 @@
+@Godrej.Precheck.Host_HostAddress = http://localhost:5027
+
+GET {{Godrej.Precheck.Host_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

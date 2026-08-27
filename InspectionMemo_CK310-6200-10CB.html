@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Inspection Memo – CK310-6200-10CB</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 10px; background: #ccc; color: #000; }
+
+    .page {
+      width: 297mm;
+      min-height: 210mm;
+      background: #fff;
+      margin: 10mm auto;
+      padding: 4mm 5mm;
+      border: 1px solid #999;
+      position: relative;
+    }
+
+    table { border-collapse: collapse; width: 100%; }
+    td, th {
+      border: 1px solid #000;
+      padding: 2px 3px;
+      vertical-align: middle;
+      font-size: 9.5px;
+    }
+    .bold   { font-weight: bold; }
+    .center { text-align: center; }
+    .italic { font-style: italic; }
+    .uline  { text-decoration: underline; }
+    sup, sub { font-size: 7px; }
+
+    /* ── inputs ── */
+    input[type="text"] {
+      border: none;
+      border-bottom: 1px solid #000;
+      outline: none;
+      font-size: 9.5px;
+      font-family: Arial, sans-serif;
+      background: transparent;
+      padding: 0 1px;
+    }
+    input[type="checkbox"] {
+      width: 11px; height: 11px;
+      cursor: pointer;
+      vertical-align: middle;
+      accent-color: #000;
+    }
+    textarea {
+      border: none;
+      outline: none;
+      font-size: 9px;
+      font-family: Arial, sans-serif;
+      background: transparent;
+      resize: none;
+      width: 100%;
+    }
+
+    /* shorthand width helpers */
+    .w20  { width: 22px; }
+    .w28  { width: 28px; }
+    .w35  { width: 35px; }
+    .w45  { width: 45px; }
+    .w55  { width: 55px; }
+    .w70  { width: 70px; }
+    .w90p { width: 90%;  }
+
+    /* sign box cells */
+    .sign-col {
+      width: 28px;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    /* notes */
+    .notes {
+      border: 1px solid #000;
+      border-top: none;
+      padding: 3px 5px;
+      font-size: 8.5px;
+      line-height: 1.35;
+    }
+
+    /* footer sigs */
+    .sig-row td {
+      border: none;
+      text-align: center;
+      font-weight: bold;
+      padding-top: 14px;
+      font-size: 10px;
+    }
+
+    @media print {
+      body { background: #fff; }
+      .page { margin: 0; border: none; padding: 6mm 7mm; width: 100%; }
+      @page { size: A4 landscape; margin: 5mm; }
+      input[type="text"] { border-bottom: 1px solid #000 !important; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ══════════════════════════════════════
+       TOP HEADER
+  ══════════════════════════════════════ -->
+  <table>
+    <tr>
+      <td style="width:58%; border:1px solid #000;">
+        <div><b>From :</b> Quality Control, Godrej Aerospace Division</div>
+        <div><b>To &nbsp;&nbsp;:</b> Officer Incharge, Resident MSQAA Cell, Godrej Mumbai</div>
+        <div style="margin-top:2px;">Following Assembly is ready for your Inspection &amp; all relevant documents are available.</div>
+      </td>
+      <td style="width:24%; border:1px solid #000; vertical-align:top;">
+        <div class="bold">Memo Stage No(MSN) :</div>
+        <div class="bold" style="margin-top:3px;">
+          D / <input type="text" class="w70" placeholder="__________"/>
+        </div>
+      </td>
+      <td style="width:18%; border:1px solid #000; vertical-align:top;">
+        <div class="bold">Ref. Doc:</div>
+        <div>CK310-6100-0TY Rev. 20</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Drawing / Testing info -->
+  <table style="border-top:none;">
+    <tr>
+      <td style="width:14%; border:1px solid #000;" class="bold">Drawing No. &amp; Name</td>
+      <td style="width:2%;  border:1px solid #000;" class="bold center">:</td>
+      <td style="width:40%; border:1px solid #000;" class="bold uline italic">CK310-6200-10CB_Rev.7 &nbsp;&nbsp; Main Line</td>
+      <td style="width:8%;  border:1px solid #000;" class="bold">Precheck</td>
+      <td style="width:2%;  border:1px solid #000;" class="bold center">:</td>
+      <td style="border:1px solid #000;" class="italic uline">As Per R/C</td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #000;" class="bold">Total joints</td>
+      <td style="border:1px solid #000;" class="bold center">:</td>
+      <td style="border:1px solid #000;" class="italic uline">9 Nos.</td>
+      <td style="border:1px solid #000;" class="bold">Testing P/S</td>
+      <td style="border:1px solid #000;" class="bold center">:</td>
+      <td style="border:1px solid #000;" class="italic">TP/ CK310-6200-10CB_H05 &nbsp; Dtd.: 22/11/2018</td>
+    </tr>
+    <tr>
+      <td colspan="6" style="border:1px solid #000; text-align:right; padding:1px 5px; border-top:none;">
+        <span class="italic">*<b>Strength Test</b> (Internal Pressure) (Ty Clause No 3.2.3 &amp; 1.4.4)</span>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="6" style="border:1px solid #000; text-align:right; padding:1px 5px; border-top:none;">
+        <span class="italic">**<b>Helium Leak Test</b> (Drg. Note No.3, Ty Clause No 3.2.4 , 1.4.5 )</span>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Notes -->
+  <div class="notes">
+    Note :1) Drying in oven at 120º C for 15 min. after Strength test by D.M. Water.&nbsp; 2) Maximum ovality allowed at the bent area for pipe lines of OD up to 10mm is 0.5 mm &amp; OD above 10-30mm is 1.0 mm &amp; above 30-90 mm is 2 mm as per OST 92-1600-84 &nbsp;OVALITY observed at the cross section = 0.5 X (Max OD - Min OD)&nbsp; 3) Swaging of pipe has not been done as per DRDL letter dated 26 to 29 Oct.2004.&nbsp; 4) Final suiting of pipe lines is to be shown to Godrej QC and MSQAA after tack welding of pipe lines at integration stage and also observe the ovality and visual inspection before and after testing.&nbsp; 5) <b>For QT Burst Test - Test Pr. is 640 kgf/cm<sup>2</sup> for 3 to 5 min. Destruction of metals, cracks, delaminating is not allowed. (Ty Clause No. 3.2.6 &amp; 1.4.7)</b>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       MAIN INSPECTION TABLE
+  ══════════════════════════════════════ -->
+  <table style="border-top:none; margin-top:0;">
+    <!-- ── COLUMN HEADERS ── -->
+    <thead>
+      <tr>
+        <!-- 1 -->
+        <th rowspan="3" style="width:70px;">Identification<br/>No.</th>
+        <!-- 2 -->
+        <th rowspan="3" style="width:110px;">
+          Precheck<br/>documents<br/>
+          <div style="font-weight:normal; font-size:8.5px; text-align:left; margin-top:3px; line-height:1.4;">
+            1) Visual inspection as per WI<br/>No. GA/PR8/WI/25<br/>
+            2) Ensure identification<br/>
+            <span style="padding-left:18px;">Ensure</span><br/>
+            3) Ovalness before testing<br/>
+            <span style="padding-left:18px;">forwarding</span>
+          </div>
+        </th>
+        <!-- 3,4 blank sign cols -->
+        <th rowspan="3" class="sign-col"></th>
+        <th rowspan="3" class="sign-col"></th>
+
+        <!-- 5 – spanning header -->
+        <th colspan="4" style="text-align:center; font-weight:bold;">
+          Testing Details for individual check tests
+        </th>
+
+        <!-- 9 -->
+        <th rowspan="3" style="width:110px; text-align:center;">
+          Cleanliness<br/>Test<br/>
+          <span style="font-size:8px;">(Ty Clause No<br/>3.2.5 &amp; 1.4.6)</span>
+          <div style="font-weight:normal; font-size:8.5px; text-align:left; margin-top:3px; line-height:1.4;">
+            1) Ball Test;<br/>
+            2) Mass (Req. 0.200 kg)<br/>
+            3) Maximum ovalness<br/>observed after testing
+          </div>
+        </th>
+        <!-- 10 -->
+        <th rowspan="3" style="width:62px; text-align:center;">Remarks by<br/>G&amp;B &amp; MSQAA</th>
+      </tr>
+      <tr>
+        <!-- Strength Test sub-header -->
+        <th rowspan="2" style="width:115px;">
+          <b>Strength Test*</b><br/>
+          <div style="font-weight:normal; font-size:8.5px; text-align:left; line-height:1.4; margin-top:2px;">
+            Test Pressure = <b>400 kgf/cm<sup>2</sup></b> (Internal)<br/>
+            Hold Time = <b>3 - 5 min</b><br/>
+            Medium : <b>DM water</b><br/>
+            Inspection Pr. 320 kgf/cm<sup>2</sup><br/>
+            <b>Pressure drop &amp; leakage is<br/>not allowed.</b>
+          </div>
+        </th>
+        <!-- He Leak sub-header -->
+        <th rowspan="2" style="width:115px;">
+          <b>Helium Leak Test**</b><br/>
+          <div style="font-weight:normal; font-size:8.5px; text-align:left; line-height:1.4; margin-top:2px;">
+            Test Pressure = <b>320 kgf/cm<sup>2</sup></b> (Internal)<br/>
+            Test Method = <b>Sniffer Probe</b><br/>
+            Medium = <b>He+N<sub>2</sub></b> (He min 10%)<br/>
+            Maximum acceptable Leak rate<br/>
+            = <b>1.33 X 10 <sup>-6</sup> mbarl/sec</b>
+          </div>
+        </th>
+        <!-- 2 sign cols after tests -->
+        <th rowspan="2" class="sign-col"></th>
+        <th rowspan="2" class="sign-col"></th>
+      </tr>
+      <tr></tr>
+    </thead>
+
+    <!-- ── DATA ROWS (built by JS) ── -->
+    <tbody id="data-rows"></tbody>
+  </table>
+
+  <!-- ── SIGNATURES ── -->
+  <table style="margin-top:16px; border:none;">
+    <tr class="sig-row">
+      <td style="width:25%; border:none; text-align:center;">
+        <input type="text" class="w90p" placeholder="Name / Sign"/>
+        <div class="bold">Prepared By</div>
+      </td>
+      <td style="width:25%; border:none; text-align:center;">
+        <input type="text" class="w90p" placeholder="Name / Sign"/>
+        <div class="bold">Checked By</div>
+      </td>
+      <td style="width:25%; border:none; text-align:center;">
+        <input type="text" class="w90p" placeholder="Name / Sign"/>
+        <div class="bold">Verified By</div>
+      </td>
+      <td style="width:25%; border:none; text-align:center;">
+        <input type="text" class="w90p" placeholder="Name / Sign"/>
+        <div class="bold">Approved By</div>
+      </td>
+    </tr>
+  </table>
+
+</div><!-- /page -->
+
+<!-- ══════════════════════════════════════
+     JS — build the 4 data rows
+══════════════════════════════════════ -->
+<script>
+function buildRow(n) {
+  return `
+  <!-- ── ROW ${n} : main content ── -->
+  <tr>
+    <!-- Col 1 : Identification No. -->
+    <td rowspan="2" style="vertical-align:top; font-size:9px;">
+      <div class="bold" style="margin-bottom:3px;">D/</div>
+      <div style="margin-bottom:3px;">
+        R/c No. : <input type="text" style="width:65px; border:none; border-bottom:1px solid #000; outline:none; font-size:9px;" placeholder="________"/>
+      </div>
+      <div>
+        GA/RT/GLP4/<input type="text" style="width:38px; border:none; border-bottom:1px solid #000; outline:none; font-size:9px;" placeholder="_____"/>
+      </div>
+    </td>
+
+    <!-- Col 2 : Precheck documents -->
+    <td rowspan="2" style="vertical-align:top; font-size:9px;">
+      <div style="margin-bottom:2px;">
+        1.Visual as per WI (Refer 1st Page) &nbsp;:&nbsp;
+        <input type="checkbox"/> <input type="checkbox"/> Ok
+      </div>
+      <div style="margin-bottom:2px;">
+        2.Ball Test <b>Ø4</b> mm : <input type="checkbox"/> Ok
+      </div>
+      <div style="display:flex; align-items:center; gap:2px;">
+        3.Ovality &nbsp;:
+        <input type="text" style="width:45px; border:none; border-bottom:1px solid #000; outline:none; font-size:9px;" placeholder="_______"/>
+        mm
+      </div>
+    </td>
+
+    <!-- Col 3 : QC sign (precheck) — blank signing box -->
+    <td rowspan="2" class="sign-col" style="vertical-align:bottom; padding-bottom:3px;">
+      <input type="text" style="width:24px; border:none; border-bottom:1px solid #000; outline:none; font-size:8px;" title="QC Sign"/>
+    </td>
+    <!-- Col 4 : MSQAA sign (precheck) -->
+    <td rowspan="2" class="sign-col" style="vertical-align:bottom; padding-bottom:3px;">
+      <input type="text" style="width:24px; border:none; border-bottom:1px solid #000; outline:none; font-size:8px;" title="MSQAA Sign"/>
+    </td>
+
+    <!-- Col 5 : Strength Test fields -->
+    <td style="vertical-align:top; font-size:9px;">
+      <div style="display:flex; align-items:center; flex-wrap:wrap; gap:1px; margin-bottom:2px;">
+        Pre
+        <input type="text" style="width:32px; border:none; border-bottom:1px solid #000; outline:none; font-size:9px;" placeholder="____"/>
+        ksc, for
+        <input type="text" style="width:24px; border:none; border-bottom:1px solid #000; outline:none; font-size:9px;" placeholder="___"/>
+        min,
+      </div>
+      <div style="display:flex; align-items:center; gap:2px; margin-bottom:2px;">
+        Inspe. Pre.
+        <input type="text" style="width:40px; border:none; border-bottom:1px solid #000; outline:none; font-size:9px;" placeholder="_______"/>
+        ksc
+      </div>
+      <div>found ok</div>
+    </td>
+
+    <!-- Col 6 : Helium Leak Test fields -->
+    <td style="vertical-align:top; font-size:9px;">
+      <div style="display:flex; align-items:center; gap:2px; margin-bottom:3px;">
+        Pr. =
+        <input type="text" style="width:28px; border:none; border-bottom:1px solid #000; outline:none; font-size:9px;" placeholder="___"/>
+        ksc, He =
+        <input type="text" style="width:28px; border:none; border-bottom:1px solid #000; outline:none; font-size:9px;" placeholder="___"/>
+        ksc
+      </div>
+      <div style="display:flex; align-items:center; gap:2px;">
+        L/r =
+        <input type="text" style="width:72px; border:none; border-bottom:1px solid #000; outline:none; font-size:9px;" placeholder="____________"/>
+        mbarl/sec
+      </div>
+    </td>
+
+    <!-- Col 7 : QC sign (test) -->
+    <td rowspan="2" class="sign-col" style="vertical-align:bottom; padding-bottom:3px;">
+      <input type="text" style="width:24px; border:none; border-bottom:1px solid #000; outline:none; font-size:8px;" title="QC Sign"/>
+    </td>
+    <!-- Col 8 : MSQAA sign (test) -->
+    <td rowspan="2" class="sign-col" style="vertical-align:bottom; padding-bottom:3px;">
+      <input type="text" style="width:24px; border:none; border-bottom:1px solid #000; outline:none; font-size:8px;" title="MSQAA Sign"/>
+    </td>
+
+    <!-- Col 9 : Cleanliness Test -->
+    <td rowspan="2" style="vertical-align:top; font-size:9px;">
+      <div style="margin-bottom:2px;">
+        1.Ball Test <b>Ø 4</b> mm : <input type="checkbox"/> Ok
+      </div>
+      <div style="display:flex; align-items:center; gap:2px; margin-bottom:2px;">
+        2.Ovality &nbsp;:
+        <input type="text" style="width:42px; border:none; border-bottom:1px solid #000; outline:none; font-size:9px;" placeholder="________"/>
+        mm
+      </div>
+      <div style="display:flex; align-items:center; gap:2px;">
+        3.Mass &nbsp;&nbsp;:
+        <input type="text" style="width:42px; border:none; border-bottom:1px solid #000; outline:none; font-size:9px;" placeholder="________"/>
+        kg
+      </div>
+    </td>
+
+    <!-- Col 10 : Remarks -->
+    <td rowspan="2" style="vertical-align:top;">
+      <textarea rows="4" placeholder="Remarks..."></textarea>
+    </td>
+  </tr>
+
+  <!-- ── ROW ${n} : sign sub-row ── -->
+  <tr>
+    <!-- Strength Test sign sub-row -->
+    <td style="height:20px; vertical-align:bottom; text-align:center; font-size:8.5px; padding-bottom:2px;">
+      <input type="text" style="width:88%; border:none; border-bottom:1px solid #000; outline:none; font-size:8px;" placeholder="G&amp;B Sign / Date"/>
+    </td>
+    <!-- He Leak sign sub-row -->
+    <td style="height:20px; vertical-align:bottom; text-align:center; font-size:8.5px; padding-bottom:2px;">
+      <input type="text" style="width:88%; border:none; border-bottom:1px solid #000; outline:none; font-size:8px;" placeholder="G&amp;B Sign / Date"/>
+    </td>
+  </tr>`;
+}
+
+const tbody = document.getElementById('data-rows');
+for (let i = 1; i <= 4; i++) {
+  tbody.innerHTML += buildRow(i);
+}
+</script>
+</body>
+</html>
