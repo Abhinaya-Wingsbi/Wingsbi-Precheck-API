@@ -238,10 +238,16 @@ namespace QRCodeApi.Controllers
             [FromQuery] string? poNumber = null,
             [FromQuery] string? lnItemCode = null,
             [FromQuery] string? role = null,
-            [FromQuery] string? drawingNumber = null
+            [FromQuery] string? drawingNumber = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20
             )
         {
-            _logger.LogInformation("Request received for ProductionOrderController:GetAll with filters");
+            _logger.LogInformation("Request received for ProductionOrderController:GetAll with filters, page {PageNumber} size {PageSize}", pageNumber, pageSize);
+
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 200) pageSize = 200;
 
             try
             {
@@ -265,21 +271,21 @@ namespace QRCodeApi.Controllers
                     else if (roleIdStr.Equals("Admin", StringComparison.OrdinalIgnoreCase) || roleIdStr.Equals("Planner", StringComparison.OrdinalIgnoreCase)) roleid = 1;
                 }
 
-                List<ProductionOrderMasterDto> results;
+                ProductionOrderMasterPagedResponse results;
 
                 // Check if any filters are applied
                 if (!string.IsNullOrEmpty(dateFilterType) || precheckStatus.HasValue|| !string.IsNullOrEmpty(poNumber) ||!string.IsNullOrEmpty(lnItemCode)|| !string.IsNullOrEmpty(drawingNumber))
                 {
-                    results = await _productionOrderService.GetAllProductionOrdersAsync(
+                    results = await _productionOrderService.GetAllProductionOrdersPagedAsync(
                         dateFilterType, filterDate, fromDate, toDate, precheckStatus, poNumber,
-            lnItemCode, roleid, drawingNumber);
+                        lnItemCode, roleid, drawingNumber, pageNumber, pageSize);
                 }
                 else
                 {
-                    results = await _productionOrderService.GetAllProductionOrdersAsync(roleid);
+                    results = await _productionOrderService.GetAllProductionOrdersPagedAsync(roleid, pageNumber, pageSize);
                 }
 
-                _logger.LogInformation("Found {Count} Production Orders", results.Count);
+                _logger.LogInformation("Found {Count} Production Orders (page {PageNumber} of {TotalPages})", results.Data.Count, results.PageNumber, results.TotalPages);
                 return Ok(results);
             }
             catch (Exception ex)

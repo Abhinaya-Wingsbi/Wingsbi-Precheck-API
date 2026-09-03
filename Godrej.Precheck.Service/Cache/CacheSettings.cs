@@ -10,8 +10,11 @@ namespace Godrej.Precheck.Service.Cache
         public static class CacheSettings
         {
             // Drawing number cache settings
+            // Was 1 minute, which forced the expensive GetAllDrawingNumber join+grouping to
+            // re-run on almost every request. Writes already call _cacheService.Remove(DrawingNumbersCacheKey)
+            // to invalidate this immediately on change, so a short TTL bought nothing but cost.
             public static string DrawingNumbersCacheKey = "DrawingNumbers";
-            public static readonly TimeSpan DrawingNumbersCacheDuration = TimeSpan.FromMinutes(1);
+            public static readonly TimeSpan DrawingNumbersCacheDuration = TimeSpan.FromMinutes(30);
 
             // Production number settings
             public static string ProductionSeriesCacheKey = "ProductionSeries";

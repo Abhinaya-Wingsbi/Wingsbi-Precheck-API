@@ -520,34 +520,45 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             }
         }
 
+        // Must match the STRING_AGG separator used in Common.GET_DrawingNumber_Query.
+        private static readonly string[] DrawingNumberListSeparator = new[] { "||" };
+
+        private static List<int> ParseCsvIntList(string csv)
+        {
+            if (string.IsNullOrWhiteSpace(csv)) return new List<int>();
+            return csv.Split(DrawingNumberListSeparator, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => int.TryParse(s, out var v) ? (int?)v : null)
+                .Where(v => v.HasValue)
+                .Select(v => v.Value)
+                .ToList();
+        }
+
+        private static List<string> ParseCsvStringList(string csv)
+        {
+            if (string.IsNullOrWhiteSpace(csv)) return new List<string>();
+            return csv.Split(DrawingNumberListSeparator, StringSplitOptions.RemoveEmptyEntries)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToList();
+        }
+
         public async Task<List<GetAllDrawingResponseDto>> GetAllDrawingNumberService(GetAllDrawingRequestDto request = null)
         {
             _logger.LogInformation("Starting GetAllDrawingNumberService with ComponentType filter: {ComponentType}", request?.ComponentType);
             try
             {
-                // Key for cached grouped results
-                var groupedCacheKey = $"{CacheSettings.DrawingNumbersCacheKey}";
-                _logger.LogDebug("Attempting to get grouped drawing numbers from cache: {CacheKey}", groupedCacheKey);
+                _logger.LogDebug("Attempting to get grouped drawing numbers from cache: {CacheKey}", CacheSettings.DrawingNumbersCacheKey);
 
-                // Try to get grouped results from cache first
                 var groupedDrawingNumbers = await _cacheService.GetOrSetAsync(
-                    groupedCacheKey,
+                    CacheSettings.DrawingNumbersCacheKey,
                     async () =>
                     {
-                        _logger.LogDebug("Cache miss for grouped drawing numbers, processing raw data");
-                        // Get raw data from original cache or repository
-                        _logger.LogDebug("Attempting to get raw drawing numbers from cache: {CacheKey}", CacheSettings.DrawingNumbersCacheKey);
-                        var allDrawingNumbers = await _cacheService.GetOrSetAsync(
-                            CacheSettings.DrawingNumbersCacheKey,
-                            async () => {
-                                _logger.LogDebug("Cache miss for raw drawing numbers, fetching from repository");
-                                return await _commonRepository.GetAllDrawingNumber();
-                            },
-                            CacheSettings.DrawingNumbersCacheDuration
-                        );
+                        _logger.LogDebug("Cache miss for drawing numbers, fetching from repository");
+                        var allDrawingNumbers = await _commonRepository.GetAllDrawingNumber();
 
                         _logger.LogDebug("Processing and grouping {Count} drawing numbers", allDrawingNumbers?.Count ?? 0);
-                        // Process and group the data
+                        // The repository query now returns at most one row per drawing number id
+                        // (see Common.GET_DrawingNumber_Query); this GroupBy only collapses genuine
+                        // duplicate drawingnumber text rows, it's not undoing a join fan-out anymore.
                         var grouped = allDrawingNumbers
                             .GroupBy(d => d.DrawingNumber)
                             .Select(g => new GetAllDrawingResponseDto
@@ -572,21 +583,16 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
                                 ComponentTypeId = g.First().ComponentTypeId,
                                 DocumentTypeId = g.First().DocumentTypeId,
                                 IsExpiry = g.First().IsExpiry,
-                                ParentDrawingNumberIds = g.Select(x => x.ParentDrawingNumberId)
-                                    .Where(x => x.HasValue)
-                                    .Select(x => x.Value)
+                                ParentDrawingNumberIds = g.SelectMany(x => ParseCsvIntList(x.ParentDrawingNumberId))
                                     .Distinct()
                                     .ToList(),
-                                ParentDrawingNumbers = g.Select(x => x.ParentDrawingNumber)
-                                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                                ParentDrawingNumbers = g.SelectMany(x => ParseCsvStringList(x.ParentDrawingNumber))
                                     .Distinct()
                                     .ToList(),
-                                AvailableSeriesId = g.Select(x => x.AvailableSeriesId)
-                                    .Where(x => x != null)
+                                AvailableSeriesId = g.SelectMany(x => ParseCsvIntList(x.AvailableSeriesId))
                                     .Distinct()
                                     .ToList(),
-                                AvailableSeries = g.Select(x => x.AvailableSeries)
-                                    .Where(x => x != null)
+                                AvailableSeries = g.SelectMany(x => ParseCsvStringList(x.AvailableSeries))
                                     .Distinct()
                                     .ToList(),
                                 //AssemblyId = g.First().AssemblyId,

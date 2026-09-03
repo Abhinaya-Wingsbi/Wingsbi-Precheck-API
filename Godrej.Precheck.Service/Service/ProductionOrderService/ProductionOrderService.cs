@@ -94,8 +94,54 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
         {
             var orders = await _productionOrderRepository.GetAllProductionOrdersAsync(
                 dateFilterType, filterDate, fromDate, toDate, precheckStatus, poNumber, lnItemCode, drawingNumber);
-           
+
             return await ApplyBomLevelingByRoleAsync(orders, roleId);
+        }
+
+        // Note: for roleId 2/3 (QC/Store), ApplyBomLevelingByRoleAsync below is an in-memory
+        // post-filter driven by a separate BOM-count lookup, not something OFFSET/FETCH can express.
+        // The SQL layer paginates correctly; the leveling filter is then applied to that page, so for
+        // those two roles a page can legitimately come back with fewer than PageSize items even
+        // though TotalRecords (which reflects the pre-leveling SQL count) says more exist elsewhere.
+        // For every other role (Admin/Planner), leveling is a no-op and pagination is exact.
+        public async Task<ProductionOrderMasterPagedResponse> GetAllProductionOrdersPagedAsync(int roleId, int pageNumber, int pageSize)
+        {
+            var (items, totalCount) = await _productionOrderRepository.GetAllProductionOrdersPagedAsync(pageNumber, pageSize);
+            var leveled = await ApplyBomLevelingByRoleAsync(items, roleId);
+
+            return new ProductionOrderMasterPagedResponse
+            {
+                Data = leveled,
+                TotalRecords = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<ProductionOrderMasterPagedResponse> GetAllProductionOrdersPagedAsync(
+            string? dateFilterType,
+            DateTime? filterDate,
+            DateTime? fromDate,
+            DateTime? toDate,
+            int? precheckStatus,
+            string? poNumber,
+            string? lnItemCode,
+            int roleId,
+            string? drawingNumber,
+            int pageNumber,
+            int pageSize)
+        {
+            var (items, totalCount) = await _productionOrderRepository.GetAllProductionOrdersPagedAsync(
+                dateFilterType, filterDate, fromDate, toDate, precheckStatus, poNumber, lnItemCode, drawingNumber, pageNumber, pageSize);
+            var leveled = await ApplyBomLevelingByRoleAsync(items, roleId);
+
+            return new ProductionOrderMasterPagedResponse
+            {
+                Data = leveled,
+                TotalRecords = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
 
         private async Task<List<ProductionOrderMasterDto>> ApplyBomLevelingByRoleAsync(

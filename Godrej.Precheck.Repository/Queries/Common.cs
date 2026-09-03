@@ -364,87 +364,141 @@ ORDER BY
             WHERE rn = 1
             ORDER BY priority, sort_order";
 
+        // Rewritten to avoid the row fan-out of the previous flat multi-LEFT-JOIN query:
+        // each *-to-many mapping table used to be joined directly against tbl_drawingnumber,
+        // so a drawing number with N lnitem mappings x M locations x ... produced N*M*... rows
+        // that then had to be collapsed back down in C# (see CommonService.GetAllDrawingNumberService).
+        // Here each mapping table is pre-reduced to at most one row per drawing number
+        // (ROW_NUMBER, for the single-valued columns) or pre-aggregated into a comma list
+        // (STRING_AGG with a '||' separator, for the columns that legitimately have multiple values
+        // per drawing number: parent drawing numbers and available production series -- '||' is used
+        // instead of ',' so a comma inside a drawing number/series name can't corrupt the list) before
+        // joining to tbl_drawingnumber, so the join to dn is always 1:1 and the result set is exactly
+        // one row per drawing number. Parsed back into lists in CommonService.GetAllDrawingNumberService.
         public static readonly string GET_DrawingNumber_Query =
-     @" SELECT 
-        dn.id, 
-        dn.drawingnumber, 
-        dn.createdby, 
-        dn.createddate, 
-        dn.modifiedby, 
-        dn.modifieddate, 
-        dn.isactive,
-        loc.racklocationid,
-        sil.racklocation As location, 
-        nom.nomenclature, 
-        nom.id As nomenclatureid,
-        ct.id As componenttypeid,
-        ln_correct.id As lnitemcodeid,
-        doc.id As documenttypeid,
-        ta.id As assemblyid, 
-        ta.assemblynumber,
-        ct.componenttype,
-        map.lnitemcode, 
-        doc.documentType,
-        tdpsmap.availableseriesid,
-        dn.isexpiry,
-        tps.productionseries as availableseries,
-        NULL AS unitid,
-        tassmap.unit AS unitname,
-        tassmap.parentdrawingnumber AS parentdrawingnumberid,
-        parentdw.drawingnumber AS parentdrawingnumber
-    FROM 
-        tbl_drawingnumber dn
-    LEFT JOIN 
-        tbl_drawing_lnitem_map map
-        ON dn.drawingnumber = map.drawingnumber
-    LEFT JOIN 
-        tbl_lnitemcode ln_correct 
-        ON map.lnitemcode = ln_correct.lnitemcode AND ln_correct.isactive = 1
-    LEFT JOIN 
-        tbl_drawingnlnitemlocationmapping loc 
-        ON dn.id = loc.drawingnumberid AND loc.isactive = 1
-    LEFT JOIN 
-        tbl_storeitemlocation sil 
-        ON loc.racklocationid = sil.id AND sil.isactive = 1
-    LEFT JOIN 
-        tbl_drawingnomenclaturemapping nommap 
-        ON dn.id = nommap.drawingnumberid AND nommap.isactive = 1
-    LEFT JOIN 
-        tbl_nomenclature nom 
-        ON nommap.nomenclatureid = nom.id AND nom.isactive = 1
-    LEFT JOIN 
-        tbl_drawingcomponenttypemapping ctmap 
-        ON dn.id = ctmap.drawingnumberid AND ctmap.isactive = 1
-    LEFT JOIN 
-        tbl_componenttype ct 
-        ON ctmap.componenttypeid = ct.id AND ct.isactive = 1
-    LEFT JOIN 
-        tbl_lnitemcode ln 
-        ON loc.lnitemcodeid = ln.id AND ln.isactive = 1
-    LEFT JOIN 
-        tbl_drawingdocumenttypemapping docmap 
-        ON dn.id = docmap.drawingnumberid AND docmap.isactive = 1
-    LEFT JOIN 
-        tbl_documenttype doc 
-        ON docmap.documenttypeid = doc.id AND doc.isactive = 1
-    LEFT JOIN 
-        tbl_assemblydrawingmapping tassmap
-        ON dn.id = tassmap.drawingnumber AND tassmap.isactive = 1
-    LEFT JOIN 
-        tbl_assemblynumber ta 
-        ON tassmap.assemblynumber = ta.id AND ta.isactive = 1
-    LEFT JOIN 
-        tbl_drawingnumber parentdw
-        ON tassmap.parentdrawingnumber = parentdw.id AND parentdw.isactive = 1
-    LEFT JOIN 
-        tbl_drawingprodseriesmapping tdpsmap
-        ON tdpsmap.drawingnumberid = dn.id AND tdpsmap.isactive = 1
-    LEFT JOIN 
-        tbl_productionseries tps
-        ON tdpsmap.availableseriesid = tps.id AND tps.isactive = 1
-    WHERE 
-        dn.isactive = 1";
-        //   AND dn.drawingnumber LIKE '%' + @query + '%'";
+     @";WITH lnitem_pick AS (
+            SELECT drawingnumber, lnitemcode FROM (
+                SELECT drawingnumber, lnitemcode,
+                       ROW_NUMBER() OVER (PARTITION BY drawingnumber ORDER BY id) AS rn
+                FROM tbl_drawing_lnitem_map
+                WHERE isactive = 1
+            ) t WHERE rn = 1
+        ),
+        loc_pick AS (
+            SELECT drawingnumberid, racklocationid FROM (
+                SELECT drawingnumberid, racklocationid,
+                       ROW_NUMBER() OVER (PARTITION BY drawingnumberid ORDER BY id) AS rn
+                FROM tbl_drawingnlnitemlocationmapping
+                WHERE isactive = 1
+            ) t WHERE rn = 1
+        ),
+        nom_pick AS (
+            SELECT drawingnumberid, nomenclatureid FROM (
+                SELECT drawingnumberid, nomenclatureid,
+                       ROW_NUMBER() OVER (PARTITION BY drawingnumberid ORDER BY id) AS rn
+                FROM tbl_drawingnomenclaturemapping
+                WHERE isactive = 1
+            ) t WHERE rn = 1
+        ),
+        ct_pick AS (
+            SELECT drawingnumberid, componenttypeid FROM (
+                SELECT drawingnumberid, componenttypeid,
+                       ROW_NUMBER() OVER (PARTITION BY drawingnumberid ORDER BY id) AS rn
+                FROM tbl_drawingcomponenttypemapping
+                WHERE isactive = 1
+            ) t WHERE rn = 1
+        ),
+        doc_pick AS (
+            SELECT drawingnumberid, documenttypeid FROM (
+                SELECT drawingnumberid, documenttypeid,
+                       ROW_NUMBER() OVER (PARTITION BY drawingnumberid ORDER BY id) AS rn
+                FROM tbl_drawingdocumenttypemapping
+                WHERE isactive = 1
+            ) t WHERE rn = 1
+        ),
+        tassmap_pick AS (
+            SELECT drawingnumber, unit FROM (
+                SELECT drawingnumber, unit,
+                       ROW_NUMBER() OVER (PARTITION BY drawingnumber ORDER BY id) AS rn
+                FROM tbl_assemblydrawingmapping
+                WHERE isactive = 1
+            ) t WHERE rn = 1
+        ),
+        parent_agg AS (
+            SELECT tassmap.drawingnumber AS drawingnumberid,
+                   STRING_AGG(CAST(tassmap.parentdrawingnumber AS varchar(20)), '||') AS parentdrawingnumberids,
+                   STRING_AGG(parentdw.drawingnumber, '||') AS parentdrawingnumbers
+            FROM tbl_assemblydrawingmapping tassmap
+            LEFT JOIN tbl_drawingnumber parentdw
+                ON tassmap.parentdrawingnumber = parentdw.id AND parentdw.isactive = 1
+            WHERE tassmap.isactive = 1 AND tassmap.parentdrawingnumber IS NOT NULL
+            GROUP BY tassmap.drawingnumber
+        ),
+        series_agg AS (
+            SELECT tdpsmap.drawingnumberid,
+                   STRING_AGG(CAST(tdpsmap.availableseriesid AS varchar(20)), '||') AS availableseriesids,
+                   STRING_AGG(tps.productionseries, '||') AS availableseriesnames
+            FROM tbl_drawingprodseriesmapping tdpsmap
+            LEFT JOIN tbl_productionseries tps
+                ON tdpsmap.availableseriesid = tps.id AND tps.isactive = 1
+            WHERE tdpsmap.isactive = 1
+            GROUP BY tdpsmap.drawingnumberid
+        )
+        SELECT
+            dn.id,
+            dn.drawingnumber,
+            dn.createdby,
+            dn.createddate,
+            dn.modifiedby,
+            dn.modifieddate,
+            dn.isactive,
+            loc_pick.racklocationid,
+            sil.racklocation As location,
+            nom.nomenclature,
+            nom.id As nomenclatureid,
+            ct.id As componenttypeid,
+            ln_correct.id As lnitemcodeid,
+            doc.id As documenttypeid,
+            ct.componenttype,
+            lnitem_pick.lnitemcode,
+            doc.documentType,
+            series_agg.availableseriesids AS availableseriesid,
+            dn.isexpiry,
+            series_agg.availableseriesnames as availableseries,
+            NULL AS unitid,
+            tassmap_pick.unit AS unitname,
+            parent_agg.parentdrawingnumberids AS parentdrawingnumberid,
+            parent_agg.parentdrawingnumbers AS parentdrawingnumber
+        FROM
+            tbl_drawingnumber dn
+        LEFT JOIN
+            lnitem_pick ON lnitem_pick.drawingnumber = dn.drawingnumber
+        LEFT JOIN
+            tbl_lnitemcode ln_correct ON ln_correct.lnitemcode = lnitem_pick.lnitemcode AND ln_correct.isactive = 1
+        LEFT JOIN
+            loc_pick ON loc_pick.drawingnumberid = dn.id
+        LEFT JOIN
+            tbl_storeitemlocation sil ON sil.id = loc_pick.racklocationid AND sil.isactive = 1
+        LEFT JOIN
+            nom_pick ON nom_pick.drawingnumberid = dn.id
+        LEFT JOIN
+            tbl_nomenclature nom ON nom.id = nom_pick.nomenclatureid AND nom.isactive = 1
+        LEFT JOIN
+            ct_pick ON ct_pick.drawingnumberid = dn.id
+        LEFT JOIN
+            tbl_componenttype ct ON ct.id = ct_pick.componenttypeid AND ct.isactive = 1
+        LEFT JOIN
+            doc_pick ON doc_pick.drawingnumberid = dn.id
+        LEFT JOIN
+            tbl_documenttype doc ON doc.id = doc_pick.documenttypeid AND doc.isactive = 1
+        LEFT JOIN
+            tassmap_pick ON tassmap_pick.drawingnumber = dn.id
+        LEFT JOIN
+            parent_agg ON parent_agg.drawingnumberid = dn.id
+        LEFT JOIN
+            series_agg ON series_agg.drawingnumberid = dn.id
+        WHERE
+            dn.isactive = 1";
 
         public static readonly string GET_DrawingNumberById_Query = @"
         SELECT id, drawingnumber, createdby, createddate, modifiedby, modifieddate, isactive, nomenclature

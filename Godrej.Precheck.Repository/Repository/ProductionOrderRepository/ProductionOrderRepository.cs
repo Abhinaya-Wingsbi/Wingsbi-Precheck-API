@@ -456,6 +456,132 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
             }
         }
 
+        public async Task<(List<ProductionOrderMasterDto> Items, int TotalCount)> GetAllProductionOrdersPagedAsync(int pageNumber, int pageSize)
+        {
+            _logger.LogInformation("Fetching paged ProductionOrders: page {PageNumber}, size {PageSize}", pageNumber, pageSize);
+            try
+            {
+                var offset = (pageNumber - 1) * pageSize;
+
+                var totalCount = await _db.ExecuteScalar<int>(ProductionOrderQueries.GET_ALL_PRODUCTION_ORDERS_COUNT, new { });
+
+                var results = await _db.GetAll<ProductionOrderMasterDto>(
+                    ProductionOrderQueries.GET_ALL_PRODUCTION_ORDERS_PAGED,
+                    new { Offset = offset, PageSize = pageSize });
+
+                return (results.ToList(), totalCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching paged ProductionOrders");
+                throw;
+            }
+        }
+
+        public async Task<(List<ProductionOrderMasterDto> Items, int TotalCount)> GetAllProductionOrdersPagedAsync(
+            string? dateFilterType,
+            DateTime? filterDate,
+            DateTime? fromDate,
+            DateTime? toDate,
+            int? precheckStatus,
+            string? poNumber,
+            string? lnItemCode,
+            string? drawingnumber,
+            int pageNumber,
+            int pageSize)
+        {
+            _logger.LogInformation("Fetching paged filtered ProductionOrders: page {PageNumber}, size {PageSize}, DateType: {DateType}, Status: {Status}",
+                pageNumber, pageSize, dateFilterType, precheckStatus);
+            try
+            {
+                var dateFilter = " AND 1=1";
+                var statusFilter = " AND 1=1";
+                var poFilter = " AND 1=1";
+                var lnItemFilter = " AND 1=1";
+                var drawingFilter = " AND 1=1";
+
+                if (!string.IsNullOrEmpty(dateFilterType) && dateFilterType.Equals("single", StringComparison.OrdinalIgnoreCase) && filterDate.HasValue)
+                {
+                    dateFilter = @" AND CAST(pom.createddate AS DATE) = CAST(@FilterDate AS DATE)";
+                }
+                else if (!string.IsNullOrEmpty(dateFilterType) && dateFilterType.Equals("range", StringComparison.OrdinalIgnoreCase)
+                    && fromDate.HasValue && toDate.HasValue)
+                {
+                    dateFilter = @" AND CAST(pom.createddate AS DATE) BETWEEN CAST(@FromDate AS DATE) AND CAST(@ToDate AS DATE)";
+                }
+
+                if (!string.IsNullOrWhiteSpace(drawingnumber))
+                {
+                    drawingFilter = " AND dn.drawingnumber LIKE '%' + @DrawingNumber + '%'";
+                }
+
+                if (precheckStatus.HasValue)
+                {
+                    statusFilter = " AND COALESCE(psc.CalculatedStatus, 1) = @PrecheckStatus";
+                }
+
+                if (!string.IsNullOrWhiteSpace(poNumber))
+                {
+                    poFilter = " AND pom.productionordernumber LIKE '%' + @PoNumber + '%'";
+                }
+
+                if (!string.IsNullOrWhiteSpace(lnItemCode))
+                {
+                    lnItemFilter = " AND pom.lnitemcode LIKE '%' + @LnItemCode + '%'";
+                }
+
+                var queryParams = new
+                {
+                    FilterDate = filterDate,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    PrecheckStatus = precheckStatus,
+                    PoNumber = poNumber,
+                    LnItemCode = lnItemCode,
+                    DrawingNumber = drawingnumber
+                };
+
+                var countQuery = ProductionOrderQueries.GET_FILTERED_PRODUCTION_ORDERS_COUNT
+                    .Replace("{DATE_FILTER}", dateFilter)
+                    .Replace("{STATUS_FILTER}", statusFilter)
+                    .Replace("{PO_FILTER}", poFilter)
+                    .Replace("{LNITEM_FILTER}", lnItemFilter)
+                    .Replace("{DRAWING_FILTER}", drawingFilter);
+
+                var totalCount = await _db.ExecuteScalar<int>(countQuery, queryParams);
+
+                var offset = (pageNumber - 1) * pageSize;
+                var dataQuery = ProductionOrderQueries.GET_FILTERED_PRODUCTION_ORDERS_PAGED
+                    .Replace("{DATE_FILTER}", dateFilter)
+                    .Replace("{STATUS_FILTER}", statusFilter)
+                    .Replace("{PO_FILTER}", poFilter)
+                    .Replace("{LNITEM_FILTER}", lnItemFilter)
+                    .Replace("{DRAWING_FILTER}", drawingFilter);
+
+                var results = await _db.GetAll<ProductionOrderMasterDto>(
+                    dataQuery,
+                    new
+                    {
+                        FilterDate = filterDate,
+                        FromDate = fromDate,
+                        ToDate = toDate,
+                        PrecheckStatus = precheckStatus,
+                        PoNumber = poNumber,
+                        LnItemCode = lnItemCode,
+                        DrawingNumber = drawingnumber,
+                        Offset = offset,
+                        PageSize = pageSize
+                    });
+
+                return (results.ToList(), totalCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching paged filtered ProductionOrders");
+                throw;
+            }
+        }
+
 
 
         public async Task<List<ProductionOrderMasterDto>> GetAllPONumbersAsync(string? search = null)

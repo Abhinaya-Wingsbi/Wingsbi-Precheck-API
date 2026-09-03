@@ -27,14 +27,16 @@ namespace Godrej.Precheck.Models.DataModel
         public int? NomenclatureId { get; set; } 
         public int? ComponentTypeId { get; set; } 
         public int? DocumentTypeId { get; set; } 
-        public int? AssemblyId { get; set; } 
+        public int? AssemblyId { get; set; }
         public string AssemblyNumber { get; set; }
-        public int AvailableSeriesId { get; set; }
+        // Comma-separated list (a drawing number can map to multiple production series / parent
+        // drawing numbers); parsed back into lists in CommonService.GetAllDrawingNumberService.
+        public string AvailableSeriesId { get; set; }
         public string AvailableSeries { get; set; }
         public bool? IsExpiry { get; set; }
         public int? UnitId { get; set; }
         public string UnitName { get; set; }
-        public int? ParentDrawingNumberId { get; set; }
+        public string ParentDrawingNumberId { get; set; }
         public string ParentDrawingNumber { get; set; }
     }
 }

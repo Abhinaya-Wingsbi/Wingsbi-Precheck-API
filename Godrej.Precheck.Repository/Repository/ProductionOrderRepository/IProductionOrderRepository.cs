@@ -17,6 +17,10 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
         Task<List<ProductionOrderMasterDto>> GetAllProductionOrdersAsync(string? dateFilterType, DateTime? filterDate, DateTime? fromDate, DateTime? toDate, int? precheckStatus, string? poNumber, string? lnItemCode,string? drawingnumber);
        // Task<List<ProductionOrderMasterDto>> GetAllProductionOrdersAsync(string? dateFilterType, DateTime? filterDate, DateTime? fromDate, DateTime? toDate, int? precheckStatus,string? poNumber, string? lnItemCode);
 
+        // SQL-side pagination (OFFSET/FETCH) for the /api/ProductionOrder/GetAll endpoint.
+        Task<(List<ProductionOrderMasterDto> Items, int TotalCount)> GetAllProductionOrdersPagedAsync(int pageNumber, int pageSize);
+        Task<(List<ProductionOrderMasterDto> Items, int TotalCount)> GetAllProductionOrdersPagedAsync(string? dateFilterType, DateTime? filterDate, DateTime? fromDate, DateTime? toDate, int? precheckStatus, string? poNumber, string? lnItemCode, string? drawingnumber, int pageNumber, int pageSize);
+
         Task<List<ProductionOrderMasterDto>> GetAllPONumbersAsync(string? search = null);
         Task<(int? DrawingNumberId, int? LnItemCodeId, string? DrawingNumber, string? Nomenclature)> LookupDrawingByLnItemCodeAsync(string lnItemCode);
         Task<(int? ProdSeriesId, string? ProductionSeries)> LookupProdSeriesByPrefixAsync(string prefix);
