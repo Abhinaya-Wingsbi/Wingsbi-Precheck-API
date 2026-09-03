@@ -589,25 +589,35 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
             return await _productionOrderRepository.GetAllPONumbersAsync(search);
         }
 
-        public async Task<ProductionOrderCountsDto> GetProductionOrderCountsAsync(ProductionOrderCountFilterDto filter)
+        public async Task<ProductionOrderCountsDto> GetProductionOrderCountsAsync(
+            string? dateFilterType, DateTime? filterDate, DateTime? fromDate, DateTime? toDate,
+            string? poNumber, string? lnItemCode, int roleId, string? drawingNumber, string? searchQuery,
+            List<string>? productionSeries)
         {
             _logger.LogInformation("Service: Fetching Production Order Counts with filters");
 
             try
             {
-                var orders = await GetAllProductionOrdersAsync(
-                        filter.DateFilterType, filter.FilterDate, filter.FromDate, filter.ToDate, filter.PrecheckStatus, filter.PoNumber, filter.LnItemCode, filter.RoleId,filter.DrawingNumber);
+                // Bucket counts intentionally don't take a precheckStatus filter: this endpoint
+                // reports how many orders fall into EACH status bucket under the other active
+                // filters, so a "Total / Pending / Partial / Completed" tab strip doesn't collapse
+                // to zero the moment one tab is selected. It reuses the same array-capable filtered
+                // query as GetAll/Export (pageSize = int.MaxValue = "no pagination") so all three
+                // endpoints agree on what "matches the filters" means.
+                var (items, _) = await _productionOrderRepository.GetAllProductionOrdersPagedAsync(
+                    dateFilterType, filterDate, fromDate, toDate, precheckStatus: null, poNumber, lnItemCode,
+                    drawingNumber, searchQuery, productionSeries, pageNumber: 1, pageSize: int.MaxValue);
 
-                var counts = new ProductionOrderCountsDto
+                var orders = await ApplyBomLevelingByRoleAsync(items, roleId);
+
+                return new ProductionOrderCountsDto
                 {
                     TotalCount = orders.Count,
                     CompletedCount = orders.Count(o => (o.PrecheckStatus ?? 1) == 3),
                     PartialCount = orders.Count(o => (o.PrecheckStatus ?? 1) == 2),
                     PendingCount = orders.Count(o => (o.PrecheckStatus ?? 1) == 1),
-                    UploadedCount=orders.Count(o => (o.PrecheckStatus ?? 1) == 4 )
+                    UploadedCount = orders.Count(o => (o.PrecheckStatus ?? 1) == 4)
                 };
-
-                return counts;
             }
             catch (Exception ex)
             {
@@ -616,13 +626,14 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
             }
         }
 
-        // Every exportable column, keyed by the camelCase name the frontend's column
-        // picker sends in `selectedColumns`. When selectedColumns is empty/null, all of
-        // these are exported (in this order); otherwise only the requested keys are used,
-        // in the order the caller specified them.
+        // Every exportable column, keyed by the camelCase DTO field name (matches what
+        // GetAll returns as JSON, e.g. ProductionOrderMasterDto.ProductionOrderNumber ->
+        // "productionOrderNumber"). When selectedColumns is empty/null, all of these are
+        // exported (in this order); otherwise only the requested keys are used, in the
+        // order the caller specified them.
         private static readonly (string Key, string Header, Action<ClosedXML.Excel.IXLCell, ProductionOrderMasterDto> SetValue)[] ExportColumnDefinitions = new (string, string, Action<ClosedXML.Excel.IXLCell, ProductionOrderMasterDto>)[]
         {
-            ("poNumber", "PO Number", (cell, o) => cell.Value = o.ProductionOrderNumber),
+            ("productionOrderNumber", "PO Number", (cell, o) => cell.Value = o.ProductionOrderNumber),
             ("projectNumber", "Project Code", (cell, o) => cell.Value = o.ProjectNumber),
             ("projectDescription", "Description", (cell, o) => cell.Value = o.ProjectDescription),
             ("lnItemCode", "Item Code", (cell, o) => cell.Value = o.LnItemCode),
@@ -643,6 +654,16 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
             ("buildNumber", "Build No", (cell, o) => cell.Value = o.BuildNumber),
             ("snagSheetNo", "Snag Sheet No", (cell, o) => cell.Value = o.SnagSheetNo),
             ("unitName", "Unit", (cell, o) => cell.Value = o.UnitName),
+        };
+
+        // Extra names frontends commonly reach for that don't literally match a DTO field
+        // (e.g. "status" instead of "precheckStatus"/"precheckStatusName") -- resolved to
+        // the canonical key above before lookup.
+        private static readonly Dictionary<string, string> ExportColumnKeyAliases = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["poNumber"] = "productionOrderNumber",
+            ["status"] = "precheckStatus",
+            ["precheckStatusName"] = "precheckStatus",
         };
 
         public async Task<byte[]> ExportProductionOrdersAsync(
@@ -690,8 +711,19 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
                 if (selectedColumns != null && selectedColumns.Count > 0)
                 {
                     var byKey = ExportColumnDefinitions.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
-                    activeColumns = selectedColumns
-                        .Where(k => !string.IsNullOrWhiteSpace(k) && byKey.ContainsKey(k))
+                    var resolvedKeys = selectedColumns
+                        .Where(k => !string.IsNullOrWhiteSpace(k))
+                        .Select(k => ExportColumnKeyAliases.TryGetValue(k, out var canonical) ? canonical : k)
+                        .ToList();
+
+                    var unknownKeys = resolvedKeys.Where(k => !byKey.ContainsKey(k)).Distinct().ToList();
+                    if (unknownKeys.Count > 0)
+                    {
+                        _logger.LogWarning("Export: ignoring unrecognized selectedColumns key(s): {Keys}", string.Join(", ", unknownKeys));
+                    }
+
+                    activeColumns = resolvedKeys
+                        .Where(k => byKey.ContainsKey(k))
                         .Select(k => byKey[k])
                         .Distinct()
                         .ToArray();

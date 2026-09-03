@@ -16,7 +16,7 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
         Task<ProductionOrderDetailsDto> GetProductionOrderDetailsAsync(string productionOrderNumber);
         Task<byte[]> DownloadTemplateAsync();
         Task<List<ProductionOrderMasterDto>> GetAllPONumbersAsync(string? search = null);
-        Task<ProductionOrderCountsDto> GetProductionOrderCountsAsync(ProductionOrderCountFilterDto filter);
+        Task<ProductionOrderCountsDto> GetProductionOrderCountsAsync(string? dateFilterType, DateTime? filterDate, DateTime? fromDate, DateTime? toDate, string? poNumber, string? lnItemCode, int roleId, string? drawingNumber, string? searchQuery, List<string>? productionSeries);
         Task<byte[]> ExportProductionOrdersAsync(string? dateFilterType, DateTime? filterDate, DateTime? fromDate, DateTime? toDate, List<int>? precheckStatus, string? poNumber, string? lnItemCode, int roleId, string? drawingNumber, string? searchQuery, List<string>? productionSeries, List<string>? selectedColumns);
         Task<MinStatusUploadResultDto> UploadMinStatusExcelAsync(Stream fileStream, int updatedBy);
         Task<bool> DeleteProductionOrderAsync(DeleteProductionOrderRequestDto request);
