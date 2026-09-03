@@ -341,6 +341,48 @@ namespace Godrej.Precheck.Repository.Queries
 
         #endregion
 
+        #region GET_ALL_PRODUCTION_ORDERS_PAGED
+
+        public static readonly string GET_ALL_PRODUCTION_ORDERS_COUNT = @"
+    SELECT COUNT(*) AS TotalCount
+    FROM vw_production_order_summary
+    WHERE isactive = 1";
+
+        public static readonly string GET_ALL_PRODUCTION_ORDERS_PAGED = @"
+    SELECT
+        id,
+        productionordernumber,
+        projectnumber,
+        projectdescription,
+        lnitemcode,
+        itemdescription,
+        prodseriesid,
+        productionseries,
+        startidnumber,
+        quantity,
+        drawingnumberid,
+        drawingnumber,
+        nomenclature,
+        componenttype,
+        racklocation,
+        lnitemcodeid,
+        createddate,
+        MRIRNumber,
+        PrecheckStatus,
+        PrecheckStatusName,
+        min,
+        buildnumber AS BuildNumber,
+        snagsheetno AS SnagSheetNo,
+        endidnumber AS EndIdNumber,
+        ModifiedDate
+    FROM vw_production_order_summary
+    WHERE isactive = 1
+    ORDER BY createddate DESC
+    OFFSET @Offset ROWS
+    FETCH NEXT @PageSize ROWS ONLY";
+
+        #endregion
+
         #region GET_FILTERED_PRODUCTION_ORDERS
 
         public static readonly string GET_FILTERED_PRODUCTION_ORDERS = @"
@@ -443,8 +485,148 @@ LEFT JOIN (
             {STATUS_FILTER}
             {PO_FILTER}
             {LNITEM_FILTER}
-            {DRAWING_FILTER}       
+            {DRAWING_FILTER}
             ORDER BY pom.createddate DESC";
+
+        #endregion
+
+        #region GET_FILTERED_PRODUCTION_ORDERS_PAGED
+
+        // Count query only needs the joins that the filter placeholders actually reference
+        // (psc for {STATUS_FILTER}, dn for {DRAWING_FILTER}) -- the display-only joins
+        // (production series, nomenclature, component type, rack location) are omitted.
+        public static readonly string GET_FILTERED_PRODUCTION_ORDERS_COUNT = @"
+           WITH PrecheckStatusCalc AS (
+    SELECT
+        pom.id AS productionordernumberid,
+        CASE
+            WHEN pom.min IS NULL OR LTRIM(RTRIM(pom.min)) = '' THEN 4
+            WHEN COUNT(ppd.id) = SUM(CASE WHEN ppd.isprecheckcomplete = 1 THEN 1 ELSE 0 END)
+                 AND COUNT(ppd.id) > 0 THEN 3
+            WHEN SUM(CASE WHEN ppd.isprecheckcomplete = 1 THEN 1 ELSE 0 END) > 0 THEN 2
+            ELSE 1
+        END AS CalculatedStatus
+    FROM tbl_productionordermaster pom
+    LEFT JOIN tbl_projectdetails pd ON pom.id = pd.productionordernumberid AND pd.isactive = 1
+    LEFT JOIN tbl_projectprecheckdetails ppd
+        ON pd.id = ppd.projectdetailsid
+        AND ppd.isactive = 1
+    WHERE pom.isactive = 1
+    GROUP BY pom.id, pom.min
+)
+            SELECT COUNT(*) AS TotalCount
+            FROM tbl_productionordermaster pom
+            LEFT JOIN PrecheckStatusCalc psc ON pom.id = psc.productionordernumberid
+            LEFT JOIN tbl_drawingnumber dn ON pom.drawingnumberid = dn.id
+            WHERE pom.isactive = 1
+            {DATE_FILTER}
+            {STATUS_FILTER}
+            {PO_FILTER}
+            {LNITEM_FILTER}
+            {DRAWING_FILTER}";
+
+        public static readonly string GET_FILTERED_PRODUCTION_ORDERS_PAGED = @"
+           WITH PrecheckStatusCalc AS (
+    SELECT
+        pom.id AS productionordernumberid,
+        CASE
+            WHEN pom.min IS NULL OR LTRIM(RTRIM(pom.min)) = '' THEN 4
+            WHEN COUNT(ppd.id) = SUM(CASE WHEN ppd.isprecheckcomplete = 1 THEN 1 ELSE 0 END)
+                 AND COUNT(ppd.id) > 0 THEN 3
+            WHEN SUM(CASE WHEN ppd.isprecheckcomplete = 1 THEN 1 ELSE 0 END) > 0 THEN 2
+            ELSE 1
+        END AS CalculatedStatus,
+        MAX(ppd.modifieddate) AS LastModifiedDate
+    FROM tbl_productionordermaster pom
+    LEFT JOIN tbl_projectdetails pd ON pom.id = pd.productionordernumberid AND pd.isactive = 1
+    LEFT JOIN tbl_projectprecheckdetails ppd
+        ON pd.id = ppd.projectdetailsid
+        AND ppd.isactive = 1
+    WHERE pom.isactive = 1
+    GROUP BY pom.id, pom.min
+)
+            SELECT
+                pom.id,
+                pom.productionordernumber,
+                pom.projectnumber,
+                pom.projectdescription,
+                pom.lnitemcode,
+                pom.itemdescription,
+                pom.prodseriesid,
+                ps.productionseries,
+                pom.startidnumber,
+                pom.quantity,
+                pom.drawingnumberid,
+                dn.drawingnumber,
+                nom.nomenclature,
+                ct.componenttype,
+                sl.racklocation,
+                pom.lnitemcodeid,
+                pom.createddate,
+                pom.mrirnumber AS MRIRNumber,
+                pom.min As Min,
+                pom.buildnumber AS BuildNumber,
+                pom.snagsheetno AS SnagSheetNo,
+                pom.endidnumber AS EndIdNumber,
+                psc.CalculatedStatus AS PrecheckStatus,
+                CASE
+                    WHEN psc.CalculatedStatus = 1 THEN 'Pending'
+                    WHEN psc.CalculatedStatus = 2 THEN 'Partial'
+                    WHEN psc.CalculatedStatus = 3 THEN 'Completed'
+                    WHEN psc.CalculatedStatus = 4 THEN 'Pending-Planner'
+                    ELSE 'Unknown'
+                END AS PrecheckStatusName,
+                pom.modifieddate        AS ModifiedDate,
+                psc.LastModifiedDate    AS LastModifiedDate
+            FROM tbl_productionordermaster pom
+            LEFT JOIN PrecheckStatusCalc psc ON pom.id = psc.productionordernumberid
+            LEFT JOIN tbl_productionseries ps ON pom.prodseriesid = ps.id
+            LEFT JOIN tbl_drawingnumber dn ON pom.drawingnumberid = dn.id
+            LEFT JOIN (
+    SELECT
+        dnm.drawingnumberid,
+        STRING_AGG(nom.nomenclature, ', ') AS nomenclature
+    FROM tbl_drawingnomenclaturemapping dnm
+    JOIN tbl_nomenclature nom
+        ON dnm.nomenclatureid = nom.id
+    WHERE dnm.isactive = 1
+      AND nom.isactive = 1
+    GROUP BY dnm.drawingnumberid
+) nom
+    ON dn.id = nom.drawingnumberid
+LEFT JOIN (
+    SELECT
+        dctm.drawingnumberid,
+        STRING_AGG(ct.componenttype, ', ') AS componenttype
+    FROM tbl_drawingcomponenttypemapping dctm
+    JOIN tbl_componenttype ct
+        ON dctm.componenttypeid = ct.id
+    WHERE dctm.isactive = 1
+      AND ct.isactive = 1
+    GROUP BY dctm.drawingnumberid
+) ct
+    ON dn.id = ct.drawingnumberid
+LEFT JOIN (
+    SELECT
+        dlm.drawingnumberid,
+        STRING_AGG(sl.racklocation, ', ') AS racklocation
+    FROM tbl_drawingnlnitemlocationmapping dlm
+    JOIN tbl_storeitemlocation sl
+        ON dlm.racklocationid = sl.id
+    WHERE dlm.isactive = 1
+      AND sl.isactive = 1
+    GROUP BY dlm.drawingnumberid
+) sl
+    ON dn.id = sl.drawingnumberid
+            WHERE pom.isactive = 1
+            {DATE_FILTER}
+            {STATUS_FILTER}
+            {PO_FILTER}
+            {LNITEM_FILTER}
+            {DRAWING_FILTER}
+            ORDER BY pom.createddate DESC
+            OFFSET @Offset ROWS
+            FETCH NEXT @PageSize ROWS ONLY";
 
         #endregion
 
