@@ -239,6 +239,7 @@ namespace QRCodeApi.Controllers
             [FromQuery] string? lnItemCode = null,
             [FromQuery] string? role = null,
             [FromQuery] string? drawingNumber = null,
+            [FromQuery] string? searchQuery = null,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 20
             )
@@ -274,11 +275,11 @@ namespace QRCodeApi.Controllers
                 ProductionOrderMasterPagedResponse results;
 
                 // Check if any filters are applied
-                if (!string.IsNullOrEmpty(dateFilterType) || precheckStatus.HasValue|| !string.IsNullOrEmpty(poNumber) ||!string.IsNullOrEmpty(lnItemCode)|| !string.IsNullOrEmpty(drawingNumber))
+                if (!string.IsNullOrEmpty(dateFilterType) || precheckStatus.HasValue|| !string.IsNullOrEmpty(poNumber) ||!string.IsNullOrEmpty(lnItemCode)|| !string.IsNullOrEmpty(drawingNumber) || !string.IsNullOrEmpty(searchQuery))
                 {
                     results = await _productionOrderService.GetAllProductionOrdersPagedAsync(
                         dateFilterType, filterDate, fromDate, toDate, precheckStatus, poNumber,
-                        lnItemCode, roleid, drawingNumber, pageNumber, pageSize);
+                        lnItemCode, roleid, drawingNumber, searchQuery, pageNumber, pageSize);
                 }
                 else
                 {

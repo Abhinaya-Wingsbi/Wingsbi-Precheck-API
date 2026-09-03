@@ -12,7 +12,7 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
         Task<List<ProductionOrderMasterDto>> GetAllProductionOrdersAsync(int roleId = 0);
         Task<List<ProductionOrderMasterDto>> GetAllProductionOrdersAsync(string? dateFilterType, DateTime? filterDate, DateTime? fromDate, DateTime? toDate, int? precheckStatus, string? poNumber, string? lnItemCode, int roleId = 0, string? drawingNumber = null);
         Task<ProductionOrderMasterPagedResponse> GetAllProductionOrdersPagedAsync(int roleId, int pageNumber, int pageSize);
-        Task<ProductionOrderMasterPagedResponse> GetAllProductionOrdersPagedAsync(string? dateFilterType, DateTime? filterDate, DateTime? fromDate, DateTime? toDate, int? precheckStatus, string? poNumber, string? lnItemCode, int roleId, string? drawingNumber, int pageNumber, int pageSize);
+        Task<ProductionOrderMasterPagedResponse> GetAllProductionOrdersPagedAsync(string? dateFilterType, DateTime? filterDate, DateTime? fromDate, DateTime? toDate, int? precheckStatus, string? poNumber, string? lnItemCode, int roleId, string? drawingNumber, string? searchQuery, int pageNumber, int pageSize);
         Task<ProductionOrderDetailsDto> GetProductionOrderDetailsAsync(string productionOrderNumber);
         Task<byte[]> DownloadTemplateAsync();
         Task<List<ProductionOrderMasterDto>> GetAllPONumbersAsync(string? search = null);
