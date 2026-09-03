@@ -616,23 +616,61 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
             }
         }
 
+        // Every exportable column, keyed by the camelCase name the frontend's column
+        // picker sends in `selectedColumns`. When selectedColumns is empty/null, all of
+        // these are exported (in this order); otherwise only the requested keys are used,
+        // in the order the caller specified them.
+        private static readonly (string Key, string Header, Action<ClosedXML.Excel.IXLCell, ProductionOrderMasterDto> SetValue)[] ExportColumnDefinitions = new (string, string, Action<ClosedXML.Excel.IXLCell, ProductionOrderMasterDto>)[]
+        {
+            ("poNumber", "PO Number", (cell, o) => cell.Value = o.ProductionOrderNumber),
+            ("projectNumber", "Project Code", (cell, o) => cell.Value = o.ProjectNumber),
+            ("projectDescription", "Description", (cell, o) => cell.Value = o.ProjectDescription),
+            ("lnItemCode", "Item Code", (cell, o) => cell.Value = o.LnItemCode),
+            ("itemDescription", "Item Desc", (cell, o) => cell.Value = o.ItemDescription),
+            ("productionSeries", "Series", (cell, o) => cell.Value = o.ProductionSeries),
+            ("startIdNumber", "Start ID", (cell, o) => cell.Value = o.StartIdNumber),
+            ("endIdNumber", "End ID", (cell, o) => cell.Value = o.EndIdNumber),
+            ("quantity", "Quantity", (cell, o) => cell.Value = o.Quantity),
+            ("precheckStatus", "Status", (cell, o) => cell.Value = o.PrecheckStatusName),
+            ("drawingNumber", "Drawing Number", (cell, o) => cell.Value = o.DrawingNumber),
+            ("rackLocation", "Rack Loc", (cell, o) => cell.Value = o.RackLocation),
+            ("nomenclature", "Nomenclature", (cell, o) => cell.Value = o.Nomenclature),
+            ("componentType", "Component Type", (cell, o) => cell.Value = o.ComponentType),
+            ("createdDate", "Created Date", (cell, o) => { cell.Value = o.CreatedDate; cell.Style.DateFormat.Format = "dd-MM-yyyy"; }),
+            ("modifiedDate", "Last Modified", (cell, o) => { cell.Value = o.ModifiedDate; cell.Style.DateFormat.Format = "dd-MM-yyyy"; }),
+            ("mrirNumber", "MRIR Number", (cell, o) => cell.Value = o.MRIRNumber),
+            ("min", "Min", (cell, o) => cell.Value = o.Min),
+            ("buildNumber", "Build No", (cell, o) => cell.Value = o.BuildNumber),
+            ("snagSheetNo", "Snag Sheet No", (cell, o) => cell.Value = o.SnagSheetNo),
+            ("unitName", "Unit", (cell, o) => cell.Value = o.UnitName),
+        };
+
         public async Task<byte[]> ExportProductionOrdersAsync(
                 string? dateFilterType,
                 DateTime? filterDate,
                 DateTime? fromDate,
                 DateTime? toDate,
-                int? precheckStatus,
+                List<int>? precheckStatus,
                 string? poNumber,
                 string? lnItemCode,
-                int roleId = 0)
+                int roleId,
+                string? drawingNumber,
+                string? searchQuery,
+                List<string>? productionSeries,
+                List<string>? selectedColumns)
         {
             _logger.LogInformation("Service: Exporting Production Orders");
 
             try
             {
+                // pageSize: int.MaxValue == "no pagination" -- exports need every matching row,
+                // not one page, and this reuses the same array-capable filtered query GetAll uses
+                // instead of duplicating its SQL.
+                var (items, _) = await _productionOrderRepository.GetAllProductionOrdersPagedAsync(
+                    dateFilterType, filterDate, fromDate, toDate, precheckStatus, poNumber, lnItemCode,
+                    drawingNumber, searchQuery, productionSeries, pageNumber: 1, pageSize: int.MaxValue);
 
-                var orders = await GetAllProductionOrdersAsync(
-                        dateFilterType, filterDate, fromDate, toDate, precheckStatus, poNumber, lnItemCode, roleId);
+                var orders = await ApplyBomLevelingByRoleAsync(items, roleId);
 
                 var counts = new ProductionOrderCountsDto
                 {
@@ -648,19 +686,28 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
 
                 int headerRow = 1;
 
-                var headers = new[]
+                var activeColumns = ExportColumnDefinitions;
+                if (selectedColumns != null && selectedColumns.Count > 0)
                 {
-        "PO Number", "Project Code", "Description", "Item Code", "Item Desc",
-        "Series", "Start ID", "Quantity", "Status", "Rack Loc",
-        "Created Date", "Last Modified", "MRIR Number"
-    };
+                    var byKey = ExportColumnDefinitions.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
+                    activeColumns = selectedColumns
+                        .Where(k => !string.IsNullOrWhiteSpace(k) && byKey.ContainsKey(k))
+                        .Select(k => byKey[k])
+                        .Distinct()
+                        .ToArray();
 
-                for (int i = 0; i < headers.Length; i++)
-                {
-                    worksheet.Cell(headerRow, i + 1).Value = headers[i];
+                    if (activeColumns.Length == 0)
+                    {
+                        activeColumns = ExportColumnDefinitions;
+                    }
                 }
 
-                worksheet.Range(headerRow, 1, headerRow, headers.Length);
+                for (int i = 0; i < activeColumns.Length; i++)
+                {
+                    worksheet.Cell(headerRow, i + 1).Value = activeColumns[i].Header;
+                }
+
+                worksheet.Range(headerRow, 1, headerRow, activeColumns.Length);
                 // Freeze header
                 worksheet.SheetView.FreezeRows(1);
 
@@ -669,30 +716,16 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
 
                 foreach (var order in orders)
                 {
-                    worksheet.Cell(row, 1).Value = order.ProductionOrderNumber;
-                    worksheet.Cell(row, 2).Value = order.ProjectNumber;
-                    worksheet.Cell(row, 3).Value = order.ProjectDescription;
-                    worksheet.Cell(row, 4).Value = order.LnItemCode;
-                    worksheet.Cell(row, 5).Value = order.ItemDescription;
-                    worksheet.Cell(row, 6).Value = order.ProductionSeries;
-                    worksheet.Cell(row, 7).Value = order.StartIdNumber;
-                    worksheet.Cell(row, 8).Value = order.Quantity;
-                    worksheet.Cell(row, 9).Value = order.PrecheckStatusName;
-                    worksheet.Cell(row, 10).Value = order.RackLocation;
-
-                    worksheet.Cell(row, 11).Value = order.CreatedDate;
-                    worksheet.Cell(row, 11).Style.DateFormat.Format = "dd-MM-yyyy";
-
-                    worksheet.Cell(row, 12).Value = order.ModifiedDate;
-                    worksheet.Cell(row, 12).Style.DateFormat.Format = "dd-MM-yyyy";
-
-                    worksheet.Cell(row, 13).Value = order.MRIRNumber;
+                    for (int c = 0; c < activeColumns.Length; c++)
+                    {
+                        activeColumns[c].SetValue(worksheet.Cell(row, c + 1), order);
+                    }
 
                     row++;
                 }
 
 
-                worksheet.Range(headerRow + 1, 1, row - 1, headers.Length);
+                worksheet.Range(headerRow + 1, 1, row - 1, activeColumns.Length);
 
                 int summaryStartRow = row + 2;
 
