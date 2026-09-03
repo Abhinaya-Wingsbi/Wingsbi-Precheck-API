@@ -493,8 +493,9 @@ LEFT JOIN (
         #region GET_FILTERED_PRODUCTION_ORDERS_PAGED
 
         // Count query only needs the joins that the filter placeholders actually reference
-        // (psc for {STATUS_FILTER}, dn for {DRAWING_FILTER}) -- the display-only joins
-        // (production series, nomenclature, component type, rack location) are omitted.
+        // (psc for {STATUS_FILTER}, dn for {DRAWING_FILTER} and {SEARCH_FILTER}) -- the
+        // display-only joins (production series, nomenclature, component type, rack location)
+        // are omitted.
         public static readonly string GET_FILTERED_PRODUCTION_ORDERS_COUNT = @"
            WITH PrecheckStatusCalc AS (
     SELECT
@@ -523,7 +524,8 @@ LEFT JOIN (
             {STATUS_FILTER}
             {PO_FILTER}
             {LNITEM_FILTER}
-            {DRAWING_FILTER}";
+            {DRAWING_FILTER}
+            {SEARCH_FILTER}";
 
         public static readonly string GET_FILTERED_PRODUCTION_ORDERS_PAGED = @"
            WITH PrecheckStatusCalc AS (
@@ -624,6 +626,7 @@ LEFT JOIN (
             {PO_FILTER}
             {LNITEM_FILTER}
             {DRAWING_FILTER}
+            {SEARCH_FILTER}
             ORDER BY pom.createddate DESC
             OFFSET @Offset ROWS
             FETCH NEXT @PageSize ROWS ONLY";

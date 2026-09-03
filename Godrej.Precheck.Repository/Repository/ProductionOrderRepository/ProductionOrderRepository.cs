@@ -487,6 +487,7 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
             string? poNumber,
             string? lnItemCode,
             string? drawingnumber,
+            string? searchQuery,
             int pageNumber,
             int pageSize)
         {
@@ -499,6 +500,7 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                 var poFilter = " AND 1=1";
                 var lnItemFilter = " AND 1=1";
                 var drawingFilter = " AND 1=1";
+                var searchFilter = " AND 1=1";
 
                 if (!string.IsNullOrEmpty(dateFilterType) && dateFilterType.Equals("single", StringComparison.OrdinalIgnoreCase) && filterDate.HasValue)
                 {
@@ -530,6 +532,21 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                     lnItemFilter = " AND pom.lnitemcode LIKE '%' + @LnItemCode + '%'";
                 }
 
+                // Generic search box: unlike the field-specific filters above (which are ANDed
+                // together), this one checks the search text against lnitemcode and
+                // productionordernumber (both live directly on tbl_productionordermaster) OR the
+                // drawing number -- dn is already joined via pom.drawingnumberid = dn.id, so matching
+                // dn.drawingnumber here is exactly "look up tbl_drawingnumber by name, then match its
+                // id against pom.drawingnumberid" without a separate subquery.
+                if (!string.IsNullOrWhiteSpace(searchQuery))
+                {
+                    searchFilter = @" AND (
+                        pom.lnitemcode LIKE '%' + @SearchQuery + '%'
+                        OR pom.productionordernumber LIKE '%' + @SearchQuery + '%'
+                        OR dn.drawingnumber LIKE '%' + @SearchQuery + '%'
+                    )";
+                }
+
                 var queryParams = new
                 {
                     FilterDate = filterDate,
@@ -538,7 +555,8 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                     PrecheckStatus = precheckStatus,
                     PoNumber = poNumber,
                     LnItemCode = lnItemCode,
-                    DrawingNumber = drawingnumber
+                    DrawingNumber = drawingnumber,
+                    SearchQuery = searchQuery
                 };
 
                 var countQuery = ProductionOrderQueries.GET_FILTERED_PRODUCTION_ORDERS_COUNT
@@ -546,7 +564,8 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                     .Replace("{STATUS_FILTER}", statusFilter)
                     .Replace("{PO_FILTER}", poFilter)
                     .Replace("{LNITEM_FILTER}", lnItemFilter)
-                    .Replace("{DRAWING_FILTER}", drawingFilter);
+                    .Replace("{DRAWING_FILTER}", drawingFilter)
+                    .Replace("{SEARCH_FILTER}", searchFilter);
 
                 var totalCount = await _db.ExecuteScalar<int>(countQuery, queryParams);
 
@@ -556,7 +575,8 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                     .Replace("{STATUS_FILTER}", statusFilter)
                     .Replace("{PO_FILTER}", poFilter)
                     .Replace("{LNITEM_FILTER}", lnItemFilter)
-                    .Replace("{DRAWING_FILTER}", drawingFilter);
+                    .Replace("{DRAWING_FILTER}", drawingFilter)
+                    .Replace("{SEARCH_FILTER}", searchFilter);
 
                 var results = await _db.GetAll<ProductionOrderMasterDto>(
                     dataQuery,
@@ -569,6 +589,7 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                         PoNumber = poNumber,
                         LnItemCode = lnItemCode,
                         DrawingNumber = drawingnumber,
+                        SearchQuery = searchQuery,
                         Offset = offset,
                         PageSize = pageSize
                     });
