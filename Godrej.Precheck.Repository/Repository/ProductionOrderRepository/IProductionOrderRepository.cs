@@ -19,7 +19,7 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
 
         // SQL-side pagination (OFFSET/FETCH) for the /api/ProductionOrder/GetAll endpoint.
         Task<(List<ProductionOrderMasterDto> Items, int TotalCount)> GetAllProductionOrdersPagedAsync(int pageNumber, int pageSize);
-        Task<(List<ProductionOrderMasterDto> Items, int TotalCount)> GetAllProductionOrdersPagedAsync(string? dateFilterType, DateTime? filterDate, DateTime? fromDate, DateTime? toDate, int? precheckStatus, string? poNumber, string? lnItemCode, string? drawingnumber, string? searchQuery, int pageNumber, int pageSize);
+        Task<(List<ProductionOrderMasterDto> Items, int TotalCount)> GetAllProductionOrdersPagedAsync(string? dateFilterType, DateTime? filterDate, DateTime? fromDate, DateTime? toDate, List<int>? precheckStatus, string? poNumber, string? lnItemCode, string? drawingnumber, string? searchQuery, List<string>? productionSeries, int pageNumber, int pageSize);
 
         Task<List<ProductionOrderMasterDto>> GetAllPONumbersAsync(string? search = null);
         Task<(int? DrawingNumberId, int? LnItemCodeId, string? DrawingNumber, string? Nomenclature)> LookupDrawingByLnItemCodeAsync(string lnItemCode);

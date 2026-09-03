@@ -519,13 +519,15 @@ LEFT JOIN (
             FROM tbl_productionordermaster pom
             LEFT JOIN PrecheckStatusCalc psc ON pom.id = psc.productionordernumberid
             LEFT JOIN tbl_drawingnumber dn ON pom.drawingnumberid = dn.id
+            LEFT JOIN tbl_productionseries ps ON pom.prodseriesid = ps.id
             WHERE pom.isactive = 1
             {DATE_FILTER}
             {STATUS_FILTER}
             {PO_FILTER}
             {LNITEM_FILTER}
             {DRAWING_FILTER}
-            {SEARCH_FILTER}";
+            {SEARCH_FILTER}
+            {SERIES_FILTER}";
 
         public static readonly string GET_FILTERED_PRODUCTION_ORDERS_PAGED = @"
            WITH PrecheckStatusCalc AS (
@@ -627,6 +629,7 @@ LEFT JOIN (
             {LNITEM_FILTER}
             {DRAWING_FILTER}
             {SEARCH_FILTER}
+            {SERIES_FILTER}
             ORDER BY pom.createddate DESC
             OFFSET @Offset ROWS
             FETCH NEXT @PageSize ROWS ONLY";

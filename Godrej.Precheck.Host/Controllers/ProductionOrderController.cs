@@ -227,21 +227,12 @@ namespace QRCodeApi.Controllers
         /// Supports optional filtering by date and precheck status
         /// </summary>
         [Authorize]
-        [HttpGet("GetAll")]
+        [HttpPost("GetAll")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAllProductionOrder(
-            [FromQuery] string? dateFilterType = null,
-            [FromQuery] DateTime? filterDate = null,
-            [FromQuery] DateTime? fromDate = null,
-            [FromQuery] DateTime? toDate = null,
-            [FromQuery] int? precheckStatus = null,
-            [FromQuery] string? poNumber = null,
-            [FromQuery] string? lnItemCode = null,
-            [FromQuery] string? role = null,
-            [FromQuery] string? drawingNumber = null,
-            [FromQuery] string? searchQuery = null,
             [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 20
+            [FromQuery] int pageSize = 20,
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ProductionOrderFilterRequestDto? filter = null
             )
         {
             _logger.LogInformation("Request received for ProductionOrderController:GetAll with filters, page {PageNumber} size {PageSize}", pageNumber, pageSize);
@@ -252,12 +243,14 @@ namespace QRCodeApi.Controllers
 
             try
             {
-                var roleIdStr = User.FindFirst("roleid")?.Value 
+                var roleIdStr = User.FindFirst("roleid")?.Value
                              ?? User.FindFirst("roleid")?.Value
                              ?? User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
                              ?? "0";
 
                 int.TryParse(roleIdStr, out int roleid);
+
+                var role = filter?.Role;
 
                 if (!string.IsNullOrEmpty(role))
                 {
@@ -274,12 +267,15 @@ namespace QRCodeApi.Controllers
 
                 ProductionOrderMasterPagedResponse results;
 
+                var precheckStatus = filter?.PrecheckStatus?.Count > 0 ? filter.PrecheckStatus : null;
+                var productionSeries = filter?.ProductionSeries?.Count > 0 ? filter.ProductionSeries : null;
+
                 // Check if any filters are applied
-                if (!string.IsNullOrEmpty(dateFilterType) || precheckStatus.HasValue|| !string.IsNullOrEmpty(poNumber) ||!string.IsNullOrEmpty(lnItemCode)|| !string.IsNullOrEmpty(drawingNumber) || !string.IsNullOrEmpty(searchQuery))
+                if (filter != null && (!string.IsNullOrEmpty(filter.DateFilterType) || precheckStatus != null || !string.IsNullOrEmpty(filter.PoNumber) || !string.IsNullOrEmpty(filter.LnItemCode) || !string.IsNullOrEmpty(filter.DrawingNumber) || !string.IsNullOrEmpty(filter.SearchQuery) || productionSeries != null))
                 {
                     results = await _productionOrderService.GetAllProductionOrdersPagedAsync(
-                        dateFilterType, filterDate, fromDate, toDate, precheckStatus, poNumber,
-                        lnItemCode, roleid, drawingNumber, searchQuery, pageNumber, pageSize);
+                        filter.DateFilterType, filter.FilterDate, filter.FromDate, filter.ToDate, precheckStatus, filter.PoNumber,
+                        filter.LnItemCode, roleid, filter.DrawingNumber, filter.SearchQuery, productionSeries, pageNumber, pageSize);
                 }
                 else
                 {
@@ -346,7 +342,7 @@ namespace QRCodeApi.Controllers
         /// Get Counts of Production Orders (Total, Completed, Partial)
         /// </summary>
         [Authorize]
-        [HttpGet("GetCounts")]
+        [HttpPost("GetCounts")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetProductionOrderCounts(
             [FromQuery] string? dateFilterType=null,

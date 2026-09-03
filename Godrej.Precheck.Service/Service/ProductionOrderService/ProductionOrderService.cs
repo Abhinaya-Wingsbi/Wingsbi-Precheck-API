@@ -123,17 +123,18 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
             DateTime? filterDate,
             DateTime? fromDate,
             DateTime? toDate,
-            int? precheckStatus,
+            List<int>? precheckStatus,
             string? poNumber,
             string? lnItemCode,
             int roleId,
             string? drawingNumber,
             string? searchQuery,
+            List<string>? productionSeries,
             int pageNumber,
             int pageSize)
         {
             var (items, totalCount) = await _productionOrderRepository.GetAllProductionOrdersPagedAsync(
-                dateFilterType, filterDate, fromDate, toDate, precheckStatus, poNumber, lnItemCode, drawingNumber, searchQuery, pageNumber, pageSize);
+                dateFilterType, filterDate, fromDate, toDate, precheckStatus, poNumber, lnItemCode, drawingNumber, searchQuery, productionSeries, pageNumber, pageSize);
             var leveled = await ApplyBomLevelingByRoleAsync(items, roleId);
 
             return new ProductionOrderMasterPagedResponse

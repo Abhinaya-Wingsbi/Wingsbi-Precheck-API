@@ -483,16 +483,17 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
             DateTime? filterDate,
             DateTime? fromDate,
             DateTime? toDate,
-            int? precheckStatus,
+            List<int>? precheckStatus,
             string? poNumber,
             string? lnItemCode,
             string? drawingnumber,
             string? searchQuery,
+            List<string>? productionSeries,
             int pageNumber,
             int pageSize)
         {
             _logger.LogInformation("Fetching paged filtered ProductionOrders: page {PageNumber}, size {PageSize}, DateType: {DateType}, Status: {Status}",
-                pageNumber, pageSize, dateFilterType, precheckStatus);
+                pageNumber, pageSize, dateFilterType, precheckStatus != null ? string.Join(",", precheckStatus) : null);
             try
             {
                 var dateFilter = " AND 1=1";
@@ -501,6 +502,7 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                 var lnItemFilter = " AND 1=1";
                 var drawingFilter = " AND 1=1";
                 var searchFilter = " AND 1=1";
+                var seriesFilter = " AND 1=1";
 
                 if (!string.IsNullOrEmpty(dateFilterType) && dateFilterType.Equals("single", StringComparison.OrdinalIgnoreCase) && filterDate.HasValue)
                 {
@@ -517,9 +519,14 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                     drawingFilter = " AND dn.drawingnumber LIKE '%' + @DrawingNumber + '%'";
                 }
 
-                if (precheckStatus.HasValue)
+                if (precheckStatus != null && precheckStatus.Count > 0)
                 {
-                    statusFilter = " AND COALESCE(psc.CalculatedStatus, 1) = @PrecheckStatus";
+                    statusFilter = " AND COALESCE(psc.CalculatedStatus, 1) IN @PrecheckStatus";
+                }
+
+                if (productionSeries != null && productionSeries.Count > 0)
+                {
+                    seriesFilter = " AND ps.productionseries IN @ProductionSeries";
                 }
 
                 if (!string.IsNullOrWhiteSpace(poNumber))
@@ -556,7 +563,8 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                     PoNumber = poNumber,
                     LnItemCode = lnItemCode,
                     DrawingNumber = drawingnumber,
-                    SearchQuery = searchQuery
+                    SearchQuery = searchQuery,
+                    ProductionSeries = productionSeries
                 };
 
                 var countQuery = ProductionOrderQueries.GET_FILTERED_PRODUCTION_ORDERS_COUNT
@@ -565,7 +573,8 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                     .Replace("{PO_FILTER}", poFilter)
                     .Replace("{LNITEM_FILTER}", lnItemFilter)
                     .Replace("{DRAWING_FILTER}", drawingFilter)
-                    .Replace("{SEARCH_FILTER}", searchFilter);
+                    .Replace("{SEARCH_FILTER}", searchFilter)
+                    .Replace("{SERIES_FILTER}", seriesFilter);
 
                 var totalCount = await _db.ExecuteScalar<int>(countQuery, queryParams);
 
@@ -576,7 +585,8 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                     .Replace("{PO_FILTER}", poFilter)
                     .Replace("{LNITEM_FILTER}", lnItemFilter)
                     .Replace("{DRAWING_FILTER}", drawingFilter)
-                    .Replace("{SEARCH_FILTER}", searchFilter);
+                    .Replace("{SEARCH_FILTER}", searchFilter)
+                    .Replace("{SERIES_FILTER}", seriesFilter);
 
                 var results = await _db.GetAll<ProductionOrderMasterDto>(
                     dataQuery,
@@ -590,6 +600,7 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                         LnItemCode = lnItemCode,
                         DrawingNumber = drawingnumber,
                         SearchQuery = searchQuery,
+                        ProductionSeries = productionSeries,
                         Offset = offset,
                         PageSize = pageSize
                     });
