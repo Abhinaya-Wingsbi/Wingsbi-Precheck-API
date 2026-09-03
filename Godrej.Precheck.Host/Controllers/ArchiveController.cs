@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Godrej.Precheck.Host.Controllers
 {
     [Route("api/[controller]")]
-    [ApiController]
+    [ApiController] 
     public class ArchiveController : ControllerBase
     {
         private readonly IBackupArchiveService _backupArchiveService;
