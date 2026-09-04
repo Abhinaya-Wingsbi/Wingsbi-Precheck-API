@@ -345,55 +345,39 @@ namespace QRCodeApi.Controllers
         [HttpPost("GetCounts")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetProductionOrderCounts(
-            [FromQuery] string? dateFilterType=null,
-            [FromQuery] DateTime? filterDate=null,
-            [FromQuery] DateTime? fromDate = null,
-            [FromQuery] DateTime? toDate = null,
-            [FromQuery] int? precheckStatus = null,
-            [FromQuery] string? poNumber = null,
-            [FromQuery] string? lnItemCode = null,
-            [FromQuery] string? role = null,
-            [FromQuery] int roleid = 0,
-            [FromQuery] string? drawingnumber = null)
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ProductionOrderFilterRequestDto? filter = null)
         {
-            if (roleid == 0)
+            var roleIdStr = User.FindFirst("roleid")?.Value
+                         ?? User.FindFirst("roleid")?.Value
+                         ?? User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+                         ?? "0";
+
+            int.TryParse(roleIdStr, out int roleid);
+
+            var role = filter?.Role;
+
+            if (!string.IsNullOrEmpty(role))
             {
-                var roleIdStr = User.FindFirst("roleid")?.Value 
-                             ?? User.FindFirst("roleid")?.Value
-                             ?? User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
-                             ?? "0";
-
-                int.TryParse(roleIdStr, out roleid);
-
-                if (!string.IsNullOrEmpty(role))
-                {
-                    if (role.Equals("QC", StringComparison.OrdinalIgnoreCase)) roleid = 2;
-                    else if (role.Equals("Store", StringComparison.OrdinalIgnoreCase)) roleid = 3;
-                    else if (role.Equals("Admin", StringComparison.OrdinalIgnoreCase) || role.Equals("Planner", StringComparison.OrdinalIgnoreCase)) roleid = 1;
-                }
-                else if (roleid == 0 && !string.IsNullOrEmpty(roleIdStr))
-                {
-                    if (roleIdStr.Equals("QC", StringComparison.OrdinalIgnoreCase)) roleid = 2;
-                    else if (roleIdStr.Equals("Store", StringComparison.OrdinalIgnoreCase)) roleid = 3;
-                    else if (roleIdStr.Equals("Admin", StringComparison.OrdinalIgnoreCase) || roleIdStr.Equals("Planner", StringComparison.OrdinalIgnoreCase)) roleid = 1;
-                }
+                if (role.Equals("QC", StringComparison.OrdinalIgnoreCase)) roleid = 2;
+                else if (role.Equals("Store", StringComparison.OrdinalIgnoreCase)) roleid = 3;
+                else if (role.Equals("Admin", StringComparison.OrdinalIgnoreCase) || role.Equals("Planner", StringComparison.OrdinalIgnoreCase)) roleid = 1;
             }
-            var filter = new ProductionOrderCountFilterDto
+            else if (roleid == 0 && !string.IsNullOrEmpty(roleIdStr))
             {
-                DateFilterType = dateFilterType,
-                FilterDate = filterDate,
-                FromDate = fromDate,
-                ToDate = toDate,
-                PrecheckStatus = precheckStatus,
-                PoNumber = poNumber,
-                LnItemCode = lnItemCode,
-                RoleId = roleid,
-                DrawingNumber= drawingnumber
-            };
-          
+                if (roleIdStr.Equals("QC", StringComparison.OrdinalIgnoreCase)) roleid = 2;
+                else if (roleIdStr.Equals("Store", StringComparison.OrdinalIgnoreCase)) roleid = 3;
+                else if (roleIdStr.Equals("Admin", StringComparison.OrdinalIgnoreCase) || roleIdStr.Equals("Planner", StringComparison.OrdinalIgnoreCase)) roleid = 1;
+            }
+
             try
             {
-                var result = await _productionOrderService.GetProductionOrderCountsAsync(filter);
+                var productionSeries = filter?.ProductionSeries?.Count > 0 ? filter.ProductionSeries : null;
+
+                var result = await _productionOrderService.GetProductionOrderCountsAsync(
+                    filter?.DateFilterType, filter?.FilterDate, filter?.FromDate, filter?.ToDate,
+                    filter?.PoNumber, filter?.LnItemCode, roleid, filter?.DrawingNumber, filter?.SearchQuery,
+                    productionSeries);
+
                 return Ok(result);
             }
             catch (Exception ex)
@@ -407,48 +391,45 @@ namespace QRCodeApi.Controllers
         /// Export Production Orders to Excel with Summary Counts
         /// </summary>
         [Authorize]
-        [HttpGet("Export")]
+        [HttpPost("Export")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Export(
-            [FromQuery] string? dateFilterType = null,
-            [FromQuery] DateTime? filterDate = null,
-            [FromQuery] DateTime? fromDate = null,
-            [FromQuery] DateTime? toDate = null,
-            [FromQuery] int? precheckStatus = null, 
-            [FromQuery] string? poNumber = null,
-            [FromQuery] string? lnItemCode = null,
-            [FromQuery] string? role = null,
-            [FromQuery] int roleid = 0)
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ProductionOrderFilterRequestDto? filter = null)
         {
             _logger.LogInformation("Request received for ProductionOrderController:Export");
 
             try
             {
-                if (roleid == 0)
+                var roleIdStr = User.FindFirst("roleid")?.Value
+                             ?? User.FindFirst("roleid")?.Value
+                             ?? User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+                             ?? "0";
+
+                int.TryParse(roleIdStr, out int roleid);
+
+                var role = filter?.Role;
+
+                if (!string.IsNullOrEmpty(role))
                 {
-                    var roleIdStr = User.FindFirst("roleid")?.Value 
-                                 ?? User.FindFirst("roleid")?.Value
-                                 ?? User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
-                                 ?? "0";
-
-                    int.TryParse(roleIdStr, out roleid);
-
-                    if (!string.IsNullOrEmpty(role))
-                    {
-                        if (role.Equals("QC", StringComparison.OrdinalIgnoreCase)) roleid = 2;
-                        else if (role.Equals("Store", StringComparison.OrdinalIgnoreCase)) roleid = 3;
-                        else if (role.Equals("Admin", StringComparison.OrdinalIgnoreCase) || role.Equals("Planner", StringComparison.OrdinalIgnoreCase)) roleid = 1;
-                    }
-                    else if (roleid == 0 && !string.IsNullOrEmpty(roleIdStr))
-                    {
-                        if (roleIdStr.Equals("QC", StringComparison.OrdinalIgnoreCase)) roleid = 2;
-                        else if (roleIdStr.Equals("Store", StringComparison.OrdinalIgnoreCase)) roleid = 3;
-                        else if (roleIdStr.Equals("Admin", StringComparison.OrdinalIgnoreCase) || roleIdStr.Equals("Planner", StringComparison.OrdinalIgnoreCase)) roleid = 1;
-                    }
+                    if (role.Equals("QC", StringComparison.OrdinalIgnoreCase)) roleid = 2;
+                    else if (role.Equals("Store", StringComparison.OrdinalIgnoreCase)) roleid = 3;
+                    else if (role.Equals("Admin", StringComparison.OrdinalIgnoreCase) || role.Equals("Planner", StringComparison.OrdinalIgnoreCase)) roleid = 1;
+                }
+                else if (roleid == 0 && !string.IsNullOrEmpty(roleIdStr))
+                {
+                    if (roleIdStr.Equals("QC", StringComparison.OrdinalIgnoreCase)) roleid = 2;
+                    else if (roleIdStr.Equals("Store", StringComparison.OrdinalIgnoreCase)) roleid = 3;
+                    else if (roleIdStr.Equals("Admin", StringComparison.OrdinalIgnoreCase) || roleIdStr.Equals("Planner", StringComparison.OrdinalIgnoreCase)) roleid = 1;
                 }
 
+                var precheckStatus = filter?.PrecheckStatus?.Count > 0 ? filter.PrecheckStatus : null;
+                var productionSeries = filter?.ProductionSeries?.Count > 0 ? filter.ProductionSeries : null;
+                var selectedColumns = filter?.SelectedColumns?.Count > 0 ? filter.SelectedColumns : null;
+
                 var fileBytes = await _productionOrderService.ExportProductionOrdersAsync(
-                    dateFilterType, filterDate, fromDate, toDate, precheckStatus, poNumber, lnItemCode, roleid);
+                    filter?.DateFilterType, filter?.FilterDate, filter?.FromDate, filter?.ToDate, precheckStatus,
+                    filter?.PoNumber, filter?.LnItemCode, roleid, filter?.DrawingNumber, filter?.SearchQuery,
+                    productionSeries, selectedColumns);
 
                 return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "ProductionOrder_Download.xlsx");
             }

@@ -313,29 +313,39 @@ namespace QRCodeApi.Controllers
         }
 
         [Authorize]
-        [HttpGet("GetBarcodeDetailsWithParameters")]
+        [HttpPost("GetBarcodeDetailsWithParameters")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetQRcodeDetailsWithParametersAsync([FromQuery] GetQRCodeRequestDto getQRCodeRequestDto)
+        public async Task<IActionResult> GetQRcodeDetailsWithParametersAsync(
+            [FromQuery] int? CreatedBy = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] GetBarcodeDetailsRequestDto? request = null)
         {
-            _logger.LogInformation($"Request received for GetQRcodeDetailsWithParametersAsync with getQRCodeRequestDto: {getQRCodeRequestDto}");
+            _logger.LogInformation($"Request received for GetQRcodeDetailsWithParametersAsync with request: {request}, CreatedBy: {CreatedBy}");
+
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 200) pageSize = 200;
 
             try
             {
-                var result = await _qrCodeService.GetQRCodeDetailsWithParameterService(getQRCodeRequestDto);
+                var result = await _qrCodeService.GetBarcodeDetailsWithParametersService(
+                    request?.SearchQuery, request?.ProdSeries, CreatedBy, request?.FromDate, request?.ToDate,
+                    pageNumber, pageSize);
 
-                if (result == null)
+                if (result.Data.Count == 0)
                 {
-                    _logger.LogInformation("No QR code details found for Request {Request}", getQRCodeRequestDto);
+                    _logger.LogInformation("No QR code details found for Request {Request}", request);
                     return NotFound("No QR code details found.");
                 }
 
-                _logger.LogInformation($"GetQRcodeDetailsWithParametersAsync successful for Request: {getQRCodeRequestDto}, response: {result}");
+                _logger.LogInformation($"GetQRcodeDetailsWithParametersAsync successful for Request: {request}, page {result.PageNumber} of {result.TotalPages}, response count: {result.Data.Count}");
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Unexpected error in GetQRcodeDetailsWithParametersAsync for Request: {getQRCodeRequestDto}");
+                _logger.LogError(ex, $"Unexpected error in GetQRcodeDetailsWithParametersAsync for Request: {request}");
                 return BadRequest("An error occurred while processing your request. Please try again later.");
             }
         }
@@ -721,7 +731,9 @@ namespace QRCodeApi.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> ExportViewQrCodeAsync([FromBody] GetQRCodeRequestDto request)
+        public async Task<IActionResult> ExportViewQrCodeAsync(
+            [FromQuery] int? CreatedBy,
+            [FromBody] ExportViewQrCodeRequestDto request)
         {
             _logger.LogInformation($"Request received for ExportViewQrCode with request: {request}");
 
@@ -816,7 +828,7 @@ namespace QRCodeApi.Controllers
                         }
 
                         var orderedQrCodes = OrderByLatestCreated(allQRCodeDetails);
-                        var excelContent = _qrCodeService.ExportQRCodeToExcel(orderedQrCodes);
+                        var excelContent = _qrCodeService.ExportQRCodeToExcel(orderedQrCodes, request.SelectedColumns);
 
                         var firstDetail = orderedQrCodes.First();
                         var userName = User.FindFirst("username")?.Value ?? "User";
@@ -832,8 +844,13 @@ namespace QRCodeApi.Controllers
                 }
                 else
                 {
-                    // Use existing parameter-based query (for backward compatibility)
-                    var allQRCodeDetails = await _qrCodeService.GetQRCodeDetailsWithParameterService(request);
+                    // Same filter shape as GetBarcodeDetailsWithParameters -- every filter ANDed
+                    // together, DrawingNumber/LineItemCode by text, ProdSeries/IdNumbers as arrays.
+                    // pageSize: int.MaxValue == "no pagination", export needs every matching row.
+                    var pagedResult = await _qrCodeService.GetBarcodeDetailsWithParametersService(
+                        request.SearchQuery, request.ProdSeries, CreatedBy, request.FromDate, request.ToDate,
+                        pageNumber: 1, pageSize: int.MaxValue);
+                    var allQRCodeDetails = pagedResult.Data;
 
                     if (allQRCodeDetails == null || !allQRCodeDetails.Any())
                     {
@@ -842,7 +859,7 @@ namespace QRCodeApi.Controllers
                     }
 
                     var orderedQrCodes = OrderByLatestCreated(allQRCodeDetails);
-                    var excelContent = _qrCodeService.ExportQRCodeToExcel(orderedQrCodes);
+                    var excelContent = _qrCodeService.ExportQRCodeToExcel(orderedQrCodes, request.SelectedColumns);
 
                     var firstDetail = orderedQrCodes.First();
                     var userName = User.FindFirst("username")?.Value ?? "User";

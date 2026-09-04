@@ -4,8 +4,9 @@ using System.Collections.Generic;
 namespace Godrej.Precheck.Models.DTOs.ProductionOrder
 {
     /// <summary>
-    /// Request body for POST /api/ProductionOrder/GetAll.
-    /// pageNumber/pageSize stay on the query string; every filter is supplied here.
+    /// Request body for POST /api/ProductionOrder/GetAll and POST /api/ProductionOrder/Export.
+    /// For GetAll, pageNumber/pageSize stay on the query string; every filter is supplied here.
+    /// SelectedColumns is Export-only: which columns to include in the workbook (empty/null = all).
     /// </summary>
     public class ProductionOrderFilterRequestDto
     {
@@ -20,5 +21,6 @@ namespace Godrej.Precheck.Models.DTOs.ProductionOrder
         public string? DrawingNumber { get; set; }
         public string? SearchQuery { get; set; }
         public List<string>? ProductionSeries { get; set; }
+        public List<string>? SelectedColumns { get; set; }
     }
 }

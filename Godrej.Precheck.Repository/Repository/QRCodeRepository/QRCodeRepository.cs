@@ -309,6 +309,119 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
             }
         }
 
+        public async Task<(List<QRCodeDetailsResponseDto> Items, int TotalCount)> GetBarcodeDetailsWithParametersAsync(
+            BarcodeSearchQueryDto? searchQuery, List<string>? prodSeries, int? createdBy, DateTime? fromDate, DateTime? toDate,
+            int pageNumber, int pageSize)
+        {
+            _logger.LogInformation("Request for QRCodeRepository:GetBarcodeDetailsWithParametersAsync");
+
+            try
+            {
+                var qrFilter = " AND 1=1";
+                var drawingFilter = " AND 1=1";
+                var itemFilter = " AND 1=1";
+                var idNumbersFilter = " AND 1=1";
+                var seriesFilter = " AND 1=1";
+                var createdByFilter = " AND 1=1";
+                var dateFilter = " AND 1=1";
+
+                if (!string.IsNullOrWhiteSpace(searchQuery?.QRCodeNumber))
+                {
+                    qrFilter = " AND qd.qrcodenumber = @QRCodeNumber";
+                }
+
+                if (!string.IsNullOrWhiteSpace(searchQuery?.DrawingNumber))
+                {
+                    drawingFilter = " AND td.drawingnumber LIKE '%' + @DrawingNumber + '%'";
+                }
+
+                if (!string.IsNullOrWhiteSpace(searchQuery?.LineItemCode))
+                {
+                    itemFilter = " AND li.lnitemcode LIKE '%' + @LineItemCode + '%'";
+                }
+
+                var idNumbers = searchQuery?.IdNumbers;
+                if (idNumbers != null && idNumbers.Count > 0)
+                {
+                    idNumbersFilter = " AND qd.idnumber IN @IdNumbers";
+                }
+
+                if (prodSeries != null && prodSeries.Count > 0)
+                {
+                    seriesFilter = " AND ps.productionseries IN @ProdSeries";
+                }
+
+                if (createdBy.HasValue)
+                {
+                    createdByFilter = " AND qd.createdby = @CreatedBy";
+                }
+
+                if (fromDate.HasValue || toDate.HasValue)
+                {
+                    dateFilter = @" AND (@FromDate IS NULL OR CAST(qd.createddate AS DATE) >= CAST(@FromDate AS DATE))
+                                    AND (@ToDate IS NULL OR CAST(qd.createddate AS DATE) <= CAST(@ToDate AS DATE))";
+                }
+
+                var countQuery = QRCodeQueries.GET_BARCODE_DETAILS_WITH_PARAMETERS_COUNT_QUERY
+                    .Replace("{QR_FILTER}", qrFilter)
+                    .Replace("{DRAWING_FILTER}", drawingFilter)
+                    .Replace("{ITEM_FILTER}", itemFilter)
+                    .Replace("{ID_NUMBERS_FILTER}", idNumbersFilter)
+                    .Replace("{SERIES_FILTER}", seriesFilter)
+                    .Replace("{CREATEDBY_FILTER}", createdByFilter)
+                    .Replace("{DATE_FILTER}", dateFilter);
+
+                var pagedQuery = QRCodeQueries.GET_BARCODE_DETAILS_WITH_PARAMETERS_PAGED_QUERY
+                    .Replace("{QR_FILTER}", qrFilter)
+                    .Replace("{DRAWING_FILTER}", drawingFilter)
+                    .Replace("{ITEM_FILTER}", itemFilter)
+                    .Replace("{ID_NUMBERS_FILTER}", idNumbersFilter)
+                    .Replace("{SERIES_FILTER}", seriesFilter)
+                    .Replace("{CREATEDBY_FILTER}", createdByFilter)
+                    .Replace("{DATE_FILTER}", dateFilter);
+
+                var queryParams = new
+                {
+                    QRCodeNumber = searchQuery?.QRCodeNumber,
+                    DrawingNumber = searchQuery?.DrawingNumber,
+                    LineItemCode = searchQuery?.LineItemCode,
+                    IdNumbers = idNumbers,
+                    ProdSeries = prodSeries,
+                    CreatedBy = createdBy,
+                    FromDate = fromDate,
+                    ToDate = toDate
+                };
+
+                var totalCount = await _db.ExecuteScalar<int>(countQuery, queryParams);
+
+                var offset = (pageNumber - 1) * pageSize;
+                var results = await _db.GetAll<QRCodeDetailsResponseDto>(
+                    pagedQuery,
+                    new
+                    {
+                        QRCodeNumber = searchQuery?.QRCodeNumber,
+                        DrawingNumber = searchQuery?.DrawingNumber,
+                        LineItemCode = searchQuery?.LineItemCode,
+                        IdNumbers = idNumbers,
+                        ProdSeries = prodSeries,
+                        CreatedBy = createdBy,
+                        FromDate = fromDate,
+                        ToDate = toDate,
+                        Offset = offset,
+                        PageSize = pageSize
+                    });
+
+                _logger.LogInformation("Successfully retrieved barcode details, count: {Count}, totalCount: {TotalCount}", results.Count(), totalCount);
+
+                return (results.ToList(), totalCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while GetBarcodeDetailsWithParametersAsync.");
+                throw;
+            }
+        }
+
         public async Task<List<QRCodeDetailsResponseDto>> GetConsumedQRcodeWithParameterAsync(GetQRCodeRequestDto getQRCodeRequestDto)
         {
             _logger.LogInformation("Request for QRCodeRepository:GetConsumedQRcodeWithParameterAsync", getQRCodeRequestDto);
