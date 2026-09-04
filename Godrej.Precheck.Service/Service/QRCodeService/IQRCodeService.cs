@@ -28,7 +28,7 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
         Task<QRCodeDetailsResponseDto> ComponentStoreInService(string QRCodeNumber);
         //byte[] ExportQRCodeToExcel(QRCodeDetailsResponseDto qrCodeItems);
 
-        byte[] ExportQRCodeToExcel(List<QRCodeDetailsResponseDto> qrCodeItems);
+        byte[] ExportQRCodeToExcel(List<QRCodeDetailsResponseDto> qrCodeItems, List<string>? selectedColumns = null);
         Task<List<ConsumedInResponseDto>> ConsumedInService(ConsumedInRequestDto request);
 
         Task<List<BatchIdResponse>> ProcessBatchService(BatchQRcodeRequestDto batchQRcodeRequest);
