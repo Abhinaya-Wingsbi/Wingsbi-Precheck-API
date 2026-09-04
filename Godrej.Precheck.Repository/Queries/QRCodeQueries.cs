@@ -453,6 +453,151 @@ namespace Godrej.Precheck.Repository.Queries
     ORDER BY qd.createddate DESC;";
         #endregion
 
+        #region GET_BARCODE_DETAILS_WITH_PARAMETERS_QUERY
+
+        // Count query only needs the joins the filter placeholders actually reference
+        // (td for {DRAWING_FILTER}, ps for {SERIES_FILTER}, li for {ITEM_FILTER}) -- the
+        // display-only joins used by the paged query below are omitted.
+        public static readonly string GET_BARCODE_DETAILS_WITH_PARAMETERS_COUNT_QUERY =
+    @"SELECT COUNT(DISTINCT qd.id) AS TotalCount
+    FROM tbl_qrcodedetails qd
+    INNER JOIN tbl_drawingnumber td
+        ON qd.drawingnumberid = td.id
+    INNER JOIN tbl_productionseries ps
+        ON qd.productionseriesid = ps.id
+    LEFT JOIN tbl_lnitemcode li
+        ON qd.lnitemcodeid = li.id
+    WHERE
+        qd.isactive = 1
+        {QR_FILTER}
+        {DRAWING_FILTER}
+        {ITEM_FILTER}
+        {ID_NUMBERS_FILTER}
+        {SERIES_FILTER}
+        {CREATEDBY_FILTER}
+        {DATE_FILTER}";
+
+        // Same shape as GET_QRCODE_DETAILS_With_PARAMETER_QUERY, but every filter is ANDed
+        // together (no QRCodeNumber short-circuit), DrawingNumber/LineItemCode match by their
+        // text value instead of an ID, ProdSeries/IdNumbers accept arrays, and there's an extra
+        // join to tbl_lnitemcode for the LineItemCode text filter.
+        public static readonly string GET_BARCODE_DETAILS_WITH_PARAMETERS_PAGED_QUERY =
+    @"SELECT DISTINCT
+        qd.id,
+        qd.drawingnumberid,
+        qd.productionseriesid,
+        qd.nomenclatureid,
+        qd.idnumber,
+        qd.idnumbers,
+        qd.irnumberid,
+        qd.msnnumberid,
+        qd.componenttypeid,
+        qd.quantity,
+        qd.expirydate,
+        qd.racklocationid,
+        qd.lnitemcodeid,
+        qd.createdby,
+        qd.createddate,
+        qd.modifiedby,
+        qd.modifieddate,
+        qd.mydate,
+        qd.sopnamesid,
+        qd.unitid,
+        qd.storeindate,
+        qd.isactive,
+        qd.partno,
+        qd.[size],
+        qd.shapeid,
+        sh.materialname AS Shapes,
+        qd.customeritemcode AS CustomerIC,
+        qd.material,
+        qd.htlotno,
+        qd.fanmannumber AS FAN,
+        qd.fanmanserialnumber AS GIC,
+        qd.serialnumberofquantity AS DTD,
+        qd.msnirnumber AS IRNo,
+        qd.gfnno,
+        qd.srno,
+        qd.tqty,
+        qd.wc,
+        qd.togglecomponenttypeid,
+        td.drawingnumber,
+        ct.componenttype,
+        ir.irnumber,
+        msn.msnnumber,
+        (SELECT TOP 1 n2.nomenclature
+         FROM tbl_drawingnomenclaturemapping dnm2
+         INNER JOIN tbl_nomenclature n2 ON dnm2.nomenclatureid = n2.id
+         WHERE dnm2.drawingnumberid = td.id AND dnm2.isactive = 1
+         ORDER BY dnm2.createddate DESC) AS nomenclature,
+        ps.productionseries,
+        qd.refdocremarks,
+        qd.qrcodenumber,
+        tu.username AS users,
+        ts.racklocation,
+        qd.desposition,
+        qd.productionordernumber,
+        qd.purchaseordernumber,
+        qd.operationno,
+        tq.qrcodestatus,
+        qd.qrcodestatusid,
+        qd.consumedIndrawing,
+        qd.mrirnumber,
+        qd.remainingquantity,
+        qd.manufacturingdate,
+        qd.projectdescription AS Remark,
+        qd.projectnumber,
+        li.lnitemcode,
+        (
+            SELECT TOP 1 tdParent.drawingnumber
+            FROM tbl_assemblydrawingmapping adm
+            INNER JOIN tbl_drawingnumber tdParent
+                ON adm.parentdrawingnumber = tdParent.id
+            WHERE adm.drawingnumber = qd.drawingnumberid
+            ORDER BY adm.id ASC
+        ) AS AssemblyNumber,
+        u.unitname AS unitname,
+        sop.sopnames AS sopnames
+    FROM tbl_qrcodedetails qd
+    INNER JOIN tbl_drawingnumber td
+        ON qd.drawingnumberid = td.id
+    INNER JOIN tbl_productionseries ps
+        ON qd.productionseriesid = ps.id
+    LEFT JOIN tbl_lnitemcode li
+        ON qd.lnitemcodeid = li.id
+    LEFT JOIN tbl_componenttype ct
+        ON qd.componenttypeid = ct.id
+    LEFT JOIN tbl_irnumber ir
+        ON qd.irnumberid = ir.id
+    LEFT JOIN tbl_msnnumber msn
+        ON qd.msnnumberid = msn.id
+    LEFT JOIN tbl_users tu
+        ON qd.createdby = tu.id
+    LEFT JOIN tbl_storeitemlocation ts
+        ON qd.racklocationid = ts.id
+    LEFT JOIN tbl_qrcodestatus tq
+        ON qd.qrcodestatusid = tq.id
+    LEFT JOIN tbl_unit u
+        ON qd.unitid = u.id
+    LEFT JOIN tbl_sopnames sop
+        ON qd.sopnamesid = sop.id
+    LEFT JOIN tbl_shapes sh
+        ON qd.shapeid = sh.id
+    WHERE
+        qd.isactive = 1
+        {QR_FILTER}
+        {DRAWING_FILTER}
+        {ITEM_FILTER}
+        {ID_NUMBERS_FILTER}
+        {SERIES_FILTER}
+        {CREATEDBY_FILTER}
+        {DATE_FILTER}
+    ORDER BY qd.createddate DESC
+    OFFSET @Offset ROWS
+    FETCH NEXT @PageSize ROWS ONLY;";
+
+        #endregion
+
         #region GET_CONSUMED_QRCODE_DETAILS_With_PARAMETER_QUERY
         public static readonly string GET_CONSUMED_QRCODE_DETAILS_With_PARAMETER_QUERY =
     @"SELECT DISTINCT

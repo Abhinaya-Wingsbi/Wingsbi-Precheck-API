@@ -578,6 +578,34 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
             }
         }
 
+        public async Task<QRCodeDetailsPagedResponse> GetBarcodeDetailsWithParametersService(
+            BarcodeSearchQueryDto? searchQuery, List<string>? prodSeries, int? createdBy, DateTime? fromDate, DateTime? toDate,
+            int pageNumber, int pageSize)
+        {
+            try
+            {
+                _logger.LogInformation("Fetching barcode details with parameters");
+
+                var (items, totalCount) = await _qrCodeRepository.GetBarcodeDetailsWithParametersAsync(
+                    searchQuery, prodSeries, createdBy, fromDate, toDate, pageNumber, pageSize);
+
+                _logger.LogInformation("Successfully fetched barcode details with parameters, count: {Count}, totalCount: {TotalCount}", items.Count, totalCount);
+
+                return new QRCodeDetailsPagedResponse
+                {
+                    Data = items,
+                    TotalRecords = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while fetching barcode details with parameters");
+                throw;
+            }
+        }
+
         //same as GetQRCodeDetailsWithParameterService but restricted to consumed QR codes (qrcodestatusid = 2, isactive = 0)
         public async Task<List<QRCodeDetailsResponseDto>> GetConsumedQRCodeDetailsWithParameterService(GetQRCodeRequestDto getQRCodeRequest)
         {

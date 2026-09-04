@@ -20,6 +20,9 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
         //Get QRCode Details with Paramter
         Task<List<QRCodeDetailsResponseDto>> GetQRCodeDetailsWithParameterService(GetQRCodeRequestDto getQRCodeRequest);
 
+        // All filters ANDed together; DrawingNumber/LineItemCode match by text, ProdSeries/IdNumbers accept arrays
+        Task<QRCodeDetailsPagedResponse> GetBarcodeDetailsWithParametersService(BarcodeSearchQueryDto? searchQuery, List<string>? prodSeries, int? createdBy, DateTime? fromDate, DateTime? toDate, int pageNumber, int pageSize);
+
         //same as GetQRCodeDetailsWithParameterService but restricted to consumed QR codes (qrcodestatusid = 2, isactive = 0)
         Task<List<QRCodeDetailsResponseDto>> GetConsumedQRCodeDetailsWithParameterService(GetQRCodeRequestDto getQRCodeRequest);
         Task<QRCodeDetailsResponseDto> ComponentStoreInService(string QRCodeNumber);
