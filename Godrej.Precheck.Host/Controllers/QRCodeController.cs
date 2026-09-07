@@ -846,10 +846,10 @@ namespace QRCodeApi.Controllers
                 {
                     // Same filter shape as GetBarcodeDetailsWithParameters -- every filter ANDed
                     // together, DrawingNumber/LineItemCode by text, ProdSeries/IdNumbers as arrays.
-                    // pageSize: int.MaxValue == "no pagination", export needs every matching row.
+                    // pageSize: null == no pagination, export needs every matching row.
                     var pagedResult = await _qrCodeService.GetBarcodeDetailsWithParametersService(
                         request.SearchQuery, request.ProdSeries, CreatedBy, request.FromDate, request.ToDate,
-                        pageNumber: 1, pageSize: int.MaxValue);
+                        pageNumber: 1, pageSize: null);
                     var allQRCodeDetails = pagedResult.Data;
 
                     if (allQRCodeDetails == null || !allQRCodeDetails.Any())

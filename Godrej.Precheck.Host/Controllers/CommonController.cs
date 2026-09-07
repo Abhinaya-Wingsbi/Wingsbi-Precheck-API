@@ -136,13 +136,22 @@ namespace Godrej.Precheck.Host.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [Route("FetchAllDrawingNumbers")]
-        public async Task<IActionResult> GetAllDrawingNumberAsync()
+        public async Task<IActionResult> GetAllDrawingNumberAsync([FromQuery] string? searchQuery, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
         {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 200) pageSize = 200;
+
             try
             {
-                _logger.LogInformation("Request for CommonController:GetAllDrawingNumberAsync method (no parameters)");
+                _logger.LogInformation("Request for CommonController:GetAllDrawingNumberAsync method, searchQuery {SearchQuery}, page {PageNumber} size {PageSize}", searchQuery, pageNumber, pageSize);
 
-                var result = await _commonService.GetAllDrawingNumberService(null);
+                // GetAllDrawingNumberService returns the full cached list when request is null -- other
+                // callers need it unpaginated for full-list lookups, so pagination is applied here, not
+                // in the shared service. searchQuery matches DrawingNumber, LnItemCode, Nomenclature and
+                // ComponentType (see GetAllDrawingNumberService's Search filter).
+                var request = string.IsNullOrWhiteSpace(searchQuery) ? null : new GetAllDrawingRequestDto { Search = searchQuery };
+                var result = await _commonService.GetAllDrawingNumberService(request);
 
                 if (result == null || result.Count == 0)
                 {
@@ -150,8 +159,21 @@ namespace Godrej.Precheck.Host.Controllers
                     return NotFound();
                 }
 
-                _logger.LogInformation($"Retrieved {result.Count} drawing numbers.");
-                return Ok(result);
+                var paged = result
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                var response = new DrawingNumberPagedResponse
+                {
+                    Data = paged,
+                    TotalRecords = result.Count,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize
+                };
+
+                _logger.LogInformation($"Retrieved {paged.Count} of {result.Count} drawing numbers (page {pageNumber}).");
+                return Ok(response);
             }
             catch (Exception ex)
             {

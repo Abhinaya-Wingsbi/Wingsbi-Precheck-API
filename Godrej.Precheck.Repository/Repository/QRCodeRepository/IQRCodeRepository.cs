@@ -23,8 +23,9 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
         //get qrcode details with QRCodeNumber Or (prodseries and DrawingNumberId)
         Task<List<QRCodeDetailsResponseDto>> GetQRcodeWithParameterAsync(GetQRCodeRequestDto getQRCodeRequestDto);
 
-        // All filters ANDed together; DrawingNumber/LineItemCode match by text, ProdSeries/IdNumbers accept arrays
-        Task<(List<QRCodeDetailsResponseDto> Items, int TotalCount)> GetBarcodeDetailsWithParametersAsync(BarcodeSearchQueryDto? searchQuery, List<string>? prodSeries, int? createdBy, DateTime? fromDate, DateTime? toDate, int pageNumber, int pageSize);
+        // All filters ANDed together; DrawingNumber/LineItemCode match by text, ProdSeries/IdNumbers accept arrays.
+        // pageSize null == no pagination, every matching row is returned (pageNumber is ignored in that case).
+        Task<(List<QRCodeDetailsResponseDto> Items, int TotalCount)> GetBarcodeDetailsWithParametersAsync(BarcodeSearchQueryDto? searchQuery, List<string>? prodSeries, int? createdBy, DateTime? fromDate, DateTime? toDate, int pageNumber, int? pageSize);
 
         //same as GetQRcodeWithParameterAsync but restricted to consumed QR codes (qrcodestatusid = 2, isactive = 0)
         Task<List<QRCodeDetailsResponseDto>> GetConsumedQRcodeWithParameterAsync(GetQRCodeRequestDto getQRCodeRequestDto);

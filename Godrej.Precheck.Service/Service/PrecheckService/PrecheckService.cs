@@ -616,6 +616,20 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                 throw new ApplicationException("ChildLnItemCode is required.");
             }
 
+            if (!request.UserInput)
+            {
+                _logger.LogInformation(
+                    "AddPrecheckComponentAsync: UserInput is false, not applying to existing production orders, AssemblyLnItemCode: {AssemblyLnItemCode}, ChildLnItemCode: {ChildLnItemCode}",
+                    request.AssemblyLnItemCode, request.ChildLnItemCode);
+
+                return new AddPrecheckComponentResponseDto
+                {
+                    ProjectsChecked = 0,
+                    ComponentsAdded = 0,
+                    AlreadyPresentSkipped = 0
+                };
+            }
+
             // 1. Resolve every production order (tbl_productionordermaster) building this assembly
             var assemblyOrders = await _precheckRepository.GetAssemblyProductionOrdersByLnItemCode(request.AssemblyLnItemCode);
             if (assemblyOrders == null || assemblyOrders.Count == 0)

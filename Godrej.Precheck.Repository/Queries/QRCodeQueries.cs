@@ -593,8 +593,7 @@ namespace Godrej.Precheck.Repository.Queries
         {CREATEDBY_FILTER}
         {DATE_FILTER}
     ORDER BY qd.createddate DESC
-    OFFSET @Offset ROWS
-    FETCH NEXT @PageSize ROWS ONLY;";
+    {PAGING_CLAUSE};";
 
         #endregion
 

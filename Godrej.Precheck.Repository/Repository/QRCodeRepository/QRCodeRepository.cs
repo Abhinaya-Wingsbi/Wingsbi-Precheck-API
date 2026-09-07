@@ -311,7 +311,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
 
         public async Task<(List<QRCodeDetailsResponseDto> Items, int TotalCount)> GetBarcodeDetailsWithParametersAsync(
             BarcodeSearchQueryDto? searchQuery, List<string>? prodSeries, int? createdBy, DateTime? fromDate, DateTime? toDate,
-            int pageNumber, int pageSize)
+            int pageNumber, int? pageSize)
         {
             _logger.LogInformation("Request for QRCodeRepository:GetBarcodeDetailsWithParametersAsync");
 
@@ -371,6 +371,12 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     .Replace("{CREATEDBY_FILTER}", createdByFilter)
                     .Replace("{DATE_FILTER}", dateFilter);
 
+                // pageSize null == no pagination -- omit OFFSET/FETCH entirely rather than
+                // faking "no limit" with a huge pageSize value.
+                var pagingClause = pageSize.HasValue
+                    ? "OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY"
+                    : "";
+
                 var pagedQuery = QRCodeQueries.GET_BARCODE_DETAILS_WITH_PARAMETERS_PAGED_QUERY
                     .Replace("{QR_FILTER}", qrFilter)
                     .Replace("{DRAWING_FILTER}", drawingFilter)
@@ -378,7 +384,8 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     .Replace("{ID_NUMBERS_FILTER}", idNumbersFilter)
                     .Replace("{SERIES_FILTER}", seriesFilter)
                     .Replace("{CREATEDBY_FILTER}", createdByFilter)
-                    .Replace("{DATE_FILTER}", dateFilter);
+                    .Replace("{DATE_FILTER}", dateFilter)
+                    .Replace("{PAGING_CLAUSE}", pagingClause);
 
                 var queryParams = new
                 {
@@ -394,7 +401,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
 
                 var totalCount = await _db.ExecuteScalar<int>(countQuery, queryParams);
 
-                var offset = (pageNumber - 1) * pageSize;
+                var offset = pageSize.HasValue ? (pageNumber - 1) * pageSize.Value : 0;
                 var results = await _db.GetAll<QRCodeDetailsResponseDto>(
                     pagedQuery,
                     new

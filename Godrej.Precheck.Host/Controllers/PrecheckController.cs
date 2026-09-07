@@ -306,9 +306,11 @@ namespace Godrej.Precheck.Host.Controllers
                 var createdBy = Convert.ToInt32(User.FindFirst("id")?.Value);
                 var response = await _service.AddPrecheckComponentAsync(request, createdBy);
 
-                var message = response.ComponentsAdded == 0
-                    ? "Component already present in this assembly."
-                    : "Component added successfully.";
+                var message = !request.UserInput
+                    ? "Component not applied to existing production orders."
+                    : response.ComponentsAdded == 0
+                        ? "Component already present in this assembly."
+                        : "Component added successfully.";
 
                 _logger.LogInformation("PrecheckController:AddPrecheckComponent - Completed successfully");
                 return Ok(new { message, data = response });

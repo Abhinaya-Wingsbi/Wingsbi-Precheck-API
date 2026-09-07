@@ -621,10 +621,11 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
                     if (!string.IsNullOrEmpty(request.Search))
                     {
                         var search = request.Search.ToLower();
-                        query = query.Where(d => 
+                        query = query.Where(d =>
                             (d.DrawingNumber != null && d.DrawingNumber.ToLower().Contains(search)) ||
                             (d.Nomenclature != null && d.Nomenclature.ToLower().Contains(search)) ||
-                            (d.LnItemCode != null && d.LnItemCode.ToLower().Contains(search))
+                            (d.LnItemCode != null && d.LnItemCode.ToLower().Contains(search)) ||
+                            (d.ComponentType != null && d.ComponentType.ToLower().Contains(search))
                         );
                     }
 

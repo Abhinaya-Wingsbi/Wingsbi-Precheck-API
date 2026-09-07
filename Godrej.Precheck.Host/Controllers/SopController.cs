@@ -134,13 +134,11 @@ namespace Godrej.Precheck.Host.Controllers
 
             try
             {
-               var drawingNumbers =await _commonService.GetAllDrawingNumberService();
-                var AssemblyDrawing = drawingNumbers.Where(x => x.Id == request.AssemblyDrawingId).First().AssemblyNumber;
-                var sopResponse = await _sopService.GetSopForAssembly(request);
-                var response = _sopService.ExportToExcel(sopResponse, request.AssemblyDrawing);
+               var sopResponse = await _sopService.GetSopForAssembly(request);
+                var response = _sopService.ExportToExcel(sopResponse, request.AssemblyDrawing, request.SelectedColumns);
 
-                var timestamp = DateTime.Now.ToString("dd-MM-yy HH mm ss");
-                var fileName = $"{AssemblyDrawing}_{request.SerielNumberId}_{timestamp}.xlsx";
+                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var fileName = $"SOP_Assembly_Export_{request.AssemblyDrawing}_{timestamp}.xlsx";
 
                 _logger.LogInformation($"PrecheckController:ExportSopForAssembly - Successfully generated Excel file {fileName}");
 
@@ -175,13 +173,11 @@ namespace Godrej.Precheck.Host.Controllers
 
             try
             {
-                var drawingNumbers = await _commonService.GetAllDrawingNumberService();
-                var AssemblyDrawing = drawingNumbers.Where(x => x.Id == request.AssemblyDrawingId).First().AssemblyNumber;
                 var sopResponse = await _sopService.GetSopForAssembly(request, excludeRawMaterial: true);
-                var response = _sopService.ExportToExcel(sopResponse, request.AssemblyDrawing);
+                var response = _sopService.ExportToExcel(sopResponse, request.AssemblyDrawing, request.SelectedColumns);
 
-                var timestamp = DateTime.Now.ToString("dd-MM-yy HH mm ss");
-                var fileName = $"{AssemblyDrawing}_{request.SerielNumberId}_{timestamp}.xlsx";
+                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var fileName = $"SOP_Assembly_Export_{request.AssemblyDrawing}_{timestamp}.xlsx";
 
                 _logger.LogInformation($"PrecheckController:ExportSopForAssemblyExcludingRawMaterial - Successfully generated Excel file {fileName}");
 

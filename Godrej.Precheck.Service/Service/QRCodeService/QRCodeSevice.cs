@@ -580,7 +580,7 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
 
         public async Task<QRCodeDetailsPagedResponse> GetBarcodeDetailsWithParametersService(
             BarcodeSearchQueryDto? searchQuery, List<string>? prodSeries, int? createdBy, DateTime? fromDate, DateTime? toDate,
-            int pageNumber, int pageSize)
+            int pageNumber, int? pageSize)
         {
             try
             {
@@ -591,12 +591,13 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
 
                 _logger.LogInformation("Successfully fetched barcode details with parameters, count: {Count}, totalCount: {TotalCount}", items.Count, totalCount);
 
+                // Unpaginated (pageSize null) reads back as "everything, on one page"
                 return new QRCodeDetailsPagedResponse
                 {
                     Data = items,
                     TotalRecords = totalCount,
-                    PageNumber = pageNumber,
-                    PageSize = pageSize
+                    PageNumber = pageSize.HasValue ? pageNumber : 1,
+                    PageSize = pageSize ?? totalCount
                 };
             }
             catch (Exception ex)

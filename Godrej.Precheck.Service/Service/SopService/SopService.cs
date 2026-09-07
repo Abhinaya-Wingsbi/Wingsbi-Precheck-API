@@ -564,8 +564,56 @@ namespace Godrej.Precheck.Service.Service.SopService
 
 
 
-        public byte[] ExportToExcel(List<GetSopResponseDto> items, string projectId)
+        // Every exportable table column, keyed by camelCase name. LeftAligned controls whether
+        // the column uses left or center alignment (matching the original fixed layout); Width
+        // is in the same "characters * 256" units SetColumnWidth expects. When selectedColumns
+        // is empty/null, all of these are exported (in this order); otherwise only the requested
+        // keys are used, in the order the caller specified. Does not affect the fixed header
+        // block above the table (logo/title/doc no./assembly no./ID no.).
+        private static readonly (string Key, string Header, int Width, bool LeftAligned, Func<GetSopResponseDto, string> GetValue)[] SopExportColumnDefinitions = new (string, string, int, bool, Func<GetSopResponseDto, string>)[]
         {
+            ("srNo", "Sr No", 6, false, item => item.SerialNumber.ToString()),
+            ("level", "Level", 8, false, item => item.Level.ToString()),
+            ("positionNumber", "Position Number", 14, false, item => item.FindNo),
+            ("drawingNumber", "Drawing No.", 20, true, item => item.DrawingNumber),
+            ("nomenclature", "Nomenclature", 25, true, item => item.Nomenclature),
+            ("buildNumber", "Build number", 10, false, item => item.Build),
+            ("quantity", "Qty", 6, false, item => item.Quantity),
+            ("idNumber", "ID No", 12, false, item => item.IdNumber),
+            ("irNumber", "IR No", 15, false, item => item.IrNumber),
+            ("msn", "MSN", 12, false, item => item.MsnNumber),
+            ("mrirNumber", "MRIR Number", 15, false, item => item.MrirNumber),
+            ("snagSheetNumber", "Snag Sheet Number", 15, false, item => item.Snag_Sheet_No),
+            ("remarks", "Remarks", 20, true, item => item.Remarks),
+        };
+
+        public byte[] ExportToExcel(List<GetSopResponseDto> items, string projectId, List<string>? selectedColumns = null)
+        {
+            var activeColumns = SopExportColumnDefinitions;
+            if (selectedColumns != null && selectedColumns.Count > 0)
+            {
+                // Accept either the camelCase key ("drawingNumber") or the literal header text
+                // ("Drawing No.") -- callers keep sending display labels instead of keys, so both
+                // resolve to the same column instead of the header-text form silently dropping.
+                var byKey = new Dictionary<string, (string Key, string Header, int Width, bool LeftAligned, Func<GetSopResponseDto, string> GetValue)>(StringComparer.OrdinalIgnoreCase);
+                foreach (var col in SopExportColumnDefinitions)
+                {
+                    byKey[col.Key] = col;
+                    byKey[col.Header] = col;
+                }
+
+                var resolved = selectedColumns
+                    .Where(k => !string.IsNullOrWhiteSpace(k) && byKey.ContainsKey(k))
+                    .Select(k => byKey[k])
+                    .Distinct()
+                    .ToArray();
+
+                if (resolved.Length > 0)
+                {
+                    activeColumns = resolved;
+                }
+            }
+
             var flatItems = new List<GetSopResponseDto>();
             void Flatten(GetSopResponseDto node)
             {
@@ -722,16 +770,11 @@ namespace Godrej.Precheck.Service.Service.SopService
                 // Table Headers
                 var tableHeaderRow = sheet.CreateRow(3);
                 tableHeaderRow.HeightInPoints = 25;
-                string[] headers = new string[]
-                {
-                    "Sr No","Level", "Position Number", "Drawing No.", "Nomenclature", "Build number",
-                    "Qty", "ID No", "IR No", "MSN", "MRIR Number", "Snag Sheet Number", "Remarks"
-                };
 
-                for (int i = 0; i < headers.Length; i++)
+                for (int i = 0; i < activeColumns.Length; i++)
                 {
                     var cell = tableHeaderRow.CreateCell(i);
-                    cell.SetCellValue(headers[i]);
+                    cell.SetCellValue(activeColumns[i].Header);
                     cell.CellStyle = headerStyle;
                 }
 
@@ -747,35 +790,18 @@ namespace Godrej.Precheck.Service.Service.SopService
                     var cellStyleCenter = isParentAssembly ? boldStyleCenter : borderStyleCenter;
 
                     var row = sheet.CreateRow(rowNum++);
-                    CreateCell(row, 0, item.SerialNumber.ToString(), cellStyleCenter);
-                    CreateCell(row, 1, item.Level.ToString(), cellStyleCenter); // NEW
-                    CreateCell(row, 2, item.FindNo, cellStyleCenter);
-                    CreateCell(row, 3, item.DrawingNumber, cellStyleLeft);
-                    CreateCell(row, 4, item.Nomenclature, cellStyleLeft);
-                    CreateCell(row, 5, item.Build, cellStyleCenter);
-                    CreateCell(row, 6, item.Quantity, cellStyleCenter);
-                    CreateCell(row, 7, item.IdNumber, cellStyleCenter);
-                    CreateCell(row, 8, item.IrNumber, cellStyleCenter);
-                    CreateCell(row, 9, item.MsnNumber, cellStyleCenter);
-                    CreateCell(row, 10, item.MrirNumber, cellStyleCenter);
-                    CreateCell(row, 11, item.Snag_Sheet_No, cellStyleCenter);
-                    CreateCell(row, 12, item.Remarks, cellStyleLeft);
+                    for (int c = 0; c < activeColumns.Length; c++)
+                    {
+                        var column = activeColumns[c];
+                        CreateCell(row, c, column.GetValue(item), column.LeftAligned ? cellStyleLeft : cellStyleCenter);
+                    }
                 }
 
                 // Column Widths
-                sheet.SetColumnWidth(0, 6 * 256);   // Sr No
-                sheet.SetColumnWidth(1, 8 * 256);   // Level (NEW)
-                sheet.SetColumnWidth(2, 14 * 256);  // Position Number
-                sheet.SetColumnWidth(3, 20 * 256);  // Drawing No
-                sheet.SetColumnWidth(4, 25 * 256);  // Nomenclature
-                sheet.SetColumnWidth(5, 10 * 256);  // Build
-                sheet.SetColumnWidth(6, 6 * 256);   // Qty
-                sheet.SetColumnWidth(7, 12 * 256);  // ID No
-                sheet.SetColumnWidth(8, 15 * 256);  // IR No
-                sheet.SetColumnWidth(9, 12 * 256);  // MSN
-                sheet.SetColumnWidth(10, 15 * 256); // MRIR Number
-                sheet.SetColumnWidth(11, 15 * 256); // Snag Sheet No
-                sheet.SetColumnWidth(12, 20 * 256); // Remarks
+                for (int c = 0; c < activeColumns.Length; c++)
+                {
+                    sheet.SetColumnWidth(c, activeColumns[c].Width * 256);
+                }
 
                 // Convert to byte array
                 using (var ms = new MemoryStream())
