@@ -279,8 +279,10 @@ ORDER BY
         FROM tbl_msnnumber msn Where msn.msnnumber=@query";
 
         // Building blocks for the combined IR/MSN report (POST /api/reports/viewIrMsn).
-        // {SERIES_FILTER}/{DEPT_FILTER}/{DATE_FILTER} are shared between the IR and MSN halves;
-        // {SEARCH_FILTER} is applied once, in the outer query, against the unioned result set.
+        // {SERIES_FILTER}/{DEPT_FILTER} are shared between the IR and MSN halves. Date range and
+        // {SEARCH_FILTER} are applied once, in the outer query, against the unioned result set - several
+        // of the joined tables (tbl_productionseries, tbl_department, tbl_drawing_lnitem_map) have their
+        // own createddate column, so an unqualified createddate inside either half is ambiguous.
         public static readonly string VIEW_IR_MSN_IR_BLOCK = @"
     SELECT
         ir.id AS id,
@@ -300,8 +302,7 @@ ORDER BY
     LEFT JOIN tbl_drawing_lnitem_map map ON td.drawingnumber = map.drawingnumber
     WHERE ir.isactive = 1
     {SERIES_FILTER}
-    {DEPT_FILTER}
-    {DATE_FILTER}";
+    {DEPT_FILTER}";
 
         public static readonly string VIEW_IR_MSN_MSN_BLOCK = @"
     SELECT
@@ -321,8 +322,7 @@ ORDER BY
     LEFT JOIN tbl_department d ON msn.departmentid = d.id
     WHERE msn.isactive = 1
     {SERIES_FILTER}
-    {DEPT_FILTER}
-    {DATE_FILTER}";
+    {DEPT_FILTER}";
 
         public static readonly string VIEW_IR_MSN_COUNT_QUERY = @"
     SELECT COUNT(*)

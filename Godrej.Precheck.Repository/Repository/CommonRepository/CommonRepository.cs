@@ -232,7 +232,6 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
 
             var seriesFilter = " AND 1=1";
             var deptFilter = " AND 1=1";
-            var dateFilter = " AND 1=1";
             var searchFilter = " AND 1=1";
 
             var productionSeries = request?.ProductionSeries;
@@ -247,18 +246,23 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
                 deptFilter = " AND d.id IN @DepartmentTypeId";
             }
 
+            // Applied against combined.createddate in the outer query, not inside each inner block:
+            // several of the joined tables (tbl_productionseries, tbl_department, tbl_drawing_lnitem_map)
+            // have their own createddate column, so an unqualified createddate inside the IR/MSN blocks is
+            // ambiguous. The unioned "combined" projection only exposes one createddate column, so it's safe there.
             var fromDate = request?.FromDate;
             var toDate = request?.ToDate;
+            var outerFilter = " AND 1=1";
             if (fromDate.HasValue || toDate.HasValue)
             {
-                dateFilter = @" AND (@FromDate IS NULL OR CAST(createddate AS DATE) >= CAST(@FromDate AS DATE))
-                                AND (@ToDate IS NULL OR CAST(createddate AS DATE) <= CAST(@ToDate AS DATE))";
+                outerFilter = @" AND (@FromDate IS NULL OR CAST(combined.createddate AS DATE) >= CAST(@FromDate AS DATE))
+                                  AND (@ToDate IS NULL OR CAST(combined.createddate AS DATE) <= CAST(@ToDate AS DATE))";
             }
 
             var searchQuery = string.IsNullOrWhiteSpace(request?.SearchQuery) ? null : request.SearchQuery;
             if (searchQuery != null)
             {
-                searchFilter = @" AND (
+                outerFilter += @" AND (
                     combined.productionordernumber LIKE '%' + @SearchQuery + '%'
                     OR combined.drawingnumber LIKE '%' + @SearchQuery + '%'
                     OR combined.lnitemcode LIKE '%' + @SearchQuery + '%'
@@ -266,6 +270,7 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
                     OR combined.msnnumber LIKE '%' + @SearchQuery + '%'
                 )";
             }
+            searchFilter = outerFilter;
 
             var documentTypes = request?.DocumentType;
             var includeIr = documentTypes == null || documentTypes.Count == 0 || documentTypes.Contains("IR", StringComparer.OrdinalIgnoreCase);
@@ -276,15 +281,13 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
             {
                 blocks.Add(Common.VIEW_IR_MSN_IR_BLOCK
                     .Replace("{SERIES_FILTER}", seriesFilter)
-                    .Replace("{DEPT_FILTER}", deptFilter)
-                    .Replace("{DATE_FILTER}", dateFilter));
+                    .Replace("{DEPT_FILTER}", deptFilter));
             }
             if (includeMsn)
             {
                 blocks.Add(Common.VIEW_IR_MSN_MSN_BLOCK
                     .Replace("{SERIES_FILTER}", seriesFilter)
-                    .Replace("{DEPT_FILTER}", deptFilter)
-                    .Replace("{DATE_FILTER}", dateFilter));
+                    .Replace("{DEPT_FILTER}", deptFilter));
             }
 
             if (blocks.Count == 0)
