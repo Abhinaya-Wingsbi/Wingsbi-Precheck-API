@@ -24,6 +24,7 @@ namespace Godrej.Precheck.Models.DataModel.Sop
        
         public string Remarks { get; set; }
         public decimal Quantity { get; set; }
+        public decimal? RemainingQuantity { get; set; }
         public string Unit { get; set; }
       
         public int? ComponentCodeId { get; set; }
@@ -48,6 +49,7 @@ namespace Godrej.Precheck.Models.DataModel.Sop
 
         public string ComponentType { get; set; }
         public int ComponentTypeId { get; set; }
+        public DateTime? PrecheckDate { get; set; }
         public string ProductionOrderNumber { get; set; } // add if not present
         public string? Build { get; set; }
         public string? SnagSheetNo { get; set; }

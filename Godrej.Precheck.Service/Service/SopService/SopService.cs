@@ -108,6 +108,26 @@ namespace Godrej.Precheck.Service.Service.SopService
         // manufactured/assembly items (LnItemCode like "WJD...") from raw material (LnItemCode like
         // "46121600FM..."). A missing LnItemCode is treated as raw material too, since it can't contain
         // either marker.
+        // Pending: precheck hasn't consumed anything yet (no remainingquantity recorded, or it still
+        // equals the full quantity). Completed: fully consumed (remainingquantity = 0). Partial:
+        // some but not all of the quantity has been consumed.
+        private static string GetPrecheckStatus(decimal quantity, decimal? remainingQuantity)
+        {
+            if (remainingQuantity == null)
+            {
+                return "Pending";
+            }
+            if (remainingQuantity == 0)
+            {
+                return "Completed";
+            }
+            if (remainingQuantity < quantity)
+            {
+                return "Partial";
+            }
+            return "Pending";
+        }
+
         private static bool IsRawMaterial(string? lnItemCode)
         {
             if (string.IsNullOrWhiteSpace(lnItemCode))
@@ -221,6 +241,8 @@ namespace Godrej.Precheck.Service.Service.SopService
             public string Unit { get; set; }
             public string ComponentType { get; set; }
             public int ComponentTypeId { get; set; }
+            public DateTime? PrecheckDate { get; set; }
+            public string PrecheckStatus { get; set; }
             public string ProjectDescription { get; set; }
             public string ProductionOrderNumber { get; set; }
             public string? Build { get; set; }
@@ -256,7 +278,10 @@ namespace Godrej.Precheck.Service.Service.SopService
                 Id = request.SerielNumberId.ToString(),
                 Level = 0,
                 Build = topConsumptionDetails.Build ?? rootBuild,
-                Snag_Sheet_No = topConsumptionDetails.SnagSheetNo ?? rootSnagSheetNo
+                Snag_Sheet_No = topConsumptionDetails.SnagSheetNo ?? rootSnagSheetNo,
+                ComponentType = topConsumptionDetails.ComponentType,
+                PrecheckDate = topConsumptionDetails.PrecheckDate,
+                PrecheckStatus = topConsumptionDetails.PrecheckStatus
             };
             result.Add(topItem);
 
@@ -355,7 +380,10 @@ namespace Godrej.Precheck.Service.Service.SopService
                     // no build number here, so this is left blank rather than inherited from the parent.
                     Build = consumptionDetails.QrBuildNumber,
                     Snag_Sheet_No = consumptionDetails.SnagSheetNo,
-                    FindNo = tmpl.FindNo
+                    FindNo = tmpl.FindNo,
+                    ComponentType = consumptionDetails.ComponentType,
+                    PrecheckDate = consumptionDetails.PrecheckDate,
+                    PrecheckStatus = consumptionDetails.PrecheckStatus
                 };
                 accumulator.Add(childItem);
                 
@@ -466,6 +494,10 @@ namespace Godrej.Precheck.Service.Service.SopService
                 Remarks = matchingConsumption?.Remarks,
                 ComponentType = matchingConsumption?.ComponentType,
                 ComponentTypeId = matchingConsumption?.ComponentTypeId ?? 0,
+                PrecheckDate = matchingConsumption?.PrecheckDate,
+                PrecheckStatus = matchingConsumption == null
+                    ? "Pending"
+                    : GetPrecheckStatus(matchingConsumption.Quantity, matchingConsumption.RemainingQuantity),
                 ProjectDescription = matchingConsumption?.Remarks,
                 Build = matchingConsumption?.Build,
                 SnagSheetNo = matchingConsumption?.SnagSheetNo
@@ -527,10 +559,12 @@ namespace Godrej.Precheck.Service.Service.SopService
                     Remarks = string.Empty,
                     ComponentType = string.Empty,
                     ComponentTypeId = 0,
+                    PrecheckDate = null,
+                    PrecheckStatus = "Pending",
                     ProjectDescription = string.Empty
                 };
             }
-            
+
             candidates.Remove(matchingConsumption);
 
             // Just convert Quantity to string (or store as decimal in the model if you prefer)
@@ -554,6 +588,8 @@ namespace Godrej.Precheck.Service.Service.SopService
                 DrawingId = matchingConsumption.DrawingNumberId ?? 0,
                 ComponentType = matchingConsumption.ComponentType,
                 ComponentTypeId = matchingConsumption.ComponentTypeId,
+                PrecheckDate = matchingConsumption.PrecheckDate,
+                PrecheckStatus = GetPrecheckStatus(matchingConsumption.Quantity, matchingConsumption.RemainingQuantity),
                 ProjectDescription = matchingConsumption.Remarks?.ToString() ?? string.Empty,
                 Build = matchingConsumption.Build,
                 SnagSheetNo = matchingConsumption.SnagSheetNo,
