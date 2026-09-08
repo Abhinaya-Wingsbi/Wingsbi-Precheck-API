@@ -4,6 +4,7 @@ using Godrej.Precheck.Models.DataModel.Common;
 using Godrej.Precheck.Models.DataModel.Precheck;
 using Godrej.Precheck.Models.DTOs.Assembly;
 using Godrej.Precheck.Models.DTOs.DrawingNumber;
+using Godrej.Precheck.Models.DTOs.IdentifierReports;
 using Godrej.Precheck.Models.DTOs.IRNumber;
 using Godrej.Precheck.Models.DTOs.MSNNumber;
 using Godrej.Precheck.Models.DTOs.Precheck;
@@ -223,6 +224,109 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
             });
             _logger.LogInformation($"Result for CommonRepository:GetMSNNuberByDrawingNumber");
             return results.ToList();
+        }
+
+        public async Task<(List<ViewIrMsnResponseDto> Items, int TotalCount)> GetViewIrMsn(ViewIrMsnRequestDto request, int pageNumber, int pageSize)
+        {
+            _logger.LogInformation($"Request for CommonRepository:GetViewIrMsn");
+
+            var seriesFilter = " AND 1=1";
+            var deptFilter = " AND 1=1";
+            var dateFilter = " AND 1=1";
+            var searchFilter = " AND 1=1";
+
+            var productionSeries = request?.ProductionSeries;
+            if (productionSeries != null && productionSeries.Count > 0)
+            {
+                seriesFilter = " AND ps.productionseries IN @ProductionSeries";
+            }
+
+            var departmentTypeId = request?.DepartmentTypeId;
+            if (departmentTypeId != null && departmentTypeId.Count > 0)
+            {
+                deptFilter = " AND d.id IN @DepartmentTypeId";
+            }
+
+            var fromDate = request?.FromDate;
+            var toDate = request?.ToDate;
+            if (fromDate.HasValue || toDate.HasValue)
+            {
+                dateFilter = @" AND (@FromDate IS NULL OR CAST(createddate AS DATE) >= CAST(@FromDate AS DATE))
+                                AND (@ToDate IS NULL OR CAST(createddate AS DATE) <= CAST(@ToDate AS DATE))";
+            }
+
+            var searchQuery = string.IsNullOrWhiteSpace(request?.SearchQuery) ? null : request.SearchQuery;
+            if (searchQuery != null)
+            {
+                searchFilter = @" AND (
+                    combined.productionordernumber LIKE '%' + @SearchQuery + '%'
+                    OR combined.drawingnumber LIKE '%' + @SearchQuery + '%'
+                    OR combined.lnitemcode LIKE '%' + @SearchQuery + '%'
+                    OR combined.irnumber LIKE '%' + @SearchQuery + '%'
+                    OR combined.msnnumber LIKE '%' + @SearchQuery + '%'
+                )";
+            }
+
+            var documentTypes = request?.DocumentType;
+            var includeIr = documentTypes == null || documentTypes.Count == 0 || documentTypes.Contains("IR", StringComparer.OrdinalIgnoreCase);
+            var includeMsn = documentTypes == null || documentTypes.Count == 0 || documentTypes.Contains("MSN", StringComparer.OrdinalIgnoreCase);
+
+            var blocks = new List<string>();
+            if (includeIr)
+            {
+                blocks.Add(Common.VIEW_IR_MSN_IR_BLOCK
+                    .Replace("{SERIES_FILTER}", seriesFilter)
+                    .Replace("{DEPT_FILTER}", deptFilter)
+                    .Replace("{DATE_FILTER}", dateFilter));
+            }
+            if (includeMsn)
+            {
+                blocks.Add(Common.VIEW_IR_MSN_MSN_BLOCK
+                    .Replace("{SERIES_FILTER}", seriesFilter)
+                    .Replace("{DEPT_FILTER}", deptFilter)
+                    .Replace("{DATE_FILTER}", dateFilter));
+            }
+
+            if (blocks.Count == 0)
+            {
+                return (new List<ViewIrMsnResponseDto>(), 0);
+            }
+
+            var unionBlock = string.Join(" UNION ALL ", blocks);
+
+            var countQuery = Common.VIEW_IR_MSN_COUNT_QUERY
+                .Replace("{UNION_BLOCK}", unionBlock)
+                .Replace("{SEARCH_FILTER}", searchFilter);
+
+            var pagedQuery = Common.VIEW_IR_MSN_PAGED_QUERY
+                .Replace("{UNION_BLOCK}", unionBlock)
+                .Replace("{SEARCH_FILTER}", searchFilter);
+
+            var queryParams = new
+            {
+                ProductionSeries = productionSeries,
+                DepartmentTypeId = departmentTypeId,
+                FromDate = fromDate,
+                ToDate = toDate,
+                SearchQuery = searchQuery
+            };
+
+            var totalCount = await _db.ExecuteScalar<int>(countQuery, queryParams);
+
+            var offset = (pageNumber - 1) * pageSize;
+            var results = await _db.GetAll<ViewIrMsnResponseDto>(pagedQuery, new
+            {
+                ProductionSeries = productionSeries,
+                DepartmentTypeId = departmentTypeId,
+                FromDate = fromDate,
+                ToDate = toDate,
+                SearchQuery = searchQuery,
+                Offset = offset,
+                PageSize = pageSize
+            });
+
+            _logger.LogInformation($"Result for CommonRepository:GetViewIrMsn, count: {results.Count()}, totalCount: {totalCount}");
+            return (results.ToList(), totalCount);
         }
 
         public async Task<List<MSNNumbers>> GetMSNNuber(GetAllMSNNumberRequestDto getAllMSNNumberRequestDto)

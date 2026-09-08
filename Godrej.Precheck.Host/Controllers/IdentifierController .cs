@@ -1,5 +1,6 @@
 using Godrej.Precheck.Models.DataModel;
 using Godrej.Precheck.Models.DTOs.Identifier;
+using Godrej.Precheck.Models.DTOs.IdentifierReports;
 using Godrej.Precheck.Models.DTOs.IRNumber;
 using Godrej.Precheck.Models.DTOs.MSNNumber;
 using Godrej.Precheck.Repository.Queries;
@@ -179,6 +180,42 @@ namespace Godrej.Precheck.Api.Controllers
                 _logger.LogError($"Exception Error for IdentifierController:GetMSNNumberByDrawingNumber method: {ex}");
                 return BadRequest(ex);
 
+            }
+        }
+
+        // Combined, multi-select replacement for GetIRNumberByDrawingNumber + GetMSNNumberByDrawingNumber.
+        [Authorize]
+        [HttpPost("viewIrMsn")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ViewIrMsn(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ViewIrMsnRequestDto? request = null)
+        {
+            try
+            {
+                _logger.LogInformation($"Request for IdentifierController:ViewIrMsn method: {request}, pageNumber: {pageNumber}, pageSize: {pageSize}");
+
+                if (pageNumber < 1) pageNumber = 1;
+                if (pageSize < 1) pageSize = 20;
+                if (pageSize > 200) pageSize = 200;
+
+                var result = await _commonService.ViewIrMsnService(request ?? new ViewIrMsnRequestDto(), pageNumber, pageSize);
+
+                if (result.Data.Count == 0)
+                {
+                    _logger.LogInformation("Response for IdentifierController:ViewIrMsn method: No IR/MSN records found.");
+                    return NotFound("No IR/MSN records found.");
+                }
+
+                _logger.LogInformation($"Response for IdentifierController:ViewIrMsn method: page {result.PageNumber} of {result.TotalPages}, count: {result.Data.Count}");
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Exception Error for IdentifierController:ViewIrMsn method: {ex}");
+                return BadRequest(ex);
             }
         }
 

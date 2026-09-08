@@ -278,6 +278,66 @@ ORDER BY
         public static readonly string GET_SINGLE_MSNNUMBER_Query = @"SELECT msn.id, msn.msnnumber, msn.prodseriesid, msn.drawingnumberid, msn.nomenclatureid, msn.componenttypeid, msn.idnumberstart, msn.idnumberend, msn.quantity, msn.remark, msn.productionordernumber as ProductionOrderNumber, msn.purchaseordernumber as PurchaseOrderNumber, msn.itemdescription, msn.lnitemcode, msn.stage, msn.stageid, msn.projectnumber, msn.supplier, msn.createdby, msn.createddate, msn.modifiedby, msn.modifieddate, msn.isactive
         FROM tbl_msnnumber msn Where msn.msnnumber=@query";
 
+        // Building blocks for the combined IR/MSN report (POST /api/reports/viewIrMsn).
+        // {SERIES_FILTER}/{DEPT_FILTER}/{DATE_FILTER} are shared between the IR and MSN halves;
+        // {SEARCH_FILTER} is applied once, in the outer query, against the unioned result set.
+        public static readonly string VIEW_IR_MSN_IR_BLOCK = @"
+    SELECT
+        ir.id AS id,
+        'IR' AS documenttype,
+        ir.irnumber AS irnumber,
+        CAST(NULL AS nvarchar(100)) AS msnnumber,
+        ir.productionordernumber AS productionordernumber,
+        td.drawingnumber AS drawingnumber,
+        COALESCE(ir.lnitemcode, map.lnitemcode) AS lnitemcode,
+        ps.productionseries AS productionseriesname,
+        d.name AS departmentname,
+        ir.createddate AS createddate
+    FROM tbl_irnumber ir
+    LEFT JOIN tbl_productionseries ps ON ir.prodseriesid = ps.id
+    LEFT JOIN tbl_drawingnumber td ON ir.drawingnumberid = td.id
+    LEFT JOIN tbl_department d ON ir.departmentid = d.id
+    LEFT JOIN tbl_drawing_lnitem_map map ON td.drawingnumber = map.drawingnumber
+    WHERE ir.isactive = 1
+    {SERIES_FILTER}
+    {DEPT_FILTER}
+    {DATE_FILTER}";
+
+        public static readonly string VIEW_IR_MSN_MSN_BLOCK = @"
+    SELECT
+        msn.id AS id,
+        'MSN' AS documenttype,
+        CAST(NULL AS nvarchar(100)) AS irnumber,
+        msn.msnnumber AS msnnumber,
+        msn.productionordernumber AS productionordernumber,
+        td.drawingnumber AS drawingnumber,
+        msn.lnitemcode AS lnitemcode,
+        ps.productionseries AS productionseriesname,
+        d.name AS departmentname,
+        msn.createddate AS createddate
+    FROM tbl_msnnumber msn
+    LEFT JOIN tbl_productionseries ps ON msn.prodseriesid = ps.id
+    LEFT JOIN tbl_drawingnumber td ON msn.drawingnumberid = td.id
+    LEFT JOIN tbl_department d ON msn.departmentid = d.id
+    WHERE msn.isactive = 1
+    {SERIES_FILTER}
+    {DEPT_FILTER}
+    {DATE_FILTER}";
+
+        public static readonly string VIEW_IR_MSN_COUNT_QUERY = @"
+    SELECT COUNT(*)
+    FROM ( {UNION_BLOCK} ) combined
+    WHERE 1 = 1
+    {SEARCH_FILTER}";
+
+        public static readonly string VIEW_IR_MSN_PAGED_QUERY = @"
+    SELECT *
+    FROM ( {UNION_BLOCK} ) combined
+    WHERE 1 = 1
+    {SEARCH_FILTER}
+    ORDER BY combined.createddate DESC
+    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+
         public static readonly string GET_MSNNUMBER_Query = @"
             SELECT 
             msn.id,

@@ -4,6 +4,7 @@ using Godrej.Precheck.Models.DataModel.Common;
 using Godrej.Precheck.Models.DataModel.Precheck;
 using Godrej.Precheck.Models.DTOs.Assembly;
 using Godrej.Precheck.Models.DTOs.DrawingNumber;
+using Godrej.Precheck.Models.DTOs.IdentifierReports;
 using Godrej.Precheck.Models.DTOs.IRNumber;
 using Godrej.Precheck.Models.DTOs.MSNNumber;
 using Godrej.Precheck.Models.DTOs.Precheck;
@@ -55,6 +56,8 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
 
         //Task<List<MSNNumbers>> MSNNumberByDrawingNumberService(string query);
         Task<List<MSNNumbers>> MSNNumberByDrawingNumberService(GetMSNNumberByDrawingNumberRequest getMSNNumberByDrawingNumberRequest);
+
+        Task<ViewIrMsnPagedResponse> ViewIrMsnService(ViewIrMsnRequestDto request, int pageNumber, int pageSize);
 
         Task<User> UserByNameService(string name);
 

@@ -4,6 +4,7 @@ using Godrej.Precheck.Models.DataModel.Common;
 using Godrej.Precheck.Models.DataModel.Precheck;
 using Godrej.Precheck.Models.DTOs.Assembly;
 using Godrej.Precheck.Models.DTOs.DrawingNumber;
+using Godrej.Precheck.Models.DTOs.IdentifierReports;
 using Godrej.Precheck.Models.DTOs.IRNumber;
 using Godrej.Precheck.Models.DTOs.MSNNumber;
 using Godrej.Precheck.Models.DTOs.Precheck;
@@ -498,6 +499,30 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             {
                 _logger.LogError(ex, "Error retrieving MSN numbers by drawing number: {DrawingNumber}. Error: {ErrorMessage}",
                     getMSNNumberByDrawingNumberRequest?.DrawingNumber, ex.Message);
+                throw;
+            }
+        }
+
+        public async Task<ViewIrMsnPagedResponse> ViewIrMsnService(ViewIrMsnRequestDto request, int pageNumber, int pageSize)
+        {
+            _logger.LogInformation("Starting ViewIrMsnService");
+            try
+            {
+                var (items, totalCount) = await _commonRepository.GetViewIrMsn(request, pageNumber, pageSize);
+
+                _logger.LogInformation("Successfully retrieved {Count} IR/MSN rows, totalCount: {TotalCount}", items.Count, totalCount);
+
+                return new ViewIrMsnPagedResponse
+                {
+                    Data = items,
+                    TotalRecords = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving combined IR/MSN report. Error: {ErrorMessage}", ex.Message);
                 throw;
             }
         }
