@@ -23,7 +23,7 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
         // All filters ANDed together; searchQuery is a single free-text value matched against
         // qrCodeNumber/drawingNumber/lnItemCode/idNumber/productionOrderNumber; ProdSeries accepts an array.
         // pageSize null == no pagination, every matching row is returned.
-        Task<QRCodeDetailsPagedResponse> GetBarcodeDetailsWithParametersService(string? searchQuery, List<string>? prodSeries, int? createdBy, DateTime? fromDate, DateTime? toDate, int pageNumber, int? pageSize);
+        Task<QRCodeDetailsPagedResponse> GetBarcodeDetailsWithParametersService(string? searchQuery, List<string>? prodSeries, List<int>? createdBy, DateTime? fromDate, DateTime? toDate, int pageNumber, int? pageSize);
 
         //same as GetQRCodeDetailsWithParameterService but restricted to consumed QR codes (qrcodestatusid = 2, isactive = 0)
         Task<List<QRCodeDetailsResponseDto>> GetConsumedQRCodeDetailsWithParameterService(GetQRCodeRequestDto getQRCodeRequest);

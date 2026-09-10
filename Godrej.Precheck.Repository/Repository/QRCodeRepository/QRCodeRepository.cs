@@ -310,7 +310,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
         }
 
         public async Task<(List<QRCodeDetailsResponseDto> Items, int TotalCount)> GetBarcodeDetailsWithParametersAsync(
-            string? searchQuery, List<string>? prodSeries, int? createdBy, DateTime? fromDate, DateTime? toDate,
+            string? searchQuery, List<string>? prodSeries, List<int>? createdBy, DateTime? fromDate, DateTime? toDate,
             int pageNumber, int? pageSize)
         {
             _logger.LogInformation("Request for QRCodeRepository:GetBarcodeDetailsWithParametersAsync");
@@ -345,9 +345,9 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     seriesFilter = " AND ps.productionseries IN @ProdSeries";
                 }
 
-                if (createdBy.HasValue)
+                if (createdBy != null && createdBy.Count > 0)
                 {
-                    createdByFilter = " AND qd.createdby = @CreatedBy";
+                    createdByFilter = " AND qd.createdby IN @CreatedBy";
                 }
 
                 if (fromDate.HasValue || toDate.HasValue)

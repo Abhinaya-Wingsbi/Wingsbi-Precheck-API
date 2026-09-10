@@ -579,7 +579,7 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
         }
 
         public async Task<QRCodeDetailsPagedResponse> GetBarcodeDetailsWithParametersService(
-            string? searchQuery, List<string>? prodSeries, int? createdBy, DateTime? fromDate, DateTime? toDate,
+            string? searchQuery, List<string>? prodSeries, List<int>? createdBy, DateTime? fromDate, DateTime? toDate,
             int pageNumber, int? pageSize)
         {
             try

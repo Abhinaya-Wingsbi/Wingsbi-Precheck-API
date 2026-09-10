@@ -15,7 +15,7 @@ namespace Godrej.Precheck.Models.DTOs.QRCodeDetails
     {
         public string? SearchQuery { get; set; }
         public List<string>? ProdSeries { get; set; }
-        public int? CreatedBy { get; set; }
+        public List<int>? CreatedBy { get; set; }
         [JsonConverter(typeof(NullableDateTimeConverter))]
         public DateTime? FromDate { get; set; }
         [JsonConverter(typeof(NullableDateTimeConverter))]
