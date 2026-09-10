@@ -456,31 +456,24 @@ namespace Godrej.Precheck.Repository.Queries
         #region GET_BARCODE_DETAILS_WITH_PARAMETERS_QUERY
 
         // Count query only needs the joins the filter placeholders actually reference
-        // (td for {DRAWING_FILTER}, ps for {SERIES_FILTER}, li for {ITEM_FILTER}) -- the
-        // display-only joins used by the paged query below are omitted.
+        // (ps for {SERIES_FILTER}) -- the display-only joins used by the paged query below are omitted.
+        // {SEARCH_FILTER} is self-contained (it resolves drawingNumber/lnItemCode via a subquery
+        // against tbl_drawingnumber), so no join to td/li is needed here for it.
         public static readonly string GET_BARCODE_DETAILS_WITH_PARAMETERS_COUNT_QUERY =
     @"SELECT COUNT(DISTINCT qd.id) AS TotalCount
     FROM tbl_qrcodedetails qd
-    INNER JOIN tbl_drawingnumber td
-        ON qd.drawingnumberid = td.id
     INNER JOIN tbl_productionseries ps
         ON qd.productionseriesid = ps.id
-    LEFT JOIN tbl_lnitemcode li
-        ON qd.lnitemcodeid = li.id
     WHERE
         qd.isactive = 1
-        {QR_FILTER}
-        {DRAWING_FILTER}
-        {ITEM_FILTER}
-        {ID_NUMBERS_FILTER}
+        {SEARCH_FILTER}
         {SERIES_FILTER}
         {CREATEDBY_FILTER}
         {DATE_FILTER}";
 
         // Same shape as GET_QRCODE_DETAILS_With_PARAMETER_QUERY, but every filter is ANDed
-        // together (no QRCodeNumber short-circuit), DrawingNumber/LineItemCode match by their
-        // text value instead of an ID, ProdSeries/IdNumbers accept arrays, and there's an extra
-        // join to tbl_lnitemcode for the LineItemCode text filter.
+        // together (no QRCodeNumber short-circuit), searchQuery is a single free-text value matched
+        // against several columns/subqueries, and ProdSeries accepts an array.
         public static readonly string GET_BARCODE_DETAILS_WITH_PARAMETERS_PAGED_QUERY =
     @"SELECT DISTINCT
         qd.id,
@@ -585,10 +578,7 @@ namespace Godrej.Precheck.Repository.Queries
         ON qd.shapeid = sh.id
     WHERE
         qd.isactive = 1
-        {QR_FILTER}
-        {DRAWING_FILTER}
-        {ITEM_FILTER}
-        {ID_NUMBERS_FILTER}
+        {SEARCH_FILTER}
         {SERIES_FILTER}
         {CREATEDBY_FILTER}
         {DATE_FILTER}

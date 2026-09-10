@@ -7,8 +7,7 @@ namespace Godrej.Precheck.Models.DTOs.QRCodeDetails
     /// Request body for POST /api/QRCode/ExportViewQrCode.
     /// Two mutually exclusive ways to pick which QR codes to export:
     ///  - QRCodeNumbers: export this specific, already-known list.
-    ///  - SearchQuery/ProdSeries/FromDate/ToDate: same filter shape as GetBarcodeDetailsWithParameters
-    ///    (CreatedBy stays on the query string, like that endpoint).
+    ///  - SearchQuery/ProdSeries/CreatedBy/FromDate/ToDate: same filter shape as GetBarcodeDetailsWithParameters.
     /// SelectedColumns controls which columns land in the exported workbook (empty/null = all).
     /// </summary>
     public class ExportViewQrCodeRequestDto
@@ -17,8 +16,9 @@ namespace Godrej.Precheck.Models.DTOs.QRCodeDetails
         public List<string>? BatchIdNumbers { get; set; }
         public int? QrCodeStatusId { get; set; }
 
-        public BarcodeSearchQueryDto? SearchQuery { get; set; }
+        public string? SearchQuery { get; set; }
         public List<string>? ProdSeries { get; set; }
+        public int? CreatedBy { get; set; }
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
 

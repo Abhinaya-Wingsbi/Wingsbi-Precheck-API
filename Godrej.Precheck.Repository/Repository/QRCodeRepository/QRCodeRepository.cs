@@ -310,40 +310,34 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
         }
 
         public async Task<(List<QRCodeDetailsResponseDto> Items, int TotalCount)> GetBarcodeDetailsWithParametersAsync(
-            BarcodeSearchQueryDto? searchQuery, List<string>? prodSeries, int? createdBy, DateTime? fromDate, DateTime? toDate,
+            string? searchQuery, List<string>? prodSeries, int? createdBy, DateTime? fromDate, DateTime? toDate,
             int pageNumber, int? pageSize)
         {
             _logger.LogInformation("Request for QRCodeRepository:GetBarcodeDetailsWithParametersAsync");
 
             try
             {
-                var qrFilter = " AND 1=1";
-                var drawingFilter = " AND 1=1";
-                var itemFilter = " AND 1=1";
-                var idNumbersFilter = " AND 1=1";
+                var searchFilter = " AND 1=1";
                 var seriesFilter = " AND 1=1";
                 var createdByFilter = " AND 1=1";
                 var dateFilter = " AND 1=1";
 
-                if (!string.IsNullOrWhiteSpace(searchQuery?.QRCodeNumber))
+                // Single free-text value matched against qrCodeNumber/idNumber/productionOrderNumber
+                // directly on tbl_qrcodedetails, and against drawingNumber/lnItemCode via tbl_drawingnumber
+                // (the source of truth for both) resolved to matching drawing ids.
+                var trimmedSearchQuery = string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery.Trim();
+                if (trimmedSearchQuery != null)
                 {
-                    qrFilter = " AND qd.qrcodenumber = @QRCodeNumber";
-                }
-
-                if (!string.IsNullOrWhiteSpace(searchQuery?.DrawingNumber))
-                {
-                    drawingFilter = " AND td.drawingnumber LIKE '%' + @DrawingNumber + '%'";
-                }
-
-                if (!string.IsNullOrWhiteSpace(searchQuery?.LineItemCode))
-                {
-                    itemFilter = " AND li.lnitemcode LIKE '%' + @LineItemCode + '%'";
-                }
-
-                var idNumbers = searchQuery?.IdNumbers;
-                if (idNumbers != null && idNumbers.Count > 0)
-                {
-                    idNumbersFilter = " AND qd.idnumber IN @IdNumbers";
+                    searchFilter = @" AND (
+                        qd.qrcodenumber LIKE '%' + @SearchQuery + '%'
+                        OR qd.idnumber LIKE '%' + @SearchQuery + '%'
+                        OR qd.productionordernumber LIKE '%' + @SearchQuery + '%'
+                        OR qd.drawingnumberid IN (
+                            SELECT id FROM tbl_drawingnumber
+                            WHERE drawingnumber LIKE '%' + @SearchQuery + '%'
+                               OR lnitemcode LIKE '%' + @SearchQuery + '%'
+                        )
+                    )";
                 }
 
                 if (prodSeries != null && prodSeries.Count > 0)
@@ -363,10 +357,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                 }
 
                 var countQuery = QRCodeQueries.GET_BARCODE_DETAILS_WITH_PARAMETERS_COUNT_QUERY
-                    .Replace("{QR_FILTER}", qrFilter)
-                    .Replace("{DRAWING_FILTER}", drawingFilter)
-                    .Replace("{ITEM_FILTER}", itemFilter)
-                    .Replace("{ID_NUMBERS_FILTER}", idNumbersFilter)
+                    .Replace("{SEARCH_FILTER}", searchFilter)
                     .Replace("{SERIES_FILTER}", seriesFilter)
                     .Replace("{CREATEDBY_FILTER}", createdByFilter)
                     .Replace("{DATE_FILTER}", dateFilter);
@@ -378,10 +369,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     : "";
 
                 var pagedQuery = QRCodeQueries.GET_BARCODE_DETAILS_WITH_PARAMETERS_PAGED_QUERY
-                    .Replace("{QR_FILTER}", qrFilter)
-                    .Replace("{DRAWING_FILTER}", drawingFilter)
-                    .Replace("{ITEM_FILTER}", itemFilter)
-                    .Replace("{ID_NUMBERS_FILTER}", idNumbersFilter)
+                    .Replace("{SEARCH_FILTER}", searchFilter)
                     .Replace("{SERIES_FILTER}", seriesFilter)
                     .Replace("{CREATEDBY_FILTER}", createdByFilter)
                     .Replace("{DATE_FILTER}", dateFilter)
@@ -389,10 +377,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
 
                 var queryParams = new
                 {
-                    QRCodeNumber = searchQuery?.QRCodeNumber,
-                    DrawingNumber = searchQuery?.DrawingNumber,
-                    LineItemCode = searchQuery?.LineItemCode,
-                    IdNumbers = idNumbers,
+                    SearchQuery = trimmedSearchQuery,
                     ProdSeries = prodSeries,
                     CreatedBy = createdBy,
                     FromDate = fromDate,
@@ -406,10 +391,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     pagedQuery,
                     new
                     {
-                        QRCodeNumber = searchQuery?.QRCodeNumber,
-                        DrawingNumber = searchQuery?.DrawingNumber,
-                        LineItemCode = searchQuery?.LineItemCode,
-                        IdNumbers = idNumbers,
+                        SearchQuery = trimmedSearchQuery,
                         ProdSeries = prodSeries,
                         CreatedBy = createdBy,
                         FromDate = fromDate,

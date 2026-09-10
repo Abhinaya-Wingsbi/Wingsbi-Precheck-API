@@ -317,12 +317,11 @@ namespace QRCodeApi.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetQRcodeDetailsWithParametersAsync(
-            [FromQuery] int? CreatedBy = null,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 20,
             [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] GetBarcodeDetailsRequestDto? request = null)
         {
-            _logger.LogInformation($"Request received for GetQRcodeDetailsWithParametersAsync with request: {request}, CreatedBy: {CreatedBy}");
+            _logger.LogInformation($"Request received for GetQRcodeDetailsWithParametersAsync with request: {request}");
 
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1) pageSize = 20;
@@ -331,7 +330,7 @@ namespace QRCodeApi.Controllers
             try
             {
                 var result = await _qrCodeService.GetBarcodeDetailsWithParametersService(
-                    request?.SearchQuery, request?.ProdSeries, CreatedBy, request?.FromDate, request?.ToDate,
+                    request?.SearchQuery, request?.ProdSeries, request?.CreatedBy, request?.FromDate, request?.ToDate,
                     pageNumber, pageSize);
 
                 if (result.Data.Count == 0)
@@ -732,7 +731,6 @@ namespace QRCodeApi.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> ExportViewQrCodeAsync(
-            [FromQuery] int? CreatedBy,
             [FromBody] ExportViewQrCodeRequestDto request)
         {
             _logger.LogInformation($"Request received for ExportViewQrCode with request: {request}");
@@ -845,10 +843,10 @@ namespace QRCodeApi.Controllers
                 else
                 {
                     // Same filter shape as GetBarcodeDetailsWithParameters -- every filter ANDed
-                    // together, DrawingNumber/LineItemCode by text, ProdSeries/IdNumbers as arrays.
+                    // together, searchQuery a single free-text value, ProdSeries an array.
                     // pageSize: null == no pagination, export needs every matching row.
                     var pagedResult = await _qrCodeService.GetBarcodeDetailsWithParametersService(
-                        request.SearchQuery, request.ProdSeries, CreatedBy, request.FromDate, request.ToDate,
+                        request.SearchQuery, request.ProdSeries, request.CreatedBy, request.FromDate, request.ToDate,
                         pageNumber: 1, pageSize: null);
                     var allQRCodeDetails = pagedResult.Data;
 
