@@ -485,6 +485,47 @@ namespace Godrej.Precheck.Host.Controllers
         }
 
         [Authorize]
+        [HttpPost("ViewPrechekByParameters")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult> ViewPrechekByParameters(
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ViewPrecheckFilterRequestDto? request,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            request ??= new ViewPrecheckFilterRequestDto();
+            _logger.LogInformation($"Request received for PrecheckController:ViewPrechekByParameters- {request}, pageNumber: {pageNumber}, pageSize: {pageSize}");
+
+            try
+            {
+                if (pageNumber < 1) pageNumber = 1;
+                if (pageSize < 1) pageSize = 20;
+                if (pageSize > 200) pageSize = 200;
+
+                var response = await _service.ViewPrecheckByParametersService(request, pageNumber, pageSize);
+
+                if (response == null)
+                {
+                    _logger.LogWarning($"PrecheckController:ViewPrechekByParameters - Failed for {request}");
+                    return BadRequest(new { message = "Failed ViewPrechekByParameters." });
+                }
+
+                _logger.LogInformation($"PrecheckController:ViewPrechekByParameters - Successfully Get details, page {response.PageNumber} of {response.TotalPages}, count: {response.Data.Count}");
+                return Ok(response);
+            }
+            catch (ApplicationException ex)
+            {
+                _logger.LogError(ex, "PrecheckController:ViewPrechekByParameters - Application error occurred");
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "PrecheckController:ViewPrechekByParameters - Unexpected error occurred");
+                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+            }
+        }
+
+        [Authorize]
         [HttpPost("PendingPrecheck")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -575,18 +616,25 @@ namespace Godrej.Precheck.Host.Controllers
         [HttpPost("GetStoreAvailablComponents")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult> GetAvailableComponents([FromBody] AvailableComponentFilterDto filter)
+        public async Task<ActionResult> GetAvailableComponents(
+            [FromBody] AvailableComponentFilterDto filter,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
         {
-            _logger.LogInformation($"Request received for PrecheckController:GetAvailableComponents {filter.QrCode}");
+            _logger.LogInformation($"Request received for PrecheckController:GetAvailableComponents {filter.QrCode}, pageNumber: {pageNumber}, pageSize: {pageSize}");
             try
             {
-                var response = await _service.AvailableComponentDetailsService(filter);
+                if (pageNumber < 1) pageNumber = 1;
+                if (pageSize < 1) pageSize = 20;
+                if (pageSize > 200) pageSize = 200;
+
+                var response = await _service.AvailableComponentDetailsPagedService(filter, pageNumber, pageSize);
                 if (response == null)
                 {
                     _logger.LogWarning($"PrecheckController:GetAvailableComponents - Failed for {filter.QrCode}");
                     return BadRequest(new { message = "Failed GetAvailableComponents." });
                 }
-                _logger.LogInformation($"PrecheckController:GetAvailableComponents - Successfully retrieved details");
+                _logger.LogInformation($"PrecheckController:GetAvailableComponents - Successfully retrieved details, page {response.PageNumber} of {response.TotalPages}, count: {response.Data.Count}");
                 return Ok(response);
             }
             catch (ApplicationException ex)

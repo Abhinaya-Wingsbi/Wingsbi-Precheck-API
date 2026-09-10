@@ -698,6 +698,116 @@ ORDER BY TRY_CAST(adm.findno AS INT) ASC";
 
         #endregion
 
+        #region GET_VIEW_PRECHECK_FILTERED
+
+        // Same shape as GET_VIEW_PRECHECK_BY_ID_NUMBER, plus the PrecheckStatus label (computed the same
+        // way as GET_VIEW_PRECHECK_BY_PO_NUMBER does) so it can be filtered on. {SEARCH_FILTER} /
+        // {SERIES_FILTER} are built dynamically in PrecheckRepository.ViewPrecheckFiltered.
+        // {STATUS_FILTER} filters on the computed PrecheckStatus column from the outer query, since it
+        // can't be referenced from the inner WHERE clause directly.
+        public static readonly string GET_VIEW_PRECHECK_FILTERED = @"
+SELECT * FROM (
+SELECT
+    ppd.prodseriesid,
+    ps.productionseries,
+    ppd.drawingnumberid,
+    dn.drawingnumber,
+    nom.id as nomenclatureid,
+    nom.nomenclature,
+    dn.lnitemcode,
+    COALESCE(ppd.idnumber, CAST(ppd.idnumbers AS VARCHAR(50))) as idnumber,
+    ppd.irnumber,
+    ppd.msnnumber,
+    ppd.mrirnumber,
+    ppd.consumedindrawing,
+    ppd.remarks AS Remarks,
+    ppd.quantity,
+    adm.unit,
+    ppd.mydate,
+    ppd.componentcodeid,
+    ppd.srnumber,
+    tu.username AS Username,
+    ppd.createdby,
+    ppd.createddate,
+    ppd.modifiedby,
+    ppd.modifieddate,
+    pd.id AS ProjectDetailsId,
+    pd.projectnumber,
+    pd.productionordernumber,
+    ppd.Id AS PrecheckDetailsId,
+    ppd.isprecheckcomplete,
+    ppd.componenttype,
+    ppd.precheckdate,
+    ppd.remainingquantity AS RemainingQuantity,
+    adm.findno AS FindNo,
+    ppd.isrejected AS IsRejected,
+    CASE
+        WHEN ppd.componenttype = 'ID' AND ppd.remainingquantity IS NULL AND ppd.isprecheckcomplete = 1
+            THEN 'Completed'
+        WHEN ppd.componenttype = 'BATCH' AND ppd.remainingquantity = 0 AND ppd.isprecheckcomplete = 1
+            THEN 'Completed'
+        WHEN ppd.remainingquantity IS NULL THEN 'Pending'
+        WHEN ppd.remainingquantity = 0 THEN 'Completed'
+        WHEN ppd.remainingquantity >= ppd.quantity THEN 'Pending'
+        WHEN ppd.remainingquantity < ppd.quantity THEN 'Updated'
+    END AS PrecheckStatus,
+    CASE
+        WHEN ppd.isprecheckcomplete = 1
+             AND ppd.isrejected = 0
+             AND (
+                  mr.id IS NULL
+                  OR (mr.statusid = 2 AND mr.isactive = 1)
+             )
+        THEN 1
+        ELSE 0
+    END AS ReadyForRejection,
+    mr.status AS MaterialRequisitionStatus
+FROM
+    tbl_projectprecheckdetails ppd
+INNER JOIN
+    tbl_projectdetails pd
+ON
+    ppd.projectdetailsid = pd.id
+INNER JOIN
+    tbl_productionseries ps
+ON
+    ppd.prodseriesid = ps.id
+LEFT JOIN
+    tbl_users tu
+ON
+    ppd.modifiedby = tu.id
+INNER JOIN
+    tbl_drawingnumber dn
+ON
+    ppd.drawingnumberid = dn.id
+LEFT JOIN
+     tbl_drawingnomenclaturemapping nommap
+     ON dn.id = nommap.drawingnumberid
+LEFT JOIN
+     tbl_nomenclature nom
+     ON nommap.nomenclatureid = nom.id
+LEFT JOIN
+    tbl_material_requestion mr ON ppd.Id = mr.rejectedcomponentid AND mr.isactive = 1
+OUTER APPLY (
+    SELECT TOP 1 adm2.findno, adm2.unit
+    FROM tbl_assemblydrawingmapping adm2
+    WHERE adm2.drawingnumber = ppd.drawingnumberid
+      AND adm2.parentdrawingnumber = pd.drawingnumberid
+      AND adm2.isactive = 1
+    ORDER BY adm2.id
+) adm
+WHERE
+    pd.isactive = 1 AND ppd.isactive = 1
+    AND (@FromDate IS NULL OR CAST(ppd.createddate AS DATE) >= CAST(@FromDate AS DATE))
+    AND (@ToDate IS NULL OR CAST(ppd.createddate AS DATE) <= CAST(@ToDate AS DATE))
+    {SEARCH_FILTER}
+    {SERIES_FILTER}
+) AS Result
+{STATUS_FILTER}
+ORDER BY TRY_CAST(Result.FindNo AS INT) ASC";
+
+        #endregion
+
         #region ExportViewPewcheck
         public static readonly string Export_View_Precheck = @"
              
@@ -803,10 +913,17 @@ ORDER BY TRY_CAST(adm.findno AS INT) ASC;
         ";
         #endregion
         #region GET_Available_Components
+        // {DRAWING_FILTER} / {SERIES_FILTER} / {SEARCH_FILTER} are built dynamically in
+        // PrecheckRepository.GetAvailableComponentDetails: an exact drawingnumberid/prodseriesid match
+        // when a QR code was supplied (preserving the original single-drawing/single-series behaviour),
+        // otherwise the caller's DrawingNumber/ProdSeries/SearchQuery filters. {STATUS_FILTER} filters on
+        // the computed PrecheckStatus label ('Partial'/'Pending') from the outer query, since it can't be
+        // referenced from the inner WHERE clause directly.
         public static readonly string GET_Available_Components = @"
+SELECT * FROM (
 SELECT
     pd.idnumbers AS id,
-    ppd.idnumber,
+    ppd.idnumber AS PpdIdNumber,
     ppd.quantity,
     pd.drawingnumberid,
     dn.drawingnumber,
@@ -823,11 +940,11 @@ SELECT
     u.username AS createdbyname,
     u.email,
     pd.createddate,
-    CASE 
+    CASE
         WHEN (
-            SELECT COUNT(*) 
+            SELECT COUNT(*)
             FROM tbl_projectprecheckdetails ppd2
-            INNER JOIN tbl_projectdetails pd2 
+            INNER JOIN tbl_projectdetails pd2
                 ON pd2.id = ppd2.projectdetailsid
             WHERE pd2.productionordernumber = pd.productionordernumber
               AND pd2.idnumbers = pd.idnumbers
@@ -837,29 +954,32 @@ SELECT
         ELSE 'Pending'
     END AS PrecheckStatus,
     pd.precheckstatus AS PrecheckStatusId
-FROM 
+FROM
     tbl_projectprecheckdetails ppd
-INNER JOIN 
+INNER JOIN
     tbl_projectdetails pd ON pd.id = ppd.projectdetailsid
-INNER JOIN 
+INNER JOIN
     tbl_drawingnumber dn ON dn.id = pd.drawingnumberid
-LEFT JOIN 
+LEFT JOIN
     tbl_productionseries tps ON tps.id = pd.prodseriesid
-LEFT JOIN 
+LEFT JOIN
     tbl_drawingnomenclaturemapping nommap ON pd.drawingnumberid = nommap.drawingnumberid
-LEFT JOIN 
+LEFT JOIN
     tbl_nomenclature nom ON nommap.nomenclatureid = nom.id
-LEFT JOIN 
+LEFT JOIN
     tbl_users u ON CAST(pd.createdby AS VARCHAR(MAX)) = u.id
-WHERE 
-    ppd.drawingnumberid = @drawingnumberid 
-    AND ppd.prodseriesid = @productionseriesid
-    AND ppd.isprecheckcomplete = 0
+WHERE
+    ppd.isprecheckcomplete = 0
     AND (pd.precheckstatus IS NULL OR pd.precheckstatus != 3)
     AND (@fromDate IS NULL OR pd.createddate >= @fromDate)
     AND (@toDate IS NULL OR pd.createddate < DATEADD(DAY, 1, @toDate))
-ORDER BY 
-    pd.createddate DESC";
+    {DRAWING_FILTER}
+    {SERIES_FILTER}
+    {SEARCH_FILTER}
+) AS Result
+{STATUS_FILTER}
+ORDER BY
+    Result.createddate DESC";
         #endregion
 
         #endregion

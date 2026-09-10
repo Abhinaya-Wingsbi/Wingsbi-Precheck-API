@@ -14,10 +14,13 @@ using Godrej.Precheck.Repository.Repository.CommonRepository;
 using Godrej.Precheck.Service.Cache;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.Extensions.Logging;
+using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
 using Org.BouncyCastle.Crypto.Generators;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -523,6 +526,100 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving combined IR/MSN report. Error: {ErrorMessage}", ex.Message);
+                throw;
+            }
+        }
+
+        // Column key -> (header text, value selector) for ViewIrMsnResponseDto, in default export order.
+        private static readonly List<(string Key, string Header, Func<ViewIrMsnResponseDto, string> Value)> IrMsnExportColumns =
+            new List<(string, string, Func<ViewIrMsnResponseDto, string>)>
+        {
+            ("Id", "Id", r => r.Id?.ToString()),
+            ("DocumentType", "Document Type", r => r.DocumentType),
+            ("IrNumber", "IR Number", r => r.IrNumber),
+            ("MsnNumber", "MSN Number", r => r.MsnNumber),
+            ("ProductionOrderNumber", "Production Order Number", r => r.ProductionOrderNumber),
+            ("DrawingNumber", "Drawing Number", r => r.DrawingNumber),
+            ("LnItemCode", "LN Item Code", r => r.LnItemCode),
+            ("ProductionSeriesName", "Production Series", r => r.ProductionSeriesName),
+            ("DepartmentName", "Department", r => r.DepartmentName),
+            ("CreatedDate", "Created Date", r => r.CreatedDate?.ToString("yyyy-MM-dd")),
+        };
+
+        public async Task<byte[]> ExportIrMsnService(ExportIrMsnRequestDto request)
+        {
+            _logger.LogInformation("Starting ExportIrMsnService");
+            try
+            {
+                var (items, totalCount) = await _commonRepository.GetViewIrMsn(request, 1, int.MaxValue);
+
+                var selectedColumns = request?.SelectedColumns;
+                var columns = (selectedColumns == null || selectedColumns.Count == 0)
+                    ? IrMsnExportColumns
+                    : selectedColumns
+                        .Select(name => IrMsnExportColumns.FirstOrDefault(c => string.Equals(c.Key, name, StringComparison.OrdinalIgnoreCase)))
+                        .Where(c => c.Key != null)
+                        .ToList();
+
+                if (columns.Count == 0)
+                {
+                    columns = IrMsnExportColumns;
+                }
+
+                using (var workbook = new XSSFWorkbook())
+                {
+                    var sheet = workbook.CreateSheet("IR-MSN");
+
+                    var headerStyle = workbook.CreateCellStyle();
+                    var headerFont = workbook.CreateFont();
+                    headerFont.IsBold = true;
+                    headerStyle.SetFont(headerFont);
+                    headerStyle.FillForegroundColor = IndexedColors.Grey25Percent.Index;
+                    headerStyle.FillPattern = FillPattern.SolidForeground;
+                    headerStyle.Alignment = HorizontalAlignment.Center;
+                    headerStyle.VerticalAlignment = VerticalAlignment.Center;
+
+                    var borderStyle = workbook.CreateCellStyle();
+                    borderStyle.BorderTop = BorderStyle.Thin;
+                    borderStyle.BorderBottom = BorderStyle.Thin;
+                    borderStyle.BorderLeft = BorderStyle.Thin;
+                    borderStyle.BorderRight = BorderStyle.Thin;
+
+                    var headerRow = sheet.CreateRow(0);
+                    for (int c = 0; c < columns.Count; c++)
+                    {
+                        var cell = headerRow.CreateCell(c);
+                        cell.SetCellValue(columns[c].Header);
+                        cell.CellStyle = headerStyle;
+                    }
+
+                    for (int r = 0; r < items.Count; r++)
+                    {
+                        var row = sheet.CreateRow(r + 1);
+                        for (int c = 0; c < columns.Count; c++)
+                        {
+                            var cell = row.CreateCell(c);
+                            cell.SetCellValue(columns[c].Value(items[r]) ?? string.Empty);
+                            cell.CellStyle = borderStyle;
+                        }
+                    }
+
+                    for (int c = 0; c < columns.Count; c++)
+                    {
+                        sheet.AutoSizeColumn(c);
+                    }
+
+                    using (var ms = new MemoryStream())
+                    {
+                        workbook.Write(ms);
+                        _logger.LogInformation("ExportIrMsnService completed successfully, rows: {Count}", items.Count);
+                        return ms.ToArray();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting IR/MSN report. Error: {ErrorMessage}", ex.Message);
                 throw;
             }
         }

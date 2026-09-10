@@ -59,6 +59,8 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
 
         Task<ViewIrMsnPagedResponse> ViewIrMsnService(ViewIrMsnRequestDto request, int pageNumber, int pageSize);
 
+        Task<byte[]> ExportIrMsnService(ExportIrMsnRequestDto request);
+
         Task<User> UserByNameService(string name);
 
         Task<ProductionOrderModel> ProductionOrderByNameService(string query);

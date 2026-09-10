@@ -219,6 +219,48 @@ namespace Godrej.Precheck.Api.Controllers
             }
         }
 
+        // Export version of ViewIrMsn: same filters, plus SelectedColumns to pick exported columns.
+        [Authorize]
+        [HttpPost("ExportIrMsn")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ExportIrMsn(
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ExportIrMsnRequestDto? request = null)
+        {
+            try
+            {
+                _logger.LogInformation($"Request for IdentifierController:ExportIrMsn method: {request}");
+
+                var excelContent = await _commonService.ExportIrMsnService(request ?? new ExportIrMsnRequestDto());
+
+                if (excelContent == null || excelContent.Length == 0)
+                {
+                    _logger.LogInformation("Response for IdentifierController:ExportIrMsn method: No IR/MSN records found.");
+                    return NotFound("No IR/MSN records found.");
+                }
+
+                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var fileName = $"IR_MSN_{timestamp}.xlsx";
+
+                Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{fileName}\"");
+                Response.Headers.Add("Access-Control-Expose-Headers", "Content-Disposition");
+
+                _logger.LogInformation($"Response for IdentifierController:ExportIrMsn method: generated {fileName}");
+
+                return File(
+                    excelContent,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    fileName
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Exception Error for IdentifierController:ExportIrMsn method: {ex}");
+                return BadRequest(ex);
+            }
+        }
+
         [Authorize]
         [HttpPost("IRNumber")]
         [ProducesResponseType(StatusCodes.Status200OK)]

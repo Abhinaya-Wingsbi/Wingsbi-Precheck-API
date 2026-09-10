@@ -1163,8 +1163,27 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
             var precheckRequest = request.Adapt<ViewPreCheckRequest>();
             var result = await _precheckRepository.ViewPrecheckDetails(precheckRequest);
 
-             
+
             return result;
+        }
+
+        public async Task<ViewPrecheckByParametersPagedResponse> ViewPrecheckByParametersService(ViewPrecheckFilterRequestDto request, int pageNumber, int pageSize)
+        {
+            var result = await _precheckRepository.ViewPrecheckFiltered(request);
+
+            var totalRecords = result.Count;
+            var pagedData = result
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return new ViewPrecheckByParametersPagedResponse
+            {
+                Data = pagedData,
+                TotalRecords = totalRecords,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
 
         public async Task<int?> GetPrecheckStatusDetailsService(ViewPreCheckRequestDto request)
@@ -1201,23 +1220,57 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
         public async Task<List<AvailableComponentModel>> AvailableComponentDetailsService(AvailableComponentFilterDto filter)
         {
-            var qrCodeDetails = await _qRCodeRepository.GetActiveQRcodeDetailsAsync(filter.QrCode);
-            if (qrCodeDetails == null)
+            int? qrDrawingNumberId = null;
+            int? qrProdSeriesId = null;
+
+            // A QR code pins the search to its own drawing+series (original behaviour). Without one,
+            // the caller's SearchQuery/DrawingNumber/ProdSeries/Status filters drive the search instead.
+            if (!string.IsNullOrWhiteSpace(filter.QrCode))
             {
-                throw new ApplicationException($"QR Code {filter.QrCode} is not active");
-            }
-            if (qrCodeDetails.QrCodeStatusId != 1)
-            {
-                throw new ApplicationException($"QR Code {filter.QrCode} is not ready for consumption");
+                var qrCodeDetails = await _qRCodeRepository.GetActiveQRcodeDetailsAsync(filter.QrCode);
+                if (qrCodeDetails == null)
+                {
+                    throw new ApplicationException($"QR Code {filter.QrCode} is not active");
+                }
+                if (qrCodeDetails.QrCodeStatusId != 1)
+                {
+                    throw new ApplicationException($"QR Code {filter.QrCode} is not ready for consumption");
+                }
+
+                qrDrawingNumberId = qrCodeDetails.DrawingNumberId;
+                qrProdSeriesId = qrCodeDetails.ProductionSeriesId;
             }
 
             var result = await _precheckRepository.GetAvailableComponentDetails(
-                qrCodeDetails.DrawingNumberId,
-                qrCodeDetails.ProductionSeriesId,
+                qrDrawingNumberId,
+                qrProdSeriesId,
+                filter.DrawingNumber,
+                filter.ProdSeries,
+                filter.SearchQuery,
+                filter.Status,
                 filter.FromDate,
                 filter.ToDate
             );
             return result;
+        }
+
+        public async Task<AvailableComponentPagedResponse> AvailableComponentDetailsPagedService(AvailableComponentFilterDto filter, int pageNumber, int pageSize)
+        {
+            var result = await AvailableComponentDetailsService(filter);
+
+            var totalRecords = result.Count;
+            var pagedData = result
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return new AvailableComponentPagedResponse
+            {
+                Data = pagedData,
+                TotalRecords = totalRecords,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
 
         public async Task<byte[]> GeneratePrecheckPdfAsync(List<ViewPreCheckResponse> preCheckResponses, ViewPreCheckRequestDto request)

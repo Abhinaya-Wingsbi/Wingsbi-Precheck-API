@@ -357,6 +357,49 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
             }
         }
 
+        public async Task<List<ViewPreCheckResponse>> ViewPrecheckFiltered(ViewPrecheckFilterRequestDto request)
+        {
+            _logger.LogInformation(
+                $"Request for PrecheckRepository:ViewPrecheckFiltered SearchQuery: {request?.SearchQuery}, ProdSeries: {(request?.ProdSeries != null ? string.Join(",", request.ProdSeries) : null)}, Status: {request?.Status}, FromDate: {request?.FromDate}, ToDate: {request?.ToDate}");
+
+            var searchFilter = " AND 1=1";
+            if (!string.IsNullOrWhiteSpace(request?.SearchQuery))
+            {
+                searchFilter = @" AND (
+                    pd.productionordernumber LIKE '%' + @SearchQuery + '%'
+                    OR dn.drawingnumber LIKE '%' + @SearchQuery + '%'
+                    OR dn.lnitemcode LIKE '%' + @SearchQuery + '%'
+                )";
+            }
+
+            var seriesFilter = " AND 1=1";
+            if (request?.ProdSeries != null && request.ProdSeries.Count > 0)
+            {
+                seriesFilter = " AND ps.productionseries IN @ProdSeries";
+            }
+
+            var statusFilter = string.IsNullOrWhiteSpace(request?.Status) ? "" : " WHERE Result.PrecheckStatus = @Status";
+
+            var query = PrecheckQueries.GET_VIEW_PRECHECK_FILTERED
+                .Replace("{SEARCH_FILTER}", searchFilter)
+                .Replace("{SERIES_FILTER}", seriesFilter)
+                .Replace("{STATUS_FILTER}", statusFilter);
+
+            var results = await _db.GetAll<ViewPreCheckResponse>(
+                query,
+                new
+                {
+                    SearchQuery = request?.SearchQuery,
+                    ProdSeries = request?.ProdSeries,
+                    Status = request?.Status,
+                    FromDate = request?.FromDate,
+                    ToDate = request?.ToDate
+                });
+
+            _logger.LogInformation($"Result for PrecheckRepository:ViewPrecheckFiltered count: {results?.Count()}");
+            return results.ToList();
+        }
+
         public async Task<List<ViewPreCheckResponse>> ViewPrecheckDetailsForProductionOrders(List<string> productionOrderNumbers)
         {
             _logger.LogInformation($"Request for PrecheckRepository:ViewPrecheckDetailsForProductionOrders, {productionOrderNumbers.Count} PO(s)");
@@ -577,16 +620,72 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
             }
         }
 
-        public async Task<List<AvailableComponentModel>> GetAvailableComponentDetails(int DrawingId,int ProdSeriesId,DateTime? fromDate,DateTime? toDate)
+        public async Task<List<AvailableComponentModel>> GetAvailableComponentDetails(
+            int? qrDrawingNumberId,
+            int? qrProdSeriesId,
+            string? drawingNumber,
+            List<string>? prodSeries,
+            string? searchQuery,
+            string? status,
+            DateTime? fromDate,
+            DateTime? toDate)
         {
-            _logger.LogInformation($"Request for PrecheckRepository:GetAvailableComponentDetails DrawingId: {DrawingId}, ProdSeriesId: {ProdSeriesId}, FromDate: {fromDate}, ToDate: {toDate}");
+            _logger.LogInformation(
+                $"Request for PrecheckRepository:GetAvailableComponentDetails QrDrawingNumberId: {qrDrawingNumberId}, QrProdSeriesId: {qrProdSeriesId}, DrawingNumber: {drawingNumber}, ProdSeries: {(prodSeries != null ? string.Join(",", prodSeries) : null)}, SearchQuery: {searchQuery}, Status: {status}, FromDate: {fromDate}, ToDate: {toDate}");
+
+            // A QR code (already resolved by the caller into its drawing/series ids) pins the search to
+            // that exact drawing+series, same as the original single-QR behaviour. Without a QR code, the
+            // caller's DrawingNumber (resolved to an id below) and ProdSeries name list drive the search.
+            var drawingNumberId = qrDrawingNumberId;
+            if (!drawingNumberId.HasValue && !string.IsNullOrWhiteSpace(drawingNumber))
+            {
+                drawingNumberId = await _db.GetSingle<int?>(
+                    "SELECT TOP 1 id FROM tbl_drawingnumber WHERE drawingnumber = @DrawingNumber AND isactive = 1",
+                    new { DrawingNumber = drawingNumber });
+            }
+
+            var drawingFilter = " AND 1=1";
+            if (drawingNumberId.HasValue)
+            {
+                drawingFilter = " AND ppd.drawingnumberid = @DrawingNumberId";
+            }
+
+            var seriesFilter = " AND 1=1";
+            if (qrProdSeriesId.HasValue)
+            {
+                seriesFilter = " AND ppd.prodseriesid = @QrProdSeriesId";
+            }
+            else if (prodSeries != null && prodSeries.Count > 0)
+            {
+                seriesFilter = " AND tps.productionseries IN @ProdSeries";
+            }
+
+            var searchFilter = " AND 1=1";
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                searchFilter = @" AND (
+                    pd.productionordernumber LIKE '%' + @SearchQuery + '%'
+                    OR CAST(pd.idnumbers AS VARCHAR(50)) LIKE '%' + @SearchQuery + '%'
+                )";
+            }
+
+            var statusFilter = string.IsNullOrWhiteSpace(status) ? "" : " WHERE Result.PrecheckStatus = @Status";
+
+            var query = PrecheckQueries.GET_Available_Components
+                .Replace("{DRAWING_FILTER}", drawingFilter)
+                .Replace("{SERIES_FILTER}", seriesFilter)
+                .Replace("{SEARCH_FILTER}", searchFilter)
+                .Replace("{STATUS_FILTER}", statusFilter);
 
             var results = await _db.GetAll<AvailableComponentModel>(
-                PrecheckQueries.GET_Available_Components,
+                query,
                 new
                 {
-                    drawingnumberid = DrawingId,
-                    productionseriesid = ProdSeriesId,
+                    DrawingNumberId = drawingNumberId,
+                    QrProdSeriesId = qrProdSeriesId,
+                    ProdSeries = prodSeries,
+                    SearchQuery = searchQuery,
+                    Status = status,
                     fromDate = fromDate,
                     toDate = toDate.HasValue ? toDate.Value.Date.AddDays(1).AddTicks(-1) : (DateTime?)null
                     // ^^^ makes toDate inclusive of the full day (up to 23:59:59.999)
