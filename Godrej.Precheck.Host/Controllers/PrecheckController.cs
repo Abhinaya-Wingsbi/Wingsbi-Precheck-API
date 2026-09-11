@@ -11,8 +11,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-
 namespace Godrej.Precheck.Host.Controllers
 {
     
@@ -369,7 +367,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //export precheck api
         [Authorize]
         [HttpPost("ExportPrecheckdetails")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -379,7 +376,6 @@ namespace Godrej.Precheck.Host.Controllers
             _logger.LogInformation("Request received for PrecheckController:ExportPrecheckDetails {@Request}", request);
             try
             {
-                // Call service
                 var response = await _service.ExportViewPrecheckDetailsService(request);
 
                 if (response == null || !response.Any())
@@ -390,7 +386,6 @@ namespace Godrej.Precheck.Host.Controllers
 
                 _logger.LogInformation("PrecheckController:ExportPrecheckDetails - {Count} records fetched", response.Count);
 
-                // Generate the PDF
                 var pdfContent = await _service.GeneratePrecheckPdfAsync(response, request);
 
                 var fileName = "PrecheckDetailsReport.pdf";
@@ -731,7 +726,6 @@ namespace Godrej.Precheck.Host.Controllers
 
             try
             {
-                // Set CreatedBy from the authenticated user if not provided
                 if (request.CreatedBy == 0)
                 {
                     var userId = Convert.ToInt32(User.FindFirst("id")?.Value);
@@ -821,7 +815,6 @@ namespace Godrej.Precheck.Host.Controllers
 
             try
             {
-                // Set CreatedBy from the authenticated user if not provided
                 if (request.CreatedBy == 0)
                 {
                     var userId = Convert.ToInt32(User.FindFirst("id")?.Value);

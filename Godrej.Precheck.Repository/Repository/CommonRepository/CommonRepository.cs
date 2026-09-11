@@ -49,7 +49,6 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
                 var indianTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
                 var indianTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, indianTimeZone);
 
-                // Step 1 — Check if user already exists
                 var existingUser = await _db.GetSingle<int>(
                     Common.CHECK_USER_EXISTS_QUERY,
                     new { UserId = request.UserId, UserName = request.UserName });
@@ -60,8 +59,7 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
                     throw new ApplicationException($"User '{request.UserName}' already exists.");
                 }
 
-                // Step 2 — Insert user and get new ID
-                var newUserId = await _db.ExecuteScalar<int>(   
+                var newUserId = await _db.ExecuteScalar<int>(
                     Common.ADD_USER_QUERY,
                     new
                     {
@@ -81,7 +79,6 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
                     return null;
                 }
 
-                // Step 3 — Fetch and return inserted user
                 var result = await _db.GetSingle<AddUserResponseDto>(
                     Common.GET_USER_BY_ID_QUERY,
                     new { Id = newUserId });
@@ -148,7 +145,6 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
             return results.ToList();
         }
 
-        //GetProductionSeriesByName 
         public async Task<ProductionSeriess?> GetProductionSeriesByName(string query)
         {
             _logger.LogInformation($"Request for CommonRepository:GetProductionSeriesByName");
@@ -363,7 +359,6 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
             return results.ToList();
         }
 
-        //Get Drawing number by ID
         public async Task<DrawingNumbers> GetDrawingNumberById(int drawingId)
         {
             _logger.LogInformation($"Request for CommonRepository:GetDrawingNumber");
@@ -836,7 +831,6 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
 
                 var allPages = result.ToList();
 
-                // Build parent-child hierarchy
                 var parentPages = allPages
                     .Where(p => p.ParentId == null)
                     .OrderBy(p => p.DisplayOrder)

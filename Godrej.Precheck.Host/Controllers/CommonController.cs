@@ -62,8 +62,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //Get componenttypes
-
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -116,8 +114,6 @@ namespace Godrej.Precheck.Host.Controllers
                     return NotFound();
                 }
 
-                //var DrawingNumberResponse = result.Adapt<DrawingNumberResponseDto>();
-
                 _logger.LogInformation($"Response for CommonController:GetDrawingNumberAsync method: {result}");
                 return Ok(result);
             }
@@ -129,8 +125,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-
-        //Fetch all Drawing Number Witoutany paramter
 
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -225,7 +219,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //GetComponentTypeByName
         [NonAction]
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -260,7 +253,6 @@ namespace Godrej.Precheck.Host.Controllers
         }
 
 
-        //GetComponentTypeById
         [NonAction]
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -295,7 +287,6 @@ namespace Godrej.Precheck.Host.Controllers
         }
 
 
-        //Get Prod Series
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -361,7 +352,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //GetProdSeriesById
         [NonAction]
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -463,7 +453,6 @@ namespace Godrej.Precheck.Host.Controllers
        
 
         [NonAction]
-        //GetProductionOrderByName
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -494,7 +483,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //GetUnitByName
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -720,7 +708,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //Get All Assembly
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

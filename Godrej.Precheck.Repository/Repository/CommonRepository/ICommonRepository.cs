@@ -53,11 +53,9 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
         Task<ProductionSeriess?> GetProductionSeriesById(int Id);
         Task<Nomenclatures?> GetNomenclatureByName(string query);
         Task<User?> GetUserById(int UserId);
-        
-        //Task<List<IRNumbers>> GetIRNumberByDrawingNumber(string query);
+
         Task<List<IRNumbers>> GetIRNumberByDrawingNumber(GetIRNumberByDrawingNumberRequest getIRNumberByDrawingNumberRequest);
         Task<List<MSNNumbers>> GetMSNNuberByDrawingNumber(GetMSNNumberByDrawingNumberRequest getMSNNumberByDrawingNumberRequest);
-        //Task<List<MSNNumbers>> GetMSNNuberByDrawingNumber(string query);
         Task<(List<ViewIrMsnResponseDto> Items, int TotalCount)> GetViewIrMsn(ViewIrMsnRequestDto request, int pageNumber, int pageSize);
         Task<User?> GetUserByName(string name);
         Task<Department> GetDepartmentById(int departmentId);

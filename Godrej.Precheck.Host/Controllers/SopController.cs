@@ -25,7 +25,6 @@ namespace Godrej.Precheck.Host.Controllers
         }
 
         [Authorize]
-        // GET api/<SopController>/5
         [HttpGet("allassemblies")]
         public async Task<IActionResult> GetAllModulesAsync()
         {
@@ -53,7 +52,6 @@ namespace Godrej.Precheck.Host.Controllers
         }
 
         [Authorize]
-        // GET api/<SopController>/5
         [HttpPost("GetSop")]
         public async Task<IActionResult> GetSopForAssembly([FromBody] GetSopRequestDto request)
         {
@@ -142,7 +140,6 @@ namespace Godrej.Precheck.Host.Controllers
 
                 _logger.LogInformation($"PrecheckController:ExportSopForAssembly - Successfully generated Excel file {fileName}");
 
-                // Add these headers to ensure proper file download
                 Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{fileName}\"");
                 Response.Headers.Add("Access-Control-Expose-Headers", "Content-Disposition");
 
@@ -181,7 +178,6 @@ namespace Godrej.Precheck.Host.Controllers
 
                 _logger.LogInformation($"PrecheckController:ExportSopForAssemblyExcludingRawMaterial - Successfully generated Excel file {fileName}");
 
-                // Add these headers to ensure proper file download
                 Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{fileName}\"");
                 Response.Headers.Add("Access-Control-Expose-Headers", "Content-Disposition");
 
@@ -293,7 +289,6 @@ namespace Godrej.Precheck.Host.Controllers
 
                 _logger.LogInformation($"SopController:ExportBom - Successfully generated Excel file {fileName}");
 
-                // Add these headers to ensure proper file download
                 Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{fileName}\"");
                 Response.Headers.Add("Access-Control-Expose-Headers", "Content-Disposition");
 

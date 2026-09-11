@@ -50,7 +50,6 @@ namespace Godrej.Precheck.Service.Service.DrawingNumberService
                     Details = new MappingDetails()
                 };
 
-                // Get Indian Standard Time
                 var indianTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
                 var createdDate = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, indianTimeZone);
                 var createdBy = request.CreatedBy ?? 0;
@@ -119,7 +118,6 @@ namespace Godrej.Precheck.Service.Service.DrawingNumberService
                 {
                     _logger.LogInformation($"Processing LnItemCode: {request.LnItemCode} and RackLocation: {request.RackLocation}");
 
-                    // Get existing master IDs from mapping
                     var existingLnItemCodeId = await _drawingNumberRepository.GetLnItemCodeIdFromMapping(drawingNumberId);
                     var existingRackLocationId = await _drawingNumberRepository.GetRackLocationIdFromMapping(drawingNumberId);
 
@@ -148,7 +146,6 @@ namespace Godrej.Precheck.Service.Service.DrawingNumberService
                     }
                     else if (!string.IsNullOrWhiteSpace(request.LnItemCode) && !string.IsNullOrWhiteSpace(request.RackLocation))
                     {
-                        // No mapping exists - INSERT new master entries and mapping
                         var newLnItemCodeId = await _drawingNumberRepository.InsertLnItemCode(
                             request.LnItemCode,
                             request.LnItemNomenclature ?? string.Empty,
@@ -179,7 +176,6 @@ namespace Godrej.Precheck.Service.Service.DrawingNumberService
                 {
                     _logger.LogInformation($"Processing Nomenclature: {request.Nomenclature}");
 
-                    // Get existing master ID from mapping
                     var existingNomenclatureId = await _drawingNumberRepository.GetNomenclatureIdFromMapping(drawingNumberId);
 
                     // Resolve (get-or-create by name) the master row - tbl_nomenclature rows are shared
@@ -220,7 +216,6 @@ namespace Godrej.Precheck.Service.Service.DrawingNumberService
                 {
                     _logger.LogInformation($"Processing ComponentType: {request.ComponentType}");
 
-                    // Get existing master ID from mapping
                     var existingComponentTypeId = await _drawingNumberRepository.GetComponentTypeIdFromMapping(drawingNumberId);
 
                     // Resolve (get-or-create by name) the master row - tbl_componenttype rows are shared
@@ -261,7 +256,6 @@ namespace Godrej.Precheck.Service.Service.DrawingNumberService
                 {
                     _logger.LogInformation($"Processing DocumentType: {request.DocumentType}");
 
-                    // Get existing master ID from mapping
                     var existingDocumentTypeId = await _drawingNumberRepository.GetDocumentTypeIdFromMapping(drawingNumberId);
 
                     // Resolve (get-or-create by name) the master row - tbl_documenttype rows are shared
@@ -302,7 +296,6 @@ namespace Godrej.Precheck.Service.Service.DrawingNumberService
                 {
                     _logger.LogInformation($"Processing Unit: {request.UnitName}");
 
-                    // Get existing master ID from mapping
                     var existingUnitId = await _drawingNumberRepository.GetUnitIdFromMapping(drawingNumberId);
 
                     // Resolve (get-or-create by name) the master row - tbl_unit rows are shared
@@ -343,7 +336,6 @@ namespace Godrej.Precheck.Service.Service.DrawingNumberService
                 {
                     _logger.LogInformation($"Processing ProdSeries: {request.AvailableFor}");
 
-                    // Get existing master ID from mapping
                     var existingProdSeriesId = await _drawingNumberRepository.GetProdSeriesIdFromMapping(drawingNumberId);
 
                     // Resolve (get-or-create by name) the master row - tbl_productionseries rows are shared
@@ -480,7 +472,6 @@ namespace Godrej.Precheck.Service.Service.DrawingNumberService
                     }
                 }
 
-                // Generate success message
                 var createdMappings = new List<string>();
                 if (response.Details.DrawingNumberCreated) createdMappings.Add("DrawingNumber");
                 if (response.Details.LnItemLocationMappingCreated) createdMappings.Add("LnItem-Location");
@@ -516,7 +507,6 @@ namespace Godrej.Precheck.Service.Service.DrawingNumberService
                     ? string.Join(" | ", statusMessages)
                     : "No changes made. Items not found in master tables or mappings already exist.";
 
-                // Clear the drawing numbers cache ONLY if master tables were actually changed
                 if (masterTableChanged)
                 {
                     _cacheService.Remove(CacheSettings.DrawingNumbersCacheKey);
@@ -545,7 +535,6 @@ namespace Godrej.Precheck.Service.Service.DrawingNumberService
 
             try
             {
-                // Get all drawing numbers and find the one matching the ID
                 var allDrawings = await _commonService.GetAllDrawingNumberService(null);
                 var drawing = allDrawings?.FirstOrDefault(d => d.Id == drawingNumberId);
 

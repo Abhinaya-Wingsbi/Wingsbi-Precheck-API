@@ -35,7 +35,6 @@ namespace Godrej.Precheck.Host.Controllers
             _converter = converter;
         }
 
-        //GET ALL IRNUMBER - View accessible to all authenticated users
         [Authorize]
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -107,7 +106,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //GET ALL MSNNUMBER - View accessible to all authenticated users
         [Authorize]
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -169,8 +167,6 @@ namespace Godrej.Precheck.Host.Controllers
 
                     return NotFound();
                 }
-
-                //var MSNNumberResponse = result.Adapt<List<MSNNumberDto>>();
 
                 _logger.LogInformation($"Response for IdentifierController:GetMSNNumberByDrawingNumber method: {result}");
                 return Ok(result);

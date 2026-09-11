@@ -14,16 +14,16 @@ namespace Godrej.Precheck.Models.DTOs.Archive
         public int Id { get; set; }
         public string PONumber { get; set; } // Production Order Number (from AssemblyId/IDNos)
         public string DrawingNumber { get; set; } // Drawing Number from mapping
-        public string Nomenclature { get; set; } // Component nomenclature
+        public string Nomenclature { get; set; }
         public string Quantity { get; set; } // Quantity with units (e.g., "1.0mtr", "2.5kg")
         public string IDNumber { get; set; } // Component ID (ComponentId from parsed ConsumedIn)
         public string IRNumber { get; set; } // IRNos
         public string MSNNumber { get; set; } // MSNNos
-        public string Status { get; set; } // Derived from data or default
+        public string Status { get; set; }
         public DateTime? CreatedDate { get; set; } // MyDate or CreatedDate
-        public string AssemblyNumber { get; set; } // Assembly number where consumed
-        public string ProductionSeries { get; set; } // Production series
-        public string ConsumedIn { get; set; } // Full ConsumedIn string
+        public string AssemblyNumber { get; set; }
+        public string ProductionSeries { get; set; }
+        public string ConsumedIn { get; set; }
         public string Remarks { get; set; }
         public string UserName { get; set; }
     }

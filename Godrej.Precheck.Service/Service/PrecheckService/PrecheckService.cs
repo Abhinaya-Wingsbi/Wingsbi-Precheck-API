@@ -115,10 +115,7 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
                 var lastrequest = requestDto.LastOrDefault();
                 var viewLastPreCheckRequest = CreateViewPreCheckRequest(lastrequest);
-                // 5. Get and return updated precheck details
                 var response = await _precheckRepository.ViewPrecheckDetails(viewLastPreCheckRequest);
-                // var response = await _precheckRepository.PrecheckDetails(viewLastPreCheckRequest);
-                //update the precheck status based on the view precheck
                 var status = GetPrecheckStatus(response);
 
                 await _precheckRepository.UpdateProjectStatusDetails(viewLastPreCheckRequest, status);
@@ -134,7 +131,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
         private async Task ProcessSinglePrecheckItem(PrecheckRequestDto request)
         {
-            // 1. Validate and get QR code details
             var qrCodeDetails = await ValidateAndGetQRCodeDetails(request.QrCodeNumber);
             decimal? remainingQtyAfterConsume = request.RemainingQuantity;
 
@@ -147,11 +143,8 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
             await ValidateComponentDrawing(preCheckResponses, request.DrawingNumberId.Value);
 
-            // 3. Prepare precheck request with QR code details
-            //var precheckRequest = PreparePrecheckRequest(request, qrCodeDetails);
             var precheckRequest = request.Adapt<MakePrecheckRequest>();
             precheckRequest.QrCodeId = qrCodeDetails.Id;
-            //Added UserName
             User UserDetails = await _userRepository.GetUserByIdAsync(request.CreatedBy);
 
             precheckRequest.RemainingQuantity = request.RemainingQuantity;
@@ -164,7 +157,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                         : 1;
             }
 
-            //Call update- quantity service
             await _precheckRepository.UpdateQrcodeStatus(request);
             var updateQuantityResult = await UpdateQuantity(
                 request.ConsumeInProductionOrderNumber,        // string productionOrderNumber
@@ -181,7 +173,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                 request.CreatedBy                     // int userId
             );
 
-            // 4. Process based on component type
             await ProcessComponentType(precheckRequest);
         }
 
@@ -766,10 +757,8 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                 return 1;  //NotStarted;
             }
 
-            // Check if any precheck is completed
             bool hasAnyCompleted = precheckResponses.Any(x => x.IsPrecheckComplete);
 
-            // Check if all prechecks are completed
             bool areAllCompleted = precheckResponses.All(x => x.IsPrecheckComplete);
 
             if (!hasAnyCompleted)
@@ -979,7 +968,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                 ProductionSeriesId = request.ConsumedInProdSeriesID,
                 DrawingNumberId = request.ConsumedInDrawingNumberID,
                 CreatedBy = request.CreatedBy
-                //  ProductionOrderNumber = request.ProductionOrderNumber
             };
         }
 
@@ -1011,48 +999,31 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
         private async Task ProcessIdComponent(MakePrecheckRequest precheckRequest)
         {
-            // Update component consumption
             await _precheckRepository.UpdateIdComponentConsumption(precheckRequest);
 
-            // Update precheck details
             await _precheckRepository.UpdatePrecheckDetails(precheckRequest);
 
-            // Disable QR code
             await _qRCodeRepository.UpdateQrCodeDetails(precheckRequest.QrCodeNumber, precheckRequest.ConsumedDrawingNo, precheckRequest.RemainingQuantity, precheckRequest.CreatedBy);
         }
 
         private async Task ProcessBatchComponent(MakePrecheckRequest precheckRequest)
         {
-            //Set IdNumber
-            //precheckRequest.IdNumbers = ($"Batch-{precheckRequest.Id}");
-            // Update component consumption
             await _precheckRepository.UpdateIdComponentConsumption(precheckRequest);
 
-            // Update precheck details
             await _precheckRepository.UpdatePrecheckDetails(precheckRequest);
 
-            // Disable QR code
             await _qRCodeRepository.UpdateQrCodeDetails(precheckRequest.QrCodeNumber, precheckRequest.ConsumedDrawingNo, precheckRequest.RemainingQuantity, precheckRequest.CreatedBy);
         }
 
         private async Task ProcessOtherComponent(MakePrecheckRequest precheckRequest)
         {
-            //Set IdNumber
-            //var Id = precheckRequest.ComponentType == "FIM" ? "FIM" : "SI";
-
-            //precheckRequest.IdNumbers = Id;
-            // Update component consumption
             await _precheckRepository.UpdateBatchComponentConsumption(precheckRequest);
 
-            // Update precheck details
             await _precheckRepository.UpdatePrecheckDetails(precheckRequest);
 
-            // Disable QR code
             await _qRCodeRepository.UpdateQrCodeDetails(precheckRequest.QrCodeNumber, precheckRequest.ConsumedDrawingNo, precheckRequest.RemainingQuantity, precheckRequest.CreatedBy);
         }
 
-
-        //MakeOrder
         public async Task<List<MakeOrderResponseDto>> MakeOrder(MakeOrderRequestDto request)
         {
             List<MakeOrderResponseDto> response = new();
@@ -1130,10 +1101,8 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
                 response = assemblyResponses.Adapt<List<MakeOrderResponseDto>>();
 
-                // 1. Multiply TotalQuantity = Quantity * request.Ids.Count
                 response.ForEach(r => r.TotalQuantity = r.Quantity * request.Ids.Count);
 
-                // 2. Set AvailableQuantity using DrawingNumberId
                 foreach (var responseDto in response)
                 {
                     int quantity = await _precheckRepository.GetAvailableComponentQunatity(responseDto.DrawingNumberId);
@@ -1154,8 +1123,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
         }
 
 
-
-        //view precheck API
 
         public async Task<List<ViewPreCheckResponse>> ViewPrecheckDetailsService(ViewPreCheckRequestDto request)
         {
@@ -1215,8 +1182,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
             return result;
         }
-
-        //Avaible precheck API
 
         public async Task<List<AvailableComponentModel>> AvailableComponentDetailsService(AvailableComponentFilterDto filter)
         {
@@ -1325,7 +1290,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                     page.Margin(30);
                     page.DefaultTextStyle(x => x.FontSize(8));
 
-                    // ---- Header
                     page.Header().Column(header =>
                     {
                         header.Item().Text($"Pre-check List for : {consumedInDrawing}")
@@ -1340,7 +1304,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                         header.Item().PaddingBottom(10);
                     });
 
-                    // ---- Content Table
                     page.Content().Table(table =>
                     {
                         string[] headers = {
@@ -1358,7 +1321,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                                 columns.ConstantColumn(width);
                         });
 
-                        // ---- Table Header Row
                         table.Header(header =>
                         {
                             foreach (var title in headers)
@@ -1367,7 +1329,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                             }
                         });
 
-                        // ---- Data Rows
                         int srNo = 1;
                         foreach (var item in preCheckResponses)
                         {
@@ -1401,7 +1362,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                         }
                     });
 
-                    // ---- Footer Row
                     page.Footer().Row(row =>
                     {
                         row.RelativeItem().Text("Sign of QC representative");
@@ -1452,13 +1412,11 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
             try
             {
-                // 1️⃣ Validate input
                 if (request.UpdatedQuantity <= 0)
                 {
                     throw new ApplicationException("Updated quantity must be greater than zero.");
                 }
 
-                // 2️⃣ Get CURRENT remaining quantity from DB
                 decimal? currentRemaining;
                 try
                 {
@@ -1471,25 +1429,21 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                         "Failed to retrieve current remaining quantity.");
                 }
 
-                // 3️⃣ Check if enough quantity is available
                 if (request.UpdatedQuantity > currentRemaining)
                 {
                     throw new ApplicationException(
                         $"Entered quantity exceeds available balance ({currentRemaining}).");
                 }
 
-                // 4️⃣ Subtract from remaining
                 decimal? newRemainingQuantity = (currentRemaining ?? 0) - request.UpdatedQuantity;
 
-                //  Update remianing qty in qrcodedetails DB
                 decimal remainingComponentQuantity=await _precheckRepository.UpdateComponentRemaningQuantity(
                     request,
                     request.UpdatedQuantity?? 0);
 
                 await _precheckRepository.UpdateQrcodeQuantity(request.QrCodeNumber, newRemainingQuantity?? 0);
-                
-               
-                // 6️⃣ Return response
+
+
                 return new UpdateQuantityResponseDto
                 {
                     RemainingQuantity = remainingComponentQuantity,
@@ -1521,7 +1475,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
         public async Task<bool> ResetRemainingQuantityService(ResetRemainingQuantityDto remainingQuantityDto)
         {
-            // Validate DrawingNumber exists
             var drawingDetails = await _precheckRepository.GetDrawingNumberIdAsync(remainingQuantityDto.DrawingNumberId);
             if (!drawingDetails)
             {

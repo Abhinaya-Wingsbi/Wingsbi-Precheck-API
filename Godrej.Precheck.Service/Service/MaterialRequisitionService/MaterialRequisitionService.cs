@@ -127,7 +127,6 @@ namespace Godrej.Precheck.Service.Service.MaterialRequisitionService
             _logger.LogInformation("Request for MaterialRequisitionService:CreateSwappedDrawingNumber");
             try
             {
-                //Check Componenttpe of drawing number is new component or not based on drawing number id
                 var results= await _materialRequisitionRepository.CheckComponentType(request.SwappedDrawingNumberID);
 
                 if(results != 3)
@@ -167,23 +166,18 @@ namespace Godrej.Precheck.Service.Service.MaterialRequisitionService
                 {
                     var sheet = workbook.CreateSheet("MaterialRequisitionData");
 
-                    // Create styles
                     var headerStyle = CreateHeaderStyle(workbook);
                     var borderStyle = CreateBorderStyle(workbook);
 
-                    // Write headers
                     WriteHeaders(sheet, headerStyle);
 
-                    // Write data rows
                     for (int i = 0; i < materialRequisitions.Count; i++)
                     {
                         WriteDataRow(sheet, materialRequisitions[i], borderStyle, i + 1);
                     }
 
-                    // Adjust column widths
                     AutoSizeColumns(sheet, Headers.Length);
 
-                    // Convert workbook to byte array
                     using (var ms = new MemoryStream())
                     {
                         workbook.Write(ms);

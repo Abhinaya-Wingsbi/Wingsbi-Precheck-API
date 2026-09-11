@@ -105,7 +105,6 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
 
                 _logger.LogError(ex, "Error occurred while UpdateIdComponentConsumption.");
                 return precheckRequest;
-                //  throw;
 
             }
         }
@@ -153,7 +152,6 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
 
                 _logger.LogError(ex, "Error occurred while UpdateBatchComponentConsumption.");
 
-                // throw;
                 return precheckRequest;
 
             }
@@ -306,7 +304,6 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
                     });
 
                 _logger.LogInformation($"Successfully UpdateProjectStatusDetails: {insertedId}");
-                //precheckRequest.ProjectDetailsId = insertedId;
                 return insertedId;
             }
 
@@ -499,7 +496,6 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
                    });
 
                 _logger.LogInformation($"Response for PrecheckRepository : GetProjectDetails {response}");
-                //precheckRequest.ProjectDetailsId = insertedId;
                 return response;
             }
 
@@ -696,8 +692,6 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
         }
 
 
-        //get avaialable quantity 
-
         public async Task<int> GetAvailableComponentQunatity(int DrawingId)
         {
             _logger.LogInformation($"Request for PrecheckRepository:GetAvailableComponentQunatity by DrawingId {DrawingId}");
@@ -720,7 +714,6 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
             new
             {
                 drawingnumberid = request.DrawingNumberId,
-                // productionseriesid = request.ProdSeriesId,
                 quantity = request.Quantity
             });
             _logger.LogInformation($"Result for PrecheckRepository:GetAvailableComponentsResponse{results}");
@@ -821,13 +814,11 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
                         $"QR Code with DrawingNumber {requestDto.DrawingnumberId} not found or inactive.");
                 }
 
-                // If remainingquantity is NULL or 0, return original quantity
                 if (ComponentDetails.remainingquantity == null || ComponentDetails.remainingquantity == 0)
                 {
                     return (decimal)ComponentDetails.quantity;
                 }
 
-                // Otherwise return remaining quantity
                 return (decimal)ComponentDetails.remainingquantity;
             }
             catch (Exception ex)

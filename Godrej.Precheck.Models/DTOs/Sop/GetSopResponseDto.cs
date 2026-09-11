@@ -30,7 +30,6 @@ namespace Godrej.Precheck.Models.DTOs.Sop
         public DateTime? PrecheckDate { get; set; }
         public string PrecheckStatus { get; set; }
 
-        //for tree representation
         public List<GetSopResponseDto> Children { get; set; } = new List<GetSopResponseDto>();
     }
 }

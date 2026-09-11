@@ -679,7 +679,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //[Authorize]
         [HttpPost("Delete-Unit/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -717,7 +716,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //[Authorize]
         [HttpPost("Delete-Shape/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -755,7 +753,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //[Authorize]
         [HttpPost("Delete-Stage/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -862,7 +859,7 @@ namespace Godrej.Precheck.Host.Controllers
                 return Ok(new
                 {
                     userId = userId,
-                    signature = signature ?? string.Empty  // empty string when no signature exists
+                    signature = signature ?? string.Empty
                 });
             }
             catch (ArgumentException ex)

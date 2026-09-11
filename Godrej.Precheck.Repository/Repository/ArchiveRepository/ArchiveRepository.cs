@@ -29,9 +29,7 @@ namespace Godrej.Precheck.Repository.Repository.ArchiveRepository
                 _logger.LogInformation($"Getting archive data with filters: Assembly={request.AssemblyNumber}, ProductionSeries={request.ProductionSeries}, IdNumber={request.IdNumber}");
 
                 // Note: This method is deprecated - use GetAllArchiveDataAsync() for non-paginated results
-                // Removing offset since we're using the non-paginated query
 
-                // Get total count
                 var countResult = await _db.GetSingle<int>(
                     ArchiveQueries.GET_ARCHIVE_DATA_COUNT,
                     new
@@ -44,7 +42,6 @@ namespace Godrej.Precheck.Repository.Repository.ArchiveRepository
                         AssemblyNumberId = request.AssemblyNumberId
                     });
 
-                // Use the non-paginated query instead 
                 var data = await _db.GetAll<ArchiveDataResponse>(
                     ArchiveQueries.GET_ALL_ARCHIVE_DATA,
                     new
@@ -55,15 +52,14 @@ namespace Godrej.Precheck.Repository.Repository.ArchiveRepository
                         DrawingNumberId = request.DrawingNumberId,
                         ProductionSeriesId = request.ProductionSeriesId,
                         AssemblyNumberId = request.AssemblyNumberId
-                        // Removed Offset and PageSize - no longer needed
                     });
 
                 var response = new ArchiveDataPagedResponse
                 {
                     Data = data.ToList(),
-                    TotalRecords = data.Count(), // Actual count of returned data
-                    PageNumber = 1, // Always 1 since we return all data
-                    PageSize = data.Count() // Same as total records since no pagination
+                    TotalRecords = data.Count(),
+                    PageNumber = 1,
+                    PageSize = data.Count()
                 };
 
                 _logger.LogInformation($"Retrieved {data.Count()} records out of {countResult} total records");
@@ -298,7 +294,6 @@ namespace Godrej.Precheck.Repository.Repository.ArchiveRepository
             {
                 _logger.LogInformation($"Getting ALL archive data without pagination - ProductionSeriesId={request.ProductionSeriesId}, AssemblyNumberId={request.AssemblyNumberId}, IdNumber={request.IdNumber}");
 
-                // Get all data without pagination
                 var data = await _db.GetAll<ArchiveDataResponse>(
                     ArchiveQueries.GET_ALL_ARCHIVE_DATA,
                     new

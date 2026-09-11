@@ -44,7 +44,6 @@ namespace Godrej.Precheck.Models.DataModel
 
         public string? DepartmentName { get; set; }
 
-        // Purchase Item fields
         public string? ItemDescription { get; set; }
         public string? LnItemCode { get; set; }
 

@@ -270,7 +270,6 @@ namespace Godrej.Precheck.Host.Controllers
                 var precheckStatus = filter?.PrecheckStatus?.Count > 0 ? filter.PrecheckStatus : null;
                 var productionSeries = filter?.ProductionSeries?.Count > 0 ? filter.ProductionSeries : null;
 
-                // Check if any filters are applied
                 if (filter != null && (!string.IsNullOrEmpty(filter.DateFilterType) || precheckStatus != null || !string.IsNullOrEmpty(filter.PoNumber) || !string.IsNullOrEmpty(filter.LnItemCode) || !string.IsNullOrEmpty(filter.DrawingNumber) || !string.IsNullOrEmpty(filter.SearchQuery) || productionSeries != null))
                 {
                     results = await _productionOrderService.GetAllProductionOrdersPagedAsync(
@@ -486,7 +485,6 @@ namespace Godrej.Precheck.Host.Controllers
                
                 List<ProductionOrderMasterDto> results;
 
-                // Check if any filters are applied
                 if (!string.IsNullOrEmpty(dateFilterType) || precheckStatus.HasValue || !string.IsNullOrEmpty(poNumber) || !string.IsNullOrEmpty(lnItemCode) || !string.IsNullOrEmpty(drawingNumber))
                 {
                     results = await _productionOrderService.GetAllProductionOrdersAsync(

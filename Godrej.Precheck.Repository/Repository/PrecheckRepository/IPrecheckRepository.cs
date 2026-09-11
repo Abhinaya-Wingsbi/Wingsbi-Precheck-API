@@ -49,7 +49,6 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
 
         Task<List<ProjectDetailsResponse>> ValidateOrder(int prodSeriesId, int drawingId, string pONumber, int idNumber);
 
-        //Get Available component Qunatity by using the Drawing Number.
         Task<int> GetAvailableComponentQunatity(int DrawingId);
 
         Task<int> RejectAndDuplicatePrecheck(Models.DTOs.Precheck.RejectPrecheckRequestDto request);

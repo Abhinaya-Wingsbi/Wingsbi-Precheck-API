@@ -17,7 +17,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
         Task<List<StandardQRDetailsResponseDto?>> InsertStandardQRCodeDetailsAsync(StandardQRDataDto qrCodeDetailsDto);
         Task<QRCodeDetailsResponseDto?> GetQRCodeDetailsService(string QRCodeNumber, int? qrCodeStatusId = null);
 
-        //Get QRCode Details with Paramter
         Task<List<QRCodeDetailsResponseDto>> GetQRCodeDetailsWithParameterService(GetQRCodeRequestDto getQRCodeRequest);
 
         // All filters ANDed together; searchQuery is a single free-text value matched against
@@ -25,10 +24,9 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
         // pageSize null == no pagination, every matching row is returned.
         Task<QRCodeDetailsPagedResponse> GetBarcodeDetailsWithParametersService(string? searchQuery, List<string>? prodSeries, List<int>? createdBy, DateTime? fromDate, DateTime? toDate, int pageNumber, int? pageSize);
 
-        //same as GetQRCodeDetailsWithParameterService but restricted to consumed QR codes (qrcodestatusid = 2, isactive = 0)
+        // Same as GetQRCodeDetailsWithParameterService but restricted to consumed QR codes (qrcodestatusid = 2, isactive = 0)
         Task<List<QRCodeDetailsResponseDto>> GetConsumedQRCodeDetailsWithParameterService(GetQRCodeRequestDto getQRCodeRequest);
         Task<QRCodeDetailsResponseDto> ComponentStoreInService(string QRCodeNumber);
-        //byte[] ExportQRCodeToExcel(QRCodeDetailsResponseDto qrCodeItems);
 
         byte[] ExportQRCodeToExcel(List<QRCodeDetailsResponseDto> qrCodeItems, List<string>? selectedColumns = null);
         Task<List<ConsumedInResponseDto>> ConsumedInService(ConsumedInRequestDto request);
@@ -42,7 +40,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
         Task<QRCodeDetailsResponseDto> UpdateQRCodeDetailsAsync(UpdateQRCodeDto request);
         Task<string> DisableQRCodeAsync(DisableQRCodeRequestDto request);
 
-        // Standard QR Code specific methods
         Task<StandardQRDetailsResponseDto> GetStandardQRCodeDetailsService(string qrCodeNumber);
         byte[] ExportStandardQRCodeToExcel(List<StandardQRDetailsResponseDto> qrCodeItems);
         Task<List<UserDto>> GetAllUsersServiceAsync();

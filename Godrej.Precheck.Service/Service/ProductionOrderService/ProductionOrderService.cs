@@ -66,19 +66,17 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
 
             var leveled = await ApplyBomLevelingByRoleAsync(orders, roleId);
 
-            // Cache the role-specific result too
             _cache.Set(roleCacheKey, leveled, TimeSpan.FromSeconds(CacheTtlSeconds));
 
             return leveled;
         }
 
-        // Add this method for cache invalidation when POs are created/updated
         public void InvalidateCache()
         {
-            _cache.Remove(CacheKey);                              // ← clears filtered cache
-            _cache.Remove(CacheKeyPrefix + "Base");               // ← clears base cache
+            _cache.Remove(CacheKey);
+            _cache.Remove(CacheKeyPrefix + "Base");
             foreach (var roleId in new[] { 1, 2, 3, 12 })
-                _cache.Remove($"{CacheKeyPrefix}Role_{roleId}");  // ← clears role caches
+                _cache.Remove($"{CacheKeyPrefix}Role_{roleId}");
         }
 
         public async Task<List<ProductionOrderMasterDto>> GetAllProductionOrdersAsync(
@@ -158,7 +156,6 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
                 .Where(o => o.PrecheckStatus != 4)
                 .ToList();
 
-            // Collect all unique drawing numbers that need BOM lookup
             var drawingNumbers = candidates
                 .Where(o => !string.IsNullOrEmpty(o.DrawingNumber))
                 .Select(o => o.DrawingNumber)
@@ -217,16 +214,12 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
                 var result = await _precheckRepository.GetPrecheckTemplateResponsesAsync(master.DrawingNumberId.Value);
                 bomItems = result.Adapt<List<MakeOrderResponseDto>>();
 
-                // Calculate TotalQuantity = Quantity × number of IDs in this production order
                 bomItems.ForEach(item => item.TotalQuantity = item.Quantity * master.Quantity);
 
-                // Calculate AvailableQuantity and TotalQrQty from stored QR codes for each component
                 foreach (var item in bomItems)
                 {
-                    // Calculate available count of QR codes
                     item.AvailableQuantity = await _precheckRepository.GetAvailableComponentQunatity(item.DrawingNumberId);
 
-                    // Fetch the actual components to sum up the available quantities
                     var childRequest = new GetAvailableComponentsRequest
                     {
                         DrawingNumberId = item.DrawingNumberId
@@ -250,7 +243,6 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
 
             try
             {
-                // Parse Excel
                 using var workbook = new XLWorkbook(fileStream);
                 var worksheet = workbook.Worksheets.First();
                 var rowCount = worksheet.LastRowUsed()?.RowNumber() ?? 0;
@@ -280,8 +272,7 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
                 }
 
                 result.TotalRows = rows.Count;
-                
-                // Process each row
+
                 foreach (var row in rows)
                 {
                     try
@@ -459,7 +450,6 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
                 throw new Exception($"Item Code '{dto.ItemCode}' not found in drawing mapping");
             }
 
-            // Update Master
             var master = new ProductionOrderMaster
             {
                 ProductionOrderNumber = dto.ProductionOrderNumber,
@@ -481,7 +471,6 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
 
             await _productionOrderRepository.UpdateProductionOrderMasterAsync(master, updatedBy);
 
-            // Delete old details and recreate
             await _productionOrderRepository.DeleteProjectDetailsWithPOIdAsync(existingPO.Id);
 
             var assemblyTemplate = await _precheckRepository.GetPrecheckTemplateResponsesAsync(drawingNumberId.Value);
@@ -538,7 +527,6 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("Production Order");
 
-            // Set Headers
             worksheet.Cell(1, 1).Value = "Production Order";
             worksheet.Cell(1, 2).Value = "Project Code";
             worksheet.Cell(1, 3).Value = "Project Description";
@@ -551,8 +539,7 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
             worksheet.Cell(1, 10).Value="Status";
             worksheet.Cell(1, 11).Value = "Build Number";
             worksheet.Cell(1, 12).Value = "Snag Sheet Number";
-            
-            // Formatting
+
             var headerRow = worksheet.Row(1);
             headerRow.Style.Font.Bold = true;
             headerRow.Style.Fill.BackgroundColor = XLColor.FromHtml("#E11584"); // Godrej Pink
@@ -740,7 +727,6 @@ namespace Godrej.Precheck.Service.Service.ProductionOrderService
                 }
 
                 worksheet.Range(headerRow, 1, headerRow, activeColumns.Length);
-                // Freeze header
                 worksheet.SheetView.FreezeRows(1);
 
 

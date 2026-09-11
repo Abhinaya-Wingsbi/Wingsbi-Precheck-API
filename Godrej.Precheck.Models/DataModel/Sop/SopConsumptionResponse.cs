@@ -50,7 +50,7 @@ namespace Godrej.Precheck.Models.DataModel.Sop
         public string ComponentType { get; set; }
         public int ComponentTypeId { get; set; }
         public DateTime? PrecheckDate { get; set; }
-        public string ProductionOrderNumber { get; set; } // add if not present
+        public string ProductionOrderNumber { get; set; }
         public string? Build { get; set; }
         public string? SnagSheetNo { get; set; }
         public string? ConsumedinProductionOrderNumber { get; set; }

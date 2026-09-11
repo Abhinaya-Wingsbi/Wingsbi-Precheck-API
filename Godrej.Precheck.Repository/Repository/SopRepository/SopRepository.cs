@@ -106,13 +106,12 @@ namespace Godrej.Precheck.Repository.Repository.SopRepository
             }
         }
 
-        // In SopRepository — add this new method
         public async Task<Dictionary<string, int>> GetBomComponentCountsAsync(List<string> assemblyNumbers)
         {
             if (!assemblyNumbers.Any()) return new Dictionary<string, int>();
 
             var parameters = new DynamicParameters();
-            parameters.Add("@assemblyNumbers", assemblyNumbers); // pass as TVP or join
+            parameters.Add("@assemblyNumbers", assemblyNumbers);
 
             var results = await _db.GetAll<(string AssemblyNumber, int ComponentCount)>(
                 BomQueries.GET_BOM_COUNTS_BY_ASSEMBLY_NUMBERS,

@@ -52,7 +52,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             try
             {
                 _logger.LogDebug("Attempting to get precheck modules from cache: {CacheKey}", CacheSettings.PrecheckModulesCacheKey);
-                // Get all precheck modules from cache or repository
                 var allModules = await _cacheService.GetOrSetAsync(
                     CacheSettings.PrecheckModulesCacheKey,
                     async () => {
@@ -77,12 +76,12 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             {
                 _logger.LogInformation("Starting AddUserAsync for user: {UserName}", request.UserName);
 
-                // ✅ Use same HashPassword method as RegisterAsync
+                // Use same HashPassword method as RegisterAsync
                 if (!string.IsNullOrEmpty(request.Password))
                 {
                     var (hash, securityStamp) = HashPassword(request.Password);
-                    request.Password = hash;           // ✅ BCrypt hash
-                    request.SecurityStamp = securityStamp;  // ✅ SecurityStamp from same password
+                    request.Password = hash;
+                    request.SecurityStamp = securityStamp;
                 }
 
                 var result = await _commonRepository.AddUserAsync(request, createdBy);
@@ -105,17 +104,14 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             }
         }
 
-        // Updated secure password hashing method
         private (string Hash, string SecurityStamp) HashPassword(string password)
         {
-            // Generate a cryptographically secure random salt
             byte[] salt = new byte[SaltSize];
             using (var rng = RandomNumberGenerator.Create())
             {
                 rng.GetBytes(salt);
             }
 
-            // Hash the password using PBKDF2 with HMAC-SHA256
             byte[] hash = KeyDerivation.Pbkdf2(
                 password: password,
                 salt: salt,
@@ -124,7 +120,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
                 numBytesRequested: HashSize
             );
 
-            // Store both hash and salt as Base64 strings
             string hashString = Convert.ToBase64String(hash);
             string saltString = Convert.ToBase64String(salt);
 
@@ -182,7 +177,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             try
             {
                 _logger.LogDebug("Attempting to get component types from cache: {CacheKey}", CacheSettings.ComponentTypesCacheKey);
-                // Get all component types from cache or repository
                 var allComponentTypes = await _cacheService.GetOrSetAsync(
                     CacheSettings.ComponentTypesCacheKey,
                     async () => {
@@ -260,7 +254,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             try
             {
                 _logger.LogDebug("Attempting to get units from cache: {CacheKey}", CacheSettings.UnitsCacheKey);
-                // Get all units from cache or repository
                 var allUnits = await _cacheService.GetOrSetAsync(
                     CacheSettings.UnitsCacheKey,
                     async () =>
@@ -339,7 +332,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             try
             {
                 _logger.LogDebug("Attempting to get production series from cache: {CacheKey}", CacheSettings.ProductionSeriesCacheKey);
-                // Get all production series from cache or repository
                 var allProductionSeries = await _cacheService.GetOrSetAsync(
                     CacheSettings.ProductionSeriesCacheKey,
                     async () => {
@@ -718,8 +710,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
                                 AvailableSeries = g.SelectMany(x => ParseCsvStringList(x.AvailableSeries))
                                     .Distinct()
                                     .ToList(),
-                                //AssemblyId = g.First().AssemblyId,
-                                //AssemblyNumber = g.First().AssemblyNumber
                             })
                             .ToList();
                         _logger.LogDebug("Grouped raw drawing numbers into {Count} unique drawing numbers", grouped.Count);
@@ -1004,7 +994,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
                 _logger.LogDebug("Fetching all assemblies");
                 var result = await _commonRepository.GetAllAssembly();
 
-                // Filter out null values
                 var filteredResult = result.Where(x => x != null).ToList();
 
                 _logger.LogInformation("Successfully retrieved {Count} assemblies", filteredResult?.Count ?? 0);
@@ -1324,7 +1313,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
                 if (request == null || !request.Any())
                     throw new ValidationException("Request list cannot be null or empty");
 
-                // Validate each record
                 foreach (var item in request)
                 {
                     if (item.RoleId <= 0)

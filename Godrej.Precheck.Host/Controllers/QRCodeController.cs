@@ -397,7 +397,6 @@ namespace Godrej.Precheck.Host.Controllers
             {
                 _logger.LogError(ex, $"Error in ComponentStoreIn for QRCodeNumber: {QRCodeNumber}");
 
-                // Handle known messages
                 if (ex.Message == "Invalid QR code number.")
                 {
                     return NotFound(new { message = ex.Message });
@@ -407,7 +406,6 @@ namespace Godrej.Precheck.Host.Controllers
                     return BadRequest(new { message = ex.Message });
                 }
 
-                // Generic fallback
                 return StatusCode(500, new { message = "An error occurred while processing your request. Please try again later." });
             }
         }
@@ -432,7 +430,6 @@ namespace Godrej.Precheck.Host.Controllers
                     return NotFound($"No ComponentStoreIn details found for date");
                 }
 
-                // Get only unique QR code entries
                 var uniqueQrCodeList = result
                     .GroupBy(x => x.QrCodeNumber)
                     .Select(g => g.First())
@@ -450,8 +447,6 @@ namespace Godrej.Precheck.Host.Controllers
         }
 
 
-        //Export ConsumedIn API
-
         [Authorize]
         [HttpPost("ExportStoredInComponentsByDate")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -462,8 +457,6 @@ namespace Godrej.Precheck.Host.Controllers
 
             try
             {
-                  
-                //Get StoredIn Component by Date
                 var result = await _qrCodeService.GetComponentStoreInByDateService(storeInRequest);
 
                 if (result == null)
@@ -472,7 +465,6 @@ namespace Godrej.Precheck.Host.Controllers
                     return NotFound($"No ComponentStoreIn details found for date:");
                 }
 
-                // Get only unique QR code entries
                 var storedInComponent = result
                     .GroupBy(x => x.QrCodeNumber)
                     .Select(g => g.First())
@@ -509,19 +501,15 @@ namespace Godrej.Precheck.Host.Controllers
 
             try
             {
-                // Check if QR codes are Standard or Manufacturing type
-                // We'll check the first QR code to determine the type
                 if (!qrCodeNumbers.Any())
                 {
                     return NotFound("No QR code data found.");
                 }
 
-                // Detect type from first QR code
                 bool isStandardType = await _qrCodeService.GetQRCodeDetailsService(qrCodeNumbers.First()) == null;
-                
+
                 if (!isStandardType)
                 {
-                    // Try to get it as old QR code
                     var testOld = await _qrCodeService.GetQRCodeDetailsService(qrCodeNumbers.First());
                     if (testOld != null && testOld.Shapes == null)
                     {
@@ -535,10 +523,8 @@ namespace Godrej.Precheck.Host.Controllers
 
                 _logger.LogInformation($"Detected QR codes as {(isStandardType ? "Standard" : "Manufacturing")} type");
 
-                // Export based on type
                 if (isStandardType)
                 {
-                    // Handle Standard QR codes
                     var allStandardQRCodeDetails = new List<StandardQRDetailsResponseDto>();
                     var standardDetailsCache = new Dictionary<string, StandardQRDetailsResponseDto?>();
                     var standardPairs = BuildQrBatchPairs(qrCodeNumbers, batchIdNumbers);
@@ -584,7 +570,6 @@ namespace Godrej.Precheck.Host.Controllers
                 }
                 else
                 {
-                    // Handle Manufacturing (old) QR codes
                     var allQRCodeDetails = new List<QRCodeDetailsResponseDto>();
                     var qrDetailsCache = new Dictionary<string, QRCodeDetailsResponseDto?>();
                     var qrPairs = BuildQrBatchPairs(qrCodeNumbers, batchIdNumbers);

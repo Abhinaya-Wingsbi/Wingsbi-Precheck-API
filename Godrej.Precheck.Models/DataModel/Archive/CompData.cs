@@ -35,7 +35,6 @@ namespace Godrej.Precheck.Models.DataModel.Archive
         public int? ModifiedBy { get; set; }
         public DateTime? ModifiedDate { get; set; }
 
-        // Navigation properties
         public virtual CompDataInfo CompInfo { get; set; }
     }
 }

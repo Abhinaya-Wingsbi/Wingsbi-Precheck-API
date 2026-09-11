@@ -64,7 +64,6 @@ namespace Godrej.Precheck.Repository.Repository.ArchiveRepository
             {
                 _logger.LogInformation($"Getting simple archive data - ProductionSeries={request.ProductionSeries}, AssemblyNumber={request.AssemblyNumber}, ComponentId={request.ComponentId}");
 
-                // Convert simple request to backup request format
                 var backupRequest = new BackupArchiveFilterRequest
                 {
                     ConsumedInProdSeries = request.ProductionSeries,
@@ -107,7 +106,6 @@ namespace Godrej.Precheck.Repository.Repository.ArchiveRepository
         {
             try
             {
-                // Get total count first
                 var countParams = new[]
                 {
                     new SqlParameter("@ConsumedInProdSeries", (object)request.ConsumedInProdSeries ?? DBNull.Value),
@@ -124,7 +122,6 @@ namespace Godrej.Precheck.Repository.Repository.ArchiveRepository
                     BackupArchiveQueries.GET_BACKUP_ARCHIVE_DATA_COUNT, 
                     countParams);
 
-                // Get paged data if search term is provided
                 List<BackupCompDataResponse> data;
                 if (!string.IsNullOrEmpty(request.SearchTerm))
                 {
@@ -195,7 +192,7 @@ namespace Godrej.Precheck.Repository.Repository.ArchiveRepository
                     AssemblyNumbers = assemblyNumbers,
                     DrawingNumbers = drawingNumbers,
                     Nomenclatures = nomenclatures,
-                    ComponentTypes = new List<string>() // Can be populated later if needed
+                    ComponentTypes = new List<string>()
                 };
             }
             catch (Exception ex)

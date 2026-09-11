@@ -51,10 +51,8 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
         Task<Nomenclatures> NomenclatureService(string query);
 
         Task<User> UserService(int Id);
-        //Task<List<IRNumbers>> IRNumberByDrawingNumberService(string query);
         Task<List<IRNumbers>> IRNumberByDrawingNumberService(GetIRNumberByDrawingNumberRequest getIRNumberByDrawingNumberRequest);
 
-        //Task<List<MSNNumbers>> MSNNumberByDrawingNumberService(string query);
         Task<List<MSNNumbers>> MSNNumberByDrawingNumberService(GetMSNNumberByDrawingNumberRequest getMSNNumberByDrawingNumberRequest);
 
         Task<ViewIrMsnPagedResponse> ViewIrMsnService(ViewIrMsnRequestDto request, int pageNumber, int pageSize);

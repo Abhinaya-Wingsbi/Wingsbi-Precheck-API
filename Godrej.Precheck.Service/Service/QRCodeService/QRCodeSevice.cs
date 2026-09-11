@@ -58,11 +58,9 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
 
                 _logger.LogInformation("Fetching component type for ComponentTypeId: {ComponentTypeId}", qrCodeDetails.ComponentTypeId);
 
-                // Call Get Component API
                 var componentTypeResponse = await _commonRepository.GetComponentTypeByIdAsync(qrCodeDetails.ComponentTypeId);
 
                 _logger.LogInformation("Fetching production series details for ProductionSeriesId: {ProductionSeriesId}", qrCodeDetails.ProductionSeriesId);
-                // Call Get Production Series API
                 var prodSeriesDetail = await _commonRepository.GetProductionSeriesById(qrCodeDetails.ProductionSeriesId);
 
                 _logger.LogInformation("Fetching all drawing numbers.");
@@ -83,7 +81,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                 switch (componentTypeResponse.ComponentType)
                 {
                     case "ID":
-                        // Handle custom ID range logic
                         if (!string.IsNullOrEmpty(qrCodeDetails.CustomIdRange))
                         {
                             _logger.LogInformation("Processing custom ID range: {CustomIdRange}", qrCodeDetails.CustomIdRange);
@@ -98,7 +95,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
 
                         foreach (int id in qrCodeDetails.Ids)
                         {
-                            //this will be updated after completion of testing in other scenarios
                             //for CB components qrcode code should not be generated before precheck
                             if (componentTypeResponse.ComponentType == "ID")
                             {
@@ -132,7 +128,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                                             Id = id
                                         };
 
-                                        // Correct location of the API call
                                         var response = await _precheckRepository.ViewPrecheckDetails(preCheckRequest);
 
                                         if (response == null || !response.Any())
@@ -141,7 +136,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                                             throw new ValidationException($"Precheck details not found for ID: {id}");
                                         }
 
-                                        // Collect incomplete components
                                         var unsubmitedComponents = response
                                             .Where(p => p.IsPrecheckComplete == false)
                                             .Select(p => new UnsubmittedComponent
@@ -172,7 +166,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
 
                             if (componentTypeResponse.ComponentType == "ID")
                             {
-                                // Set the quantity for each QR code as 1
                                 qrCodeDetails.Quantity = 1;
                                 qrCodeDetails.SrNumber = id;
                                 qrCodeDetails.IdNumbers = id;
@@ -183,7 +176,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                                 qrCodeDetails.QRCodeNumber = null;
                             }
 
-                            // Validate QR code
                             var validationResponse = await _qrCodeRepository.ValidateQrCode(
                                 qrCodeDetails.ProductionSeriesId,
                                 qrCodeDetails.IdNumbers,
@@ -192,25 +184,18 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
 
                             if (validationResponse != null)
                             {
-                                // Skip processing if validation fails
                                 _logger.LogInformation("QR code validation failed for ID: {Id}. Skipping generation.", id);
-                                //For QrCodeIdentification, is New or Old 
                                 validationResponse.IsNewQrCode = false;
                                 qrCodeDetailsResponses.Add(validationResponse);
                                 continue;
                             }
                             else
                             {
-
-                                // Insert into QRCodeDetails table
                                 var qrcodeResponse = await _qrCodeRepository.InsertQRCodeDetailsAsync(qrCodeDetails);
 
-                                // Insert into Consumption table
                                 await _qrCodeRepository.InsertQRCodeInConsumptionAsync(qrCodeDetails);
 
-                                // Fetch and add QR code details to the response
                                 var qrCodeDetailsResponse = await _qrCodeRepository.GetQRcodeDetailsAsync(qrcodeResponse.QrCodeNumber);
-                                //For QrCodeIdentification, is New or Old 
                                 qrCodeDetailsResponse.IsNewQrCode = true;
                                 qrCodeDetailsResponses.Add(qrCodeDetailsResponse);
 
@@ -239,7 +224,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                             await _qrCodeRepository.InsertQRCodeInConsumptionAsync(qrCodeDetails);
 
                             var qrCodeDetailsResponse = await _qrCodeRepository.GetQRcodeDetailsAsync(qrcodeResponse.QrCodeNumber);
-                            //For QrCodeIdentification, is New or Old 
                             qrCodeDetailsResponse.IsNewQrCode = true;
                             qrCodeDetailsResponses.Add(qrCodeDetailsResponse);
 
@@ -273,7 +257,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                             qrCodeDetails.IdNumbers = batchCounter;
                             qrCodeDetails.IdNumber = $"BATCH-{batchCounter}";
 
-                            // ✅ Quantity from main payload
                             qrCodeDetails.RemainingQuantity = qrCodeDetails.Quantity;
 
                             if (!string.IsNullOrEmpty(qrCodeDetailsDto.Remarks))
@@ -298,7 +281,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                         break;
                 }
 
-                // Log final success message and return result
                 _logger.LogInformation("Successfully processed QR code details: {@QRCodeDetails}", qrCodeDetails);
                 return qrCodeDetailsResponses;
             }
@@ -309,7 +291,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
             }
             catch (Exception ex)
             {
-                // Log error and rethrow
                 _logger.LogError(ex, "Error occurred while inserting QR code details : InsertQRCodeDetailsAsync.");
                 throw;
             }
@@ -326,7 +307,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
 
                 _logger.LogInformation("Fetching component type for ComponentTypeId: {ComponentTypeId}", qrCodeDetails.ComponentTypeId);
 
-                // Call Get Component API
                 var componentTypeResponse = await _commonRepository.GetComponentTypeByIdAsync(qrCodeDetails.ComponentTypeId);
 
                 if (componentTypeResponse == null)
@@ -372,7 +352,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
 
                 _logger.LogInformation("Processing QR codes using standard FIM/SI logic for all ComponentTypes: {ComponentType}", componentTypeResponse.ComponentType);
 
-                // Check if MatrixRows are provided (for matrix table-based generation)
                 var hasMatrixRows = qrCodeDetailsDto.MatrixRows != null && qrCodeDetailsDto.MatrixRows.Any();
 
                 if (hasMatrixRows)
@@ -392,7 +371,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                         ))
                         .ToList();
 
-                    // Check for duplicates within the submission
                     var duplicateCombos = combinations
                         .GroupBy(c => new { c.IdNo, c.Mirir, c.HtLotNo,c.LnItemCodeId,c.DrawingNumberId })
                         .Where(g => g.Count() > 1)
@@ -406,7 +384,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                         throw new ValidationException($"Duplicate combinations found in the matrix: {duplicatesList}. Each combination of ID Number, MRIR Number, and HT/BT must be unique.");
                     }
                     
-                    // Validate: Check if combinations already exist in the database
                     var existingQrCodes = await _qrCodeRepository.GetQRCodesByIdMrirHtCombinationAsync(combinations);
                     if (existingQrCodes != null && existingQrCodes.Any())
                     {
@@ -424,7 +401,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                         var matrixRow = qrCodeDetailsDto.MatrixRows[index];
                         var perQrCodeDetails = qrCodeDetails.Adapt<StandardQRCodeDetails>();
 
-                        // Set matrix row-specific data
                         perQrCodeDetails.IdNumber = matrixRow.IdNo ?? "";
                         perQrCodeDetails.Size = matrixRow.Size ?? "";
                         perQrCodeDetails.MRIRNumber = matrixRow.Mirir ?? "";
@@ -453,7 +429,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                     return qrCodeDetailsResponses;
                 }
 
-                // Set generic logic for FIM/SI (or any type)
                 var isIdComponent = string.Equals(componentTypeResponse.ComponentType, "ID", StringComparison.OrdinalIgnoreCase);
                 var providedIds = qrCodeDetailsDto.Ids?
                     .Where(id => id > 0)
@@ -525,7 +500,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
         }
 
 
-        //Get Barcode Details Service
         public async Task<QRCodeDetailsResponseDto> GetQRCodeDetailsService(string QRCodeNumber, int? qrCodeStatusId = null)
         {
             try
@@ -539,11 +513,8 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                     return null;
                 }
 
-                //for batch validations
-
                 if (result.ExpiryDate != null)
                 {
-                    //for batch validations
                     bool batchExists = await _qrCodeRepository
                 .CheckPreviousBatchExists(result.DrawingNumberId, result.IdNumbers);
                     result.BatchAvailable = batchExists;
@@ -558,7 +529,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
             }
         }
 
-        //GetQRCodeDetailsWithParameterService (ProdseriesId, DrawingNumberId, DrawingNumber)
         public async Task<List<QRCodeDetailsResponseDto>> GetQRCodeDetailsWithParameterService(GetQRCodeRequestDto getQRCodeRequest)
         {
             try
@@ -664,8 +634,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
 
 
 
-        //GetStoreinqrcodebydate
-
         public async Task<List<QRCodeDetailsResponseDto>> GetComponentStoreInByDateService(StoredInQrCodeRequest storeInRequest)
         {
             try
@@ -697,7 +665,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
             }
         }
 
-        // Excel export logic
         // Every exportable column for ExportQRCodeToExcel, keyed by camelCase name.
         // When selectedColumns is empty/null, all of these are exported (in this order);
         // otherwise only the requested keys are used, in the order the caller specified.
@@ -773,23 +740,18 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                 {
                     var sheet = workbook.CreateSheet("QRCodeData");
 
-                    // Create styles
                     var headerStyle = CreateHeaderStyle(workbook);
                     var borderStyle = CreateBorderStyle(workbook);
 
-                    // Write headers once at the top
                     WriteHeaders(sheet, headerStyle, activeColumns);
 
-                    // Write each data row starting from row 1
                     for (int i = 0; i < qrCodeItems.Count; i++)
                     {
                         WriteDataRow(sheet, qrCodeItems[i], borderStyle, i + 1, activeColumns); // i + 1 because row 0 is header
                     }
 
-                    // Adjust column widths
                     AutoSizeColumns(sheet, activeColumns.Length);
 
-                    // Convert workbook to byte array
                     using (var ms = new MemoryStream())
                     {
                         workbook.Write(ms);
@@ -926,7 +888,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
             {
                 _logger.LogInformation("Starting InsertPrecheckQRCodeDetailsService: {@Request}", request);
 
-                // Validate if QR code already exists
                 var existingQRCode = await _qrCodeRepository.GetQRcodeDetailsAsync(request.QRCodeNumber);
                 if (existingQRCode != null)
                 {
@@ -934,7 +895,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                     throw new ValidationException($"QR code {request.QRCodeNumber} already exists in the system.");
                 }
 
-                // Validate if the combination of ProductionSeriesId, IdNumber, and DrawingNumberId already exists
                 var validationResponse = await _qrCodeRepository.ValidateQrCode(
                     request.ProductionSeriesId,
                     request.IdNumber,
@@ -948,7 +908,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                     throw new ValidationException($"A QR code already exists for this combination of Production Series, ID Number, and Drawing Number.");
                 }
 
-                // Insert the QR code details
                 var result = await _qrCodeRepository.InsertPrecheckQRCodeDetailsAsync(request);
 
                 _logger.LogInformation("Successfully inserted Precheck QR code details: {@Result}", result);
@@ -987,7 +946,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
 
             try
             {
-                // Split by comma to handle multiple ranges
                 var parts = customIdRange.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
                 foreach (var part in parts)
@@ -996,13 +954,11 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
 
                     if (trimmedPart.Contains('-'))
                     {
-                        // Handle range (e.g., "6-10")
                         var rangeParts = trimmedPart.Split('-');
                         if (rangeParts.Length == 2 &&
                             int.TryParse(rangeParts[0].Trim(), out int start) &&
                             int.TryParse(rangeParts[1].Trim(), out int end))
                         {
-                            // Add all numbers in the range (inclusive)
                             for (int i = start; i <= end; i++)
                             {
                                 ids.Add(i);
@@ -1011,7 +967,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                     }
                     else
                     {
-                        // Handle single number (e.g., "2", "3", "4", "5")
                         if (int.TryParse(trimmedPart, out int singleId))
                         {
                             ids.Add(singleId);
@@ -1019,7 +974,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                     }
                 }
 
-                // Remove duplicates and sort
                 ids = ids.Distinct().OrderBy(x => x).ToList();
 
                 _logger.LogInformation("Successfully parsed custom ID range '{CustomIdRange}' into {Count} unique IDs",
@@ -1045,7 +999,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                     throw new ApplicationException("QRCodeNumber is required.");
                 }
 
-                // Validate that the QR code exists
                 var existingQRCode = await _qrCodeRepository.GetQRcodeDetailsAsync(request.QRCodeNumber);
                 if (existingQRCode == null)
                 {
@@ -1053,7 +1006,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                     throw new Exception($"QR code '{request.QRCodeNumber}' not found");
                 }
 
-                // Update the QR code details
                 var updateSuccess = await _qrCodeRepository.UpdateQRCodeDetailsAsync(request);
                 if (!updateSuccess)
                 {
@@ -1061,7 +1013,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                     throw new Exception($"Failed to update QR code '{request.QRCodeNumber}'");
                 }
 
-                // Fetch and return the updated QR code details
                 var updatedQRCode = await _qrCodeRepository.GetQRcodeDetailsAsync(request.QRCodeNumber);
                 _logger.LogInformation("Successfully updated QR code: {QRCodeNumber}", request.QRCodeNumber);
 
@@ -1096,7 +1047,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
             }
         }
 
-        // Standard QR Code specific methods
         public async Task<StandardQRDetailsResponseDto> GetStandardQRCodeDetailsService(string qrCodeNumber)
         {
             try
@@ -1126,23 +1076,18 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                 {
                     var sheet = workbook.CreateSheet("StandardQRCodeData");
 
-                    // Create styles
                     var headerStyle = CreateHeaderStyle(workbook);
                     var borderStyle = CreateBorderStyle(workbook);
 
-                    // Write headers for Standard QR codes
                     WriteStandardQRHeaders(sheet, headerStyle);
 
-                    // Write each data row starting from row 1
                     for (int i = 0; i < qrCodeItems.Count; i++)
                     {
                         WriteStandardQRDataRow(sheet, qrCodeItems[i], borderStyle, i + 1);
                     }
 
-                    // Adjust column widths
                     AutoSizeColumns(sheet, StandardQRHeaders.Length);
 
-                    // Convert workbook to byte array
                     using (var ms = new MemoryStream())
                     {
                         workbook.Write(ms);
@@ -1410,95 +1355,3 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
         }
     }
 }
-
-//public async Task<List<BatchIdResponse>> ProcessBatchService(BatchQRcodeRequestDto batchQRcodeRequest)
-//{
-//    try
-//    {
-//        _logger.LogInformation($"Processing ProcessBatchService request for {batchQRcodeRequest}");
-
-//        var childComponentResponse = await _qrCodeRepository.GetChildComponentForAssembly(batchQRcodeRequest.DrawingNumberId);
-
-//        _logger.LogInformation($"Successfully retrieved {childComponentResponse.Count()} child components");
-
-//        int remainingQuantity = batchQRcodeRequest.Quantity;
-
-//        var components = childComponentResponse
-//            .Where(x => x.Quantity.HasValue && x.Quantity.Value > 0 && x.AssemblyId.HasValue)
-//            .OrderByDescending(x => x.Quantity.Value)
-//            .Select(x => new
-//            {
-//                Quantity = x.Quantity.Value,
-//                AssemblyDrawingId = x.AssemblyId.Value,
-//                AssemblyNumber = x.AssemblyNumber ?? string.Empty
-//            })
-//            .ToList();
-
-//        var batchResponses = new List<BatchIdResponse>();
-
-//        while (remainingQuantity > 0)
-//        {
-//            bool batchCreatedInCycle = false;
-
-//            foreach (var component in components)
-//            {
-//                if (remainingQuantity >= component.Quantity)
-//                {
-//                    var existingBatch = batchResponses.FirstOrDefault(x =>
-//                        x.AssemblyDrawingId == component.AssemblyDrawingId &&
-//                        x.Quantity == component.Quantity);
-
-//                    if (existingBatch != null)
-//                    {
-//                        existingBatch.BatchQuantity += 1;
-//                    }
-//                    else
-//                    {
-//                        batchResponses.Add(new BatchIdResponse
-//                        {
-//                            Quantity = component.Quantity,
-//                            BatchQuantity = 1,
-//                            AssemblyDrawingId = component.AssemblyDrawingId,
-//                            AssemblyNumber = component.AssemblyNumber
-//                        });
-//                    }
-
-//                    remainingQuantity -= component.Quantity;
-//                    batchCreatedInCycle = true;
-
-//                    _logger.LogInformation($"Created batch of {component.Quantity}. Remaining quantity: {remainingQuantity}");
-//                }
-
-//                if (remainingQuantity <= 0)
-//                    break;
-//            }
-
-//            // Prevent infinite loop if no batch was created
-//            if (!batchCreatedInCycle)
-//                break;
-//        }
-
-//        // Handle leftover quantity
-//        if (remainingQuantity > 0)
-//        {
-//            batchResponses.Add(new BatchIdResponse
-//            {
-//                Quantity = remainingQuantity,
-//                BatchQuantity = 1,
-//                AssemblyDrawingId = 0,
-//                AssemblyNumber = "Custom"
-//            });
-
-//            _logger.LogInformation($"Added custom batch for leftover quantity: {remainingQuantity}");
-//        }
-
-//        _logger.LogInformation("Batch processing complete. Total batches created: {Count}", batchResponses.Count);
-
-//        return batchResponses;
-//    }
-//    catch (Exception ex)
-//    {
-//        _logger.LogError(ex, "Error occurred during batchQRcodeRequest processing in ProcessBatchService");
-//        throw;
-//    }
-//}

@@ -152,7 +152,6 @@ namespace Godrej.Precheck.Repository.Repository.TestingRepository
             sb.AppendLine("    BEGIN TRANSACTION;");
             sb.AppendLine();
 
-            // Insert into tbl_inspection_master
             sb.AppendLine("    INSERT INTO tbl_inspection_master");
             sb.AppendLine("        (drawing_id, template_id, drawing_number, isactive, createddate)");
             sb.AppendLine("    VALUES");
@@ -164,7 +163,6 @@ namespace Godrej.Precheck.Repository.Repository.TestingRepository
             sb.AppendLine("        THROW 50004, 'Inspection master insert failed.', 1;");
             sb.AppendLine();
 
-            // Insert each field value directly linked to master
             for (var i = 0; i < valueCount; i++)
             {
                 sb.AppendLine("    INSERT INTO tbl_inspection_row_values");
@@ -596,7 +594,6 @@ namespace Godrej.Precheck.Repository.Repository.TestingRepository
             sb.AppendLine("    );");
             sb.AppendLine();
 
-            // Insert row values
             for (var i = 0; i < rowValueCount; i++)
             {
                 sb.AppendLine("    INSERT INTO tbl_inspection_row_values");
@@ -606,7 +603,6 @@ namespace Godrej.Precheck.Repository.Repository.TestingRepository
                 sb.AppendLine();
             }
 
-            // Delete and re-insert fixed fields if provided
             if (fixedValueCount > 0)
             {
                 sb.AppendLine("    DELETE rv");

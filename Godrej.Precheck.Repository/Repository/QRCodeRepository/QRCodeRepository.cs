@@ -244,8 +244,6 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
             }
         }
 
-        //Get Componenet storeinByDate
-
         public async Task<List<QRCodeDetailsResponseDto>> GetComponentByStoreInByDate(StoredInQrCodeRequest storeindate)
         {
             _logger.LogInformation("Request for QRCodeRepository:GetComponentByStoreInByDate {@StoreInDate}", storeindate);
@@ -256,7 +254,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     new
                     {
                         storeindate = storeindate.StoreInDate,
-                        drawingnumber = storeindate.DrawingNumber // Add this
+                        drawingnumber = storeindate.DrawingNumber
                     });
                 _logger.LogInformation("Successfully retrieved storein qrcodes by date {@Results}", results);
                 return results.ToList();
@@ -269,7 +267,6 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
         }
 
 
-        //GET QRCODE DETAILS WITH PARAMETERS
         public async Task<List<QRCodeDetailsResponseDto>> GetQRcodeWithParameterAsync(GetQRCodeRequestDto getQRCodeRequestDto)
         {
             _logger.LogInformation("Request for QRCodeRepository:GetQRcodeDetailsAsync {@GetQRCodeRequestDto}", getQRCodeRequestDto);
@@ -807,7 +804,6 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     return new List<StandardQRDetailsResponseDto>();
                 }
 
-                // Build dynamic query to check for each combination
                 var query = @"
                     SELECT 
                         qd.id,
@@ -835,7 +831,6 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     var lnItemCodeParam = $"@LnItemCodeId{i}";
                     var drawingNumberParam = $"@DrawingNumberId{i}";
 
-                    // Handle NULL values properly in the condition
                     string condition;
                     if (string.IsNullOrWhiteSpace(combo.Mirir) && string.IsNullOrWhiteSpace(combo.HtLotNo))
                     {
