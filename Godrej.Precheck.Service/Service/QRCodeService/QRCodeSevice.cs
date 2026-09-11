@@ -184,7 +184,7 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                             }
 
                             // Validate QR code
-                            var validationResponse = await _qrCodeRepository.ValiadateQrCode(
+                            var validationResponse = await _qrCodeRepository.ValidateQrCode(
                                 qrCodeDetails.ProductionSeriesId,
                                 qrCodeDetails.IdNumbers,
                                 qrCodeDetails.DrawingNumberId,
@@ -673,7 +673,7 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
 
                 _logger.LogInformation("Get component store-in by StoreInDate:QRCodeService {StoreInDate}");
 
-                var componentDetails = await _qrCodeRepository.GetComponentByStorInByDate(storeInRequest);
+                var componentDetails = await _qrCodeRepository.GetComponentByStoreInByDate(storeInRequest);
 
                 if (componentDetails != null)
                 {
@@ -935,7 +935,7 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                 }
 
                 // Validate if the combination of ProductionSeriesId, IdNumber, and DrawingNumberId already exists
-                var validationResponse = await _qrCodeRepository.ValiadateQrCode(
+                var validationResponse = await _qrCodeRepository.ValidateQrCode(
                     request.ProductionSeriesId,
                     request.IdNumber,
                     request.DrawingNumberId,
@@ -1417,7 +1417,7 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
 //    {
 //        _logger.LogInformation($"Processing ProcessBatchService request for {batchQRcodeRequest}");
 
-//        var childComponentResponse = await _qrCodeRepository.GetChildComponenetforAssembly(batchQRcodeRequest.DrawingNumberId);
+//        var childComponentResponse = await _qrCodeRepository.GetChildComponentForAssembly(batchQRcodeRequest.DrawingNumberId);
 
 //        _logger.LogInformation($"Successfully retrieved {childComponentResponse.Count()} child components");
 

@@ -13,7 +13,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace QRCodeApi.Controllers
+namespace Godrej.Precheck.Host.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -122,7 +122,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in InsertQRCodeDetails for request: {request}");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -159,7 +159,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in UpdateQRCode for QR code: {request.QRCodeNumber}");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -187,7 +187,6 @@ namespace QRCodeApi.Controllers
                 _logger.LogInformation("DisableQRCode successful for QR code: {QRCodeNumber}", request.QRCodeNumber);
                 return Ok(new
                 {
-                    statusCode = StatusCodes.Status200OK,
                     message = "QR code disabled successfully.",
                     data = response
                 });
@@ -195,16 +194,12 @@ namespace QRCodeApi.Controllers
             catch (ApplicationException ex)
             {
                 _logger.LogError(ex, "Business validation error in DisableQRCode for QR code: {QRCodeNumber}", request.QRCodeNumber);
-                return BadRequest(new
-                {
-                    statusCode = StatusCodes.Status400BadRequest,
-                    message = ex.Message
-                });
+                return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error in DisableQRCode for QR code: {QRCodeNumber}", request.QRCodeNumber);
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -231,7 +226,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in GenerateBatchQRCode for request: {request}");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -280,7 +275,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in GenerateStandardFieldQRCodeDetails for request: {request}");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -308,7 +303,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in GetQRcodeDetailsAsync for QRCodeNumber: {QRCodeNumber}");
-                return BadRequest("An error occurred while processing your request. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -345,7 +340,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in GetQRcodeDetailsWithParametersAsync for Request: {request}");
-                return BadRequest("An error occurred while processing your request. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -373,7 +368,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in GetConsumedQRcodeDetailsWithParametersAsync for Request: {getQRCodeRequestDto}");
-                return BadRequest("An error occurred while processing your request. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -422,7 +417,7 @@ namespace QRCodeApi.Controllers
         [HttpPost("GetStoredComponentsByDate")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetStoreInComponenetByDate([FromBody] StoredInQrCodeRequest storeindate)
+        public async Task<IActionResult> GetStoreInComponentByDate([FromBody] StoredInQrCodeRequest storeindate)
         {
           
             _logger.LogInformation($"Request received for GetStoreInQRCodeByDate:");
@@ -450,7 +445,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in GetStoreInQRCodeByDate");
-                return BadRequest("An error occurred while GetStoreInQRCodeByDate. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -461,9 +456,9 @@ namespace QRCodeApi.Controllers
         [HttpPost("ExportStoredInComponentsByDate")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> ExportStoreInComponenetByDate([FromBody] StoredInQrCodeRequest storeInRequest)
+        public async Task<IActionResult> ExportStoreInComponentByDate([FromBody] StoredInQrCodeRequest storeInRequest)
         {
-            _logger.LogInformation($"Request received for ExportStoreInComponenetByDate:");
+            _logger.LogInformation($"Request received for ExportStoreInComponentByDate:");
 
             try
             {
@@ -497,8 +492,8 @@ namespace QRCodeApi.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Unexpected error in ExportStoreInComponenetByDate:");
-                return BadRequest("An error occurred while ExportStoreInComponenetByDate. Please try again later.");
+                _logger.LogError(ex, $"Unexpected error in ExportStoreInComponentByDate:");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -637,7 +632,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error during ExportQrCodesAsync");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -721,7 +716,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in GetConsumedInAsync for request: {getConsumedInRequest}");
-                return BadRequest("An error occurred while processing your request. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -874,7 +869,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error during ExportViewQrCodeAsync for request: {request}");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -903,7 +898,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error in GetAllUsersAsync");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -931,7 +926,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error in GetDistinctBatchIdNumbersAsync");
-                return BadRequest("An error occurred while processing your request. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -959,7 +954,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error in GetAllFanManSerialNumbersAsync");
-                return BadRequest("An error occurred while processing your request. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -994,7 +989,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error in ExportConsumedInAsync for request: {@Request}", request);
-                return BadRequest("An error occurred while exporting data. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -1031,7 +1026,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error in BulkUpdateQRCode");
-                return StatusCode(500, "Something went wrong");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -1076,7 +1071,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "QRCodeController:GetAvailableQr - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
     }

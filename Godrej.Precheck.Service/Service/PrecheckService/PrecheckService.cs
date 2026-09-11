@@ -1018,7 +1018,7 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
             await _precheckRepository.UpdatePrecheckDetails(precheckRequest);
 
             // Disable QR code
-            await _qRCodeRepository.UpdateQrCodeDetails(precheckRequest.QrCodeNumber, precheckRequest.ConsumedDrawingNo, precheckRequest.RemainingQuantity);
+            await _qRCodeRepository.UpdateQrCodeDetails(precheckRequest.QrCodeNumber, precheckRequest.ConsumedDrawingNo, precheckRequest.RemainingQuantity, precheckRequest.CreatedBy);
         }
 
         private async Task ProcessBatchComponent(MakePrecheckRequest precheckRequest)
@@ -1032,7 +1032,7 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
             await _precheckRepository.UpdatePrecheckDetails(precheckRequest);
 
             // Disable QR code
-            await _qRCodeRepository.UpdateQrCodeDetails(precheckRequest.QrCodeNumber, precheckRequest.ConsumedDrawingNo, precheckRequest.RemainingQuantity);
+            await _qRCodeRepository.UpdateQrCodeDetails(precheckRequest.QrCodeNumber, precheckRequest.ConsumedDrawingNo, precheckRequest.RemainingQuantity, precheckRequest.CreatedBy);
         }
 
         private async Task ProcessOtherComponent(MakePrecheckRequest precheckRequest)
@@ -1048,7 +1048,7 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
             await _precheckRepository.UpdatePrecheckDetails(precheckRequest);
 
             // Disable QR code
-            await _qRCodeRepository.UpdateQrCodeDetails(precheckRequest.QrCodeNumber, precheckRequest.ConsumedDrawingNo, precheckRequest.RemainingQuantity);
+            await _qRCodeRepository.UpdateQrCodeDetails(precheckRequest.QrCodeNumber, precheckRequest.ConsumedDrawingNo, precheckRequest.RemainingQuantity, precheckRequest.CreatedBy);
         }
 
 

@@ -9,7 +9,7 @@ using Godrej.Precheck.Models.DTOs.ProductionOrder;
 using Microsoft.IdentityModel.Tokens;
 using Godrej.Precheck.Service.Service.PrecheckService;
 
-namespace QRCodeApi.Controllers
+namespace Godrej.Precheck.Host.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]

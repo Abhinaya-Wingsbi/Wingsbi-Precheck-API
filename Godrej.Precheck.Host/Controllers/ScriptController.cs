@@ -75,7 +75,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "ScriptController:UploadExcel - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -106,7 +106,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "ScriptController:RunSTDQRGeneration - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -137,7 +137,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "ScriptController:RunQRCodeImport - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -195,7 +195,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "ScriptController:UploadMasterDataExcel - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -252,7 +252,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "ScriptController:RunMasterData - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
             finally
             {
@@ -378,7 +378,10 @@ namespace Godrej.Precheck.Host.Controllers
                 if (excelPath2 != null)
                     TryDeleteFile(excelPath2, apiName, "uploaded file2");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"[{apiName}] Could not clean up uploaded files after script execution.");
+            }
 
             // Merge stderr into output so all script messages are visible on the frontend
             var combinedOutput = string.IsNullOrWhiteSpace(stderr)

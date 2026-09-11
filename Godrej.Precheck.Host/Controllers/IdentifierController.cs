@@ -15,7 +15,7 @@ using DinkToPdf.Contracts;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 
-namespace Godrej.Precheck.Api.Controllers
+namespace Godrej.Precheck.Host.Controllers
 {
 
     [ApiController]

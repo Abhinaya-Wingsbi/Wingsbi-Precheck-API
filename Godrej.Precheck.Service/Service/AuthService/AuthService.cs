@@ -195,7 +195,7 @@ namespace Godrej.Precheck.Service.Service.AuthService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Exception occurred during registration for UserName: {UserName}, Email: {Email}", request.UserName, request.Email);
-                return false;
+                throw;
             }
         }
 
@@ -266,8 +266,6 @@ namespace Godrej.Precheck.Service.Service.AuthService
                     new Claim("username", user.UserName),
                     new Claim("roleid", user.UserRoleId.ToString()),
             new Claim(ClaimTypes.Role, user.Role),  // Instead of "role"
-                    //new Claim("plantid", user.PlantId.ToString()),
-                    //new Claim("email", user.Email),
             new Claim("deptid",Convert.ToString(user.DepartmentId)),
                     new Claim("department", user.DepartmentName)
                 }),
@@ -290,7 +288,5 @@ namespace Godrej.Precheck.Service.Service.AuthService
             rng.GetBytes(randomBytes);
             return Convert.ToBase64String(randomBytes);
         }
-
-        // Removed unused GenerateSecurityStamp method since we now use the salt as SecurityStamp
     }
 }

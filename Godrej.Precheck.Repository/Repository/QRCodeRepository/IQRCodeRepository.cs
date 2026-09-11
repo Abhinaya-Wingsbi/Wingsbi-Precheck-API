@@ -33,11 +33,11 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
         Task<bool> InsertQRCodeInConsumptionAsync(QRCodeDetails qrCodeDetails);
         Task<bool> InsertStandardQRCodeInConsumptionAsync(StandardQRCodeDetails qrCodeDetails);
 
-        Task<bool> UpdateQrCodeDetails(string qrCode, string consumedInDrawing, decimal? quantity);
+        Task<bool> UpdateQrCodeDetails(string qrCode, string consumedInDrawing, decimal? quantity, int modifiedBy);
 
         Task<bool> ComponentStoreIn(string QRCodeNumber);
 
-        Task<QRCodeDetailsResponseDto> ValiadateQrCode(int productionseriesid, int idnumbers, int drawingnumberid, string? productionOrderNumber);
+        Task<QRCodeDetailsResponseDto> ValidateQrCode(int productionseriesid, int idnumbers, int drawingnumberid, string? productionOrderNumber);
 
         Task<List<ConsumedInResponseDto>> ConsumedInRepoAsync(ConsumedInRequestDto request);
 
@@ -45,9 +45,9 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
 
         Task<string> GetLatestBatchIdNumber();
 
-        Task<List<BatchQRcodeResponse>> GetChildComponenetforAssembly(int DrawingId);
+        Task<List<BatchQRcodeResponse>> GetChildComponentForAssembly(int DrawingId);
 
-        Task<List<QRCodeDetailsResponseDto>> GetComponentByStorInByDate(StoredInQrCodeRequest storeInRequest);
+        Task<List<QRCodeDetailsResponseDto>> GetComponentByStoreInByDate(StoredInQrCodeRequest storeInRequest);
 
         Task<QrCodeResponse> InsertPrecheckQRCodeDetailsAsync(PrecheckQRCodeRequestDto request);
 

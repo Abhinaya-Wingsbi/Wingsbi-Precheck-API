@@ -9,7 +9,6 @@ using Godrej.Precheck.Service.Service.QRCodeService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using QRCodeApi.Controllers;
 using System.ComponentModel.DataAnnotations;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
@@ -58,7 +57,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:GetAssemblyDrawing - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -100,7 +99,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:MakePrecheckForAssembly - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -152,7 +151,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:BulkPrecheck - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -196,7 +195,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:MakePrecheckFromExcel - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -221,7 +220,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:DownloadTemplate - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -251,7 +250,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:DeletePrecheckDetails - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -281,7 +280,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:RemovePrecheckDetails - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -323,7 +322,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:AddPrecheckComponent - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -366,7 +365,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:ConsumedInComponents - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -447,7 +446,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:MakeOrder - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -480,7 +479,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:ViewPrecheckDetails - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -521,7 +520,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:ViewPrechekByParameters - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -548,7 +547,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:PendingPrecheck - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -575,7 +574,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:ExportPendingPrecheck - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -608,7 +607,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:ViewPrecheckDetails - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -645,7 +644,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:GetAvailableComponents - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -678,7 +677,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:GetAvailableComponents - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -762,7 +761,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:RejectAndDuplicatePrecheck - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -808,7 +807,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "UpdateQuantity - Unexpected error");
-                return StatusCode(500, "An unexpected error occurred.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -852,7 +851,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:RejectAndDuplicatePrecheck - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -883,7 +882,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:ResetRemainingQuantity - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
     }

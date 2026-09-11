@@ -200,7 +200,7 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
                         qrcodeid = precheckRequest.QrCodeId
                     });
 
-                _logger.LogInformation($"Successfully Upadated UpdatePrecheckDetails : {precheckRequest.ConsumedDrawingNo}");
+                _logger.LogInformation($"Successfully Updated UpdatePrecheckDetails : {precheckRequest.ConsumedDrawingNo}");
 
 
                 return precheckRequest;
