@@ -166,7 +166,7 @@ namespace Godrej.Precheck.Host.Controllers
                 if (result == null || result.Count == 0)
                 {
                     _logger.LogInformation("No DrawingNumber found.");
-                    return NotFound();
+                    return NotFound(new { message = "No result found." });
                 }
 
                 var paged = result

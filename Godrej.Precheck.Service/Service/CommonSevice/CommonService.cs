@@ -659,6 +659,7 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
         {
             if (string.IsNullOrWhiteSpace(csv)) return new List<string>();
             return csv.Split(DrawingNumberListSeparator, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .ToList();
         }
