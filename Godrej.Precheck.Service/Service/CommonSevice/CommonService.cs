@@ -751,6 +751,18 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
                         );
                     }
 
+                    if (request.ProdSeries != null && request.ProdSeries.Count > 0)
+                    {
+                        query = query.Where(d => d.AvailableSeries != null &&
+                            d.AvailableSeries.Any(s => request.ProdSeries.Contains(s, StringComparer.OrdinalIgnoreCase)));
+                    }
+
+                    if (request.Unit != null && request.Unit.Count > 0)
+                    {
+                        query = query.Where(d => d.UnitName != null &&
+                            request.Unit.Contains(d.UnitName, StringComparer.OrdinalIgnoreCase));
+                    }
+
                     result = query.OrderBy(d => d.Id).ToList();
                     
                     _logger.LogInformation("Found {Count} drawing numbers after filtering", result.Count);

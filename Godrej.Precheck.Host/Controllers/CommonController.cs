@@ -132,11 +132,14 @@ namespace Godrej.Precheck.Host.Controllers
 
         //Fetch all Drawing Number Witoutany paramter
 
-        [HttpGet]
+        [HttpPost]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [Route("FetchAllDrawingNumbers")]
-        public async Task<IActionResult> GetAllDrawingNumberAsync([FromQuery] string? searchQuery, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
+        public async Task<IActionResult> GetAllDrawingNumberAsync(
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] GetAllDrawingRequestDto? request,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1) pageSize = 20;
@@ -144,13 +147,20 @@ namespace Godrej.Precheck.Host.Controllers
 
             try
             {
-                _logger.LogInformation("Request for CommonController:GetAllDrawingNumberAsync method, searchQuery {SearchQuery}, page {PageNumber} size {PageSize}", searchQuery, pageNumber, pageSize);
+                _logger.LogInformation("Request for CommonController:GetAllDrawingNumberAsync method, searchQuery {SearchQuery}, page {PageNumber} size {PageSize}", request?.Search, pageNumber, pageSize);
 
                 // GetAllDrawingNumberService returns the full cached list when request is null -- other
                 // callers need it unpaginated for full-list lookups, so pagination is applied here, not
-                // in the shared service. searchQuery matches DrawingNumber, LnItemCode, Nomenclature and
+                // in the shared service. Search matches DrawingNumber, LnItemCode, Nomenclature and
                 // ComponentType (see GetAllDrawingNumberService's Search filter).
-                var request = string.IsNullOrWhiteSpace(searchQuery) ? null : new GetAllDrawingRequestDto { Search = searchQuery };
+                if (request != null
+                    && string.IsNullOrWhiteSpace(request.Search)
+                    && string.IsNullOrWhiteSpace(request.ComponentType)
+                    && (request.ProdSeries == null || request.ProdSeries.Count == 0)
+                    && (request.Unit == null || request.Unit.Count == 0))
+                {
+                    request = null;
+                }
                 var result = await _commonService.GetAllDrawingNumberService(request);
 
                 if (result == null || result.Count == 0)
