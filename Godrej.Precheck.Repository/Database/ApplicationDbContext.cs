@@ -132,13 +132,13 @@ namespace Godrej.Precheck.Repository.Database
         }
 
 
-        public async Task<T> ExecuteScalar<T>(string query, object parameters)
+        public async Task<T> ExecuteScalar<T>(string query, object parameters, int? commandTimeout = null)
         {
             try
             {
                 using (var connection = CreateConnection())
                 {
-                    return await connection.ExecuteScalarAsync<T>(query, parameters);
+                    return await connection.ExecuteScalarAsync<T>(query, parameters, commandTimeout: commandTimeout);
                 }
             }
             catch (Exception ex)

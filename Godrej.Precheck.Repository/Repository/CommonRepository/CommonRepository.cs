@@ -310,10 +310,8 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
                 SearchQuery = searchQuery
             };
 
-            var totalCount = await _db.ExecuteScalar<int>(countQuery, queryParams);
-
             var offset = (pageNumber - 1) * pageSize;
-            var results = await _db.GetAll<ViewIrMsnResponseDto>(pagedQuery, new
+            var pagedParams = new
             {
                 ProductionSeries = productionSeries,
                 DepartmentTypeId = departmentTypeId,
@@ -322,7 +320,16 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
                 SearchQuery = searchQuery,
                 Offset = offset,
                 PageSize = pageSize
-            });
+            };
+
+            // Count and page are independent reads (each opens its own connection), so run them
+            // concurrently instead of paying for the UNION ALL + joins twice, back to back.
+            var countTask = _db.ExecuteScalar<int>(countQuery, queryParams, commandTimeout: 300);
+            var resultsTask = _db.GetAll<ViewIrMsnResponseDto>(pagedQuery, pagedParams);
+            await Task.WhenAll(countTask, resultsTask);
+
+            var totalCount = countTask.Result;
+            var results = resultsTask.Result;
 
             _logger.LogInformation($"Result for CommonRepository:GetViewIrMsn, count: {results.Count()}, totalCount: {totalCount}");
             return (results.ToList(), totalCount);

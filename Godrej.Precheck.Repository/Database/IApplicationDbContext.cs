@@ -12,7 +12,7 @@ namespace Godrej.Precheck.Repository.Database
         Task<IEnumerable<T>> GetAll<T>(string query, object parameters);
         Task<T> GetSingle<T>(string query, object parameters, int? commandTimeout = null);
         Task<int> Execute(string query, object parameters);
-        Task<T> ExecuteScalar<T>(string query, object parameters);
+        Task<T> ExecuteScalar<T>(string query, object parameters, int? commandTimeout = null);
 
         Task<int> Update(string query, object parameters);
 

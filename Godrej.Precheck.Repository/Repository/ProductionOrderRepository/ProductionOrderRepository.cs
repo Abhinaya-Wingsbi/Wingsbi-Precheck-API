@@ -453,7 +453,7 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
             {
                 var offset = (pageNumber - 1) * pageSize;
 
-                var totalCount = await _db.ExecuteScalar<int>(ProductionOrderQueries.GET_ALL_PRODUCTION_ORDERS_COUNT, new { });
+                var totalCount = await _db.ExecuteScalar<int>(ProductionOrderQueries.GET_ALL_PRODUCTION_ORDERS_COUNT, new { }, commandTimeout: 300);
 
                 var results = await _db.GetAll<ProductionOrderMasterDto>(
                     ProductionOrderQueries.GET_ALL_PRODUCTION_ORDERS_PAGED,
@@ -566,7 +566,7 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                     .Replace("{SEARCH_FILTER}", searchFilter)
                     .Replace("{SERIES_FILTER}", seriesFilter);
 
-                var totalCount = await _db.ExecuteScalar<int>(countQuery, queryParams);
+                var totalCount = await _db.ExecuteScalar<int>(countQuery, queryParams, commandTimeout: 300);
 
                 var offset = (pageNumber - 1) * pageSize;
                 var dataQuery = ProductionOrderQueries.GET_FILTERED_PRODUCTION_ORDERS_PAGED

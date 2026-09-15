@@ -376,7 +376,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     ToDate = toDate
                 };
 
-                var totalCount = await _db.ExecuteScalar<int>(countQuery, queryParams);
+                var totalCount = await _db.ExecuteScalar<int>(countQuery, queryParams, commandTimeout: 300);
 
                 var offset = pageSize.HasValue ? (pageNumber - 1) * pageSize.Value : 0;
                 var results = await _db.GetAll<QRCodeDetailsResponseDto>(
