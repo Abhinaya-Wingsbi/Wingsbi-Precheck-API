@@ -716,12 +716,12 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
             return rowsAffected > 0;
         }
 
-        public async Task<List<User>> GetAllUsers()
+        public async Task<List<User>> GetAllUsers(string? searchQuery = null)
         {
-            _logger.LogInformation("Request for CommonRepository:GetAllUsers");
+            _logger.LogInformation("Request for CommonRepository:GetAllUsers SearchQuery: {SearchQuery}", searchQuery);
             var results = await _db.GetAll<User>(
                 Common.GET_ALL_USERS_QUERY,
-                new { });
+                new { SearchQuery = string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery.Trim() });
             _logger.LogInformation($"Result for CommonRepository:GetAllUsers: Retrieved {results.Count()} users");
             return results.ToList();
         }

@@ -67,7 +67,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
         Task<List<ConsumedInResponseDto>> ExportConsumedInRepoAsync(ConsumedInRequestDto request);
         Task<int> BulkUpdateQRCodeAsync(BulkUpdateQRCodeRequestDto request);
 
-        Task<List<GetAvailableComponentsResponse>> GetAvailableQr(GetAvailableQrRequest request);
+        Task<(List<GetAvailableComponentsResponse> Items, int TotalCount)> GetAvailableQrPaged(GetAvailableQrRequest request, int pageNumber, int pageSize);
 
     }
 }

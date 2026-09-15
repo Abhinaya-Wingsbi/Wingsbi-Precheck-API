@@ -1182,13 +1182,13 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             }
         }
 
-        public async Task<List<User>> GetAllUsersService()
+        public async Task<List<User>> GetAllUsersService(string? searchQuery = null)
         {
-            _logger.LogInformation("Starting GetAllUsersService");
+            _logger.LogInformation("Starting GetAllUsersService SearchQuery: {SearchQuery}", searchQuery);
             try
             {
                 _logger.LogDebug("Fetching all users from repository");
-                var result = await _commonRepository.GetAllUsers();
+                var result = await _commonRepository.GetAllUsers(searchQuery);
 
                 _logger.LogInformation("Successfully retrieved {Count} users", result?.Count ?? 0);
                 return result ?? new List<User>();

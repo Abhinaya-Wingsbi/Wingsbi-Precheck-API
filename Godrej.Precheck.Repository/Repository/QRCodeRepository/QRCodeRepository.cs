@@ -1144,9 +1144,10 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
             }
         }
 
-        public async Task<List<GetAvailableComponentsResponse>> GetAvailableQr(GetAvailableQrRequest request)
+        public async Task<(List<GetAvailableComponentsResponse> Items, int TotalCount)> GetAvailableQrPaged(GetAvailableQrRequest request, int pageNumber, int pageSize)
         {
-            _logger.LogInformation($"Request for QRCodeRepository:GetAvailableQr SearchQuery: {request.SearchQuery}, ProdSeries: {(request.ProdSeries != null ? string.Join(",", request.ProdSeries) : null)}, QrType: {request.QrType}");
+            _logger.LogInformation("Request for QRCodeRepository:GetAvailableQrPaged SearchQuery: {SearchQuery}, ProdSeries: {ProdSeries}, QrType: {QrType}, pageNumber: {PageNumber}, pageSize: {PageSize}",
+                request.SearchQuery, request.ProdSeries != null ? string.Join(",", request.ProdSeries) : null, request.QrType, pageNumber, pageSize);
 
             try
             {
@@ -1166,28 +1167,37 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     seriesFilter = " AND tps.productionseries IN @ProdSeries";
                 }
 
-                var query = QRCodeQueries.GET_AVAILABLE_QR_BY_LNITEM_DRAWING
+                var countQuery = QRCodeQueries.GET_AVAILABLE_QR_BY_LNITEM_DRAWING_COUNT
                     .Replace("{SEARCH_FILTER}", searchFilter)
                     .Replace("{SERIES_FILTER}", seriesFilter);
 
-                var results = await _db.GetAll<GetAvailableComponentsResponse>(
-                    query,
-                    new
-                    {
-                        QrType = request.QrType,
-                        SearchQuery = trimmedSearchQuery,
-                        ProdSeries = request.ProdSeries
-                    });
+                var pagedQuery = QRCodeQueries.GET_AVAILABLE_QR_BY_LNITEM_DRAWING_PAGED
+                    .Replace("{SEARCH_FILTER}", searchFilter)
+                    .Replace("{SERIES_FILTER}", seriesFilter)
+                    .Replace("{PAGING_CLAUSE}", "OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY");
 
-                _logger.LogInformation("Successfully retrieved GetAvailableQr {@Results}", results);
+                var queryParams = new
+                {
+                    QrType = request.QrType,
+                    SearchQuery = trimmedSearchQuery,
+                    ProdSeries = request.ProdSeries,
+                    Offset = (pageNumber - 1) * pageSize,
+                    PageSize = pageSize
+                };
 
-                return results.ToList();
+                var totalCount = await _db.GetSingle<int>(countQuery, queryParams, commandTimeout: 300);
+                var items = await _db.GetAll<GetAvailableComponentsResponse>(pagedQuery, queryParams);
+
+                _logger.LogInformation("Successfully retrieved GetAvailableQrPaged, totalCount: {TotalCount}", totalCount);
+
+                return (items.ToList(), totalCount);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while GetAvailableQr.");
+                _logger.LogError(ex, "Error occurred while GetAvailableQrPaged.");
                 throw;
             }
         }
+
     }
 }

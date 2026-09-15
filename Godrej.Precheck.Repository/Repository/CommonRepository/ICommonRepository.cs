@@ -77,7 +77,7 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
         Task<int> AddUserRole(UserRole role);
         Task<bool> UpdateUserRole(UserRole role);
         Task<bool> DeleteUserRole(int id, int modifiedBy);
-        Task<List<User>> GetAllUsers();
+        Task<List<User>> GetAllUsers(string? searchQuery = null);
         Task<List<User>> GetPendingUsersAsync();
         Task<bool> ApproveUserAsync(int id, int modifiedBy);
         Task<bool> UpdateUser(UserUpdateDto user);

@@ -41,14 +41,13 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
         Task<string> DisableQRCodeAsync(DisableQRCodeRequestDto request);
 
         Task<StandardQRDetailsResponseDto> GetStandardQRCodeDetailsService(string qrCodeNumber);
-        byte[] ExportStandardQRCodeToExcel(List<StandardQRDetailsResponseDto> qrCodeItems);
+        byte[] ExportStandardQRCodeToExcel(List<StandardQRDetailsResponseDto> qrCodeItems, List<string>? selectedColumns = null);
         Task<List<UserDto>> GetAllUsersServiceAsync();
         Task<List<string>> GetDistinctBatchIdNumbersServiceAsync();
         Task<List<string>> GetAllFanManSerialNumbersServiceAsync();
         Task<byte[]> ExportConsumedInServiceAsync(ConsumedInRequestDto request);
         Task<int> BulkUpdateQRCodeService(BulkUpdateQRCodeRequestDto request);
 
-        Task<List<GetAvailableComponentsResponse>> GetAvailableQrService(GetAvailableQrRequest request);
         Task<GetAvailableQrPagedResponse> GetAvailableQrPagedService(GetAvailableQrRequest request, int pageNumber, int pageSize);
     }
 }

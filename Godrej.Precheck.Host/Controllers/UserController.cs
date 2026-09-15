@@ -136,13 +136,13 @@ namespace Godrej.Precheck.Host.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [Route("GetAllUsers")]
-        public async Task<IActionResult> GetAllUsers()
+        public async Task<IActionResult> GetAllUsers([FromQuery] string? searchQuery = null)
         {
-            _logger.LogInformation("[GetAllUsers] Request received");
+            _logger.LogInformation("[GetAllUsers] Request received SearchQuery: {SearchQuery}", searchQuery);
 
             try
             {
-                var result = await _commonService.GetAllUsersService();
+                var result = await _commonService.GetAllUsersService(searchQuery);
 
                 if (result == null || !result.Any())
                 {

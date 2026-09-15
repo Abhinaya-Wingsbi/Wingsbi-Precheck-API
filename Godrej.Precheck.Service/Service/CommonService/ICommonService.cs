@@ -89,7 +89,7 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
         Task<int> AddUserRole(UserRole role);
         Task<bool> UpdateUserRole(UserRole role);
         Task<bool> DeleteUserRole(int id, int modifiedBy);
-        Task<List<User>> GetAllUsersService();
+        Task<List<User>> GetAllUsersService(string? searchQuery = null);
         Task<List<User>> GetPendingUsersService();
         Task<bool> ApproveUserService(int id, int modifiedBy);
         Task<bool> UpdateUserService(UserUpdateDto user);

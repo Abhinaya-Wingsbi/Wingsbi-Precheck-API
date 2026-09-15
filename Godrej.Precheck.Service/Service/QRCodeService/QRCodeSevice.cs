@@ -670,6 +670,7 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
         // otherwise only the requested keys are used, in the order the caller specified.
         private static readonly (string Key, string Header, Func<QRCodeDetailsResponseDto, string?> GetValue)[] QRCodeExportColumnDefinitions = new (string, string, Func<QRCodeDetailsResponseDto, string?>)[]
         {
+            ("sr", "Sr. No.", item => item.SrNo),
             ("qrCodeNumber", "QRCodeNumber", item => item.QrCodeNumber),
             ("projectNumber", "Project Number", item => item.ProjectNumber),
             ("drawingNumber", "Drawing Number", item => item.DrawingNumber),
@@ -747,7 +748,7 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
 
                     for (int i = 0; i < qrCodeItems.Count; i++)
                     {
-                        WriteDataRow(sheet, qrCodeItems[i], borderStyle, i + 1, activeColumns); // i + 1 because row 0 is header
+                        WriteDataRow(sheet, qrCodeItems[i], borderStyle, i + 1, activeColumns, srNo: i + 1); // i + 1 because row 0 is header
                     }
 
                     AutoSizeColumns(sheet, activeColumns.Length);
@@ -807,12 +808,15 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
             }
         }
 
-        private static void WriteDataRow(ISheet sheet, QRCodeDetailsResponseDto item, ICellStyle borderStyle, int rowIndex, (string Key, string Header, Func<QRCodeDetailsResponseDto, string?> GetValue)[] columns)
+        private static void WriteDataRow(ISheet sheet, QRCodeDetailsResponseDto item, ICellStyle borderStyle, int rowIndex, (string Key, string Header, Func<QRCodeDetailsResponseDto, string?> GetValue)[] columns, int srNo)
         {
             var row = sheet.CreateRow(rowIndex);
             for (int c = 0; c < columns.Length; c++)
             {
-                CreateCell(row, c, columns[c].GetValue(item), borderStyle);
+                var value = string.Equals(columns[c].Key, "sr", StringComparison.OrdinalIgnoreCase)
+                    ? srNo.ToString()
+                    : columns[c].GetValue(item);
+                CreateCell(row, c, value, borderStyle);
             }
         }
 
@@ -1066,11 +1070,77 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
             }
         }
 
-        public byte[] ExportStandardQRCodeToExcel(List<StandardQRDetailsResponseDto> qrCodeItems)
+        // Every exportable column for ExportStandardQRCodeToExcel, keyed by camelCase name (same keys as
+        // QRCodeExportColumnDefinitions where they overlap). When selectedColumns is empty/null, all of
+        // these are exported (in this order); otherwise only the requested keys are used, in the order
+        // the caller specified. "sr" is generated at export time (row position), not read from the item.
+        private static readonly (string Key, string Header, Func<StandardQRDetailsResponseDto, string?> GetValue)[] StandardQRCodeExportColumnDefinitions = new (string, string, Func<StandardQRDetailsResponseDto, string?>)[]
+        {
+            ("sr", "Sr. No.", item => item.SrNo),
+            ("qrCodeNumber", "QRCodeNumber", item => item.QrCodeNumber),
+            ("projectNumber", "Project Number", item => item.ProjectNumber),
+            ("drawingNumber", "Drawing Number", item => item.DrawingNumber),
+            ("productionSeries", "Production Series", item => item.ProductionSeries),
+            ("nomenclature", "Nomenclature", item => item.Nomenclature),
+            ("componentType", "Component Type", item => item.ComponentType),
+            ("idNumber", "ID Number", item => item.IdNumber),
+            ("batchIdNumber", "Batch Idnumber", item => item.BatchID),
+            ("irNumber", "IR Number", item => item.IrNumber),
+            ("msnNumber", "MSN Number", item => item.MsnNumber),
+            ("mrirNumber", "MRIR Number", item => item.MRIRNumber),
+            ("quantity", "Quantity", item => item.Quantity?.ToString("0.####")),
+            ("desposition", "Desposition", item => item.Desposition),
+            ("manufacturingDate", "Manufacturing Date", item => item.ManufacturingDate?.ToString("yyyy-MM-dd")),
+            ("expiryDate", "Expiry Date", item => item.ExpiryDate?.ToString("yyyy-MM-dd")),
+            ("storeInDate", "Store In Date", item => item.StoreInDate?.ToString("yyyy-MM-dd HH:mm:ss")),
+            ("users", "Users", item => item.Users),
+            ("productionOrderNumber", "Production Order Number", item => item.ProductionOrderNumber),
+            ("purchaseOrderNumber", "Purchase Order Number", item => item.PurchaseOrderNumber),
+            ("rackLocation", "Rack Location", item => item.RackLocation),
+            ("assemblyNumber", "Assembly Number", item => item.AssemblyNumber),
+            ("lnItemCode", "LN Item Code", item => item.LnItemCode),
+            ("qrCodeStatus", "QRCode Status", item => item.QrCodeStatus),
+            ("consumedInDrawing", "Consumed In Drawing", item => item.ConsumedInDrawing),
+            ("remark", "Remark", item => item.ProjectDescription),
+            ("createdDate", "Created Date", item => item.CreatedDate?.ToString("yyyy-MM-dd HH:mm:ss")),
+            ("modifiedDate", "Modified Date", item => item.ModifiedDate?.ToString("yyyy-MM-dd HH:mm:ss")),
+            ("partNo", "Part No", item => item.PartNo),
+            ("size", "Size", item => item.Size),
+            ("shapes", "Shapes", item => item.Shapes),
+            ("customerItemCode", "Customer Item Code", item => item.CustomerItemCode),
+            ("material", "Material", item => item.Material),
+            ("htLotNo", "HT Lot No", item => item.HTLotNo),
+            ("fanManNumber", "FAN/MAN Number", item => item.FanManNumber),
+            ("fanManSerialNumber", "FAN/MAN Serial Number", item => item.FanManSerialNumber),
+            ("serialNumberOfQuantity", "Serial Number of Quantity", item => item.SerialNumberOfQuantity),
+            ("msnIrNumber", "MSN/IR Number", item => item.MsnIrNumber),
+            ("gfnNo", "GFN No", item => item.GFNNo),
+            ("tQty", "TQty", item => item.TQty),
+            ("wc", "WC", item => item.WC),
+            ("unitName", "Unit Name", item => item.UnitName),
+        };
+
+        public byte[] ExportStandardQRCodeToExcel(List<StandardQRDetailsResponseDto> qrCodeItems, List<string>? selectedColumns = null)
         {
             try
             {
                 _logger.LogInformation("Starting Excel export for {Count} Standard QR codes", qrCodeItems.Count);
+
+                var activeColumns = StandardQRCodeExportColumnDefinitions;
+                if (selectedColumns != null && selectedColumns.Count > 0)
+                {
+                    var byKey = StandardQRCodeExportColumnDefinitions.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
+                    var resolved = selectedColumns
+                        .Where(k => !string.IsNullOrWhiteSpace(k) && byKey.ContainsKey(k))
+                        .Select(k => byKey[k])
+                        .Distinct()
+                        .ToArray();
+
+                    if (resolved.Length > 0)
+                    {
+                        activeColumns = resolved;
+                    }
+                }
 
                 using (var workbook = new XSSFWorkbook())
                 {
@@ -1079,14 +1149,27 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                     var headerStyle = CreateHeaderStyle(workbook);
                     var borderStyle = CreateBorderStyle(workbook);
 
-                    WriteStandardQRHeaders(sheet, headerStyle);
+                    var headerRow = sheet.CreateRow(0);
+                    for (int c = 0; c < activeColumns.Length; c++)
+                    {
+                        var cell = headerRow.CreateCell(c);
+                        cell.SetCellValue(activeColumns[c].Header);
+                        cell.CellStyle = headerStyle;
+                    }
 
                     for (int i = 0; i < qrCodeItems.Count; i++)
                     {
-                        WriteStandardQRDataRow(sheet, qrCodeItems[i], borderStyle, i + 1);
+                        var row = sheet.CreateRow(i + 1);
+                        for (int c = 0; c < activeColumns.Length; c++)
+                        {
+                            var value = string.Equals(activeColumns[c].Key, "sr", StringComparison.OrdinalIgnoreCase)
+                                ? (i + 1).ToString()
+                                : activeColumns[c].GetValue(qrCodeItems[i]);
+                            CreateCell(row, c, value, borderStyle);
+                        }
                     }
 
-                    AutoSizeColumns(sheet, StandardQRHeaders.Length);
+                    AutoSizeColumns(sheet, activeColumns.Length);
 
                     using (var ms = new MemoryStream())
                     {
@@ -1120,78 +1203,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                 throw;
             }
         }
-        private static void WriteStandardQRHeaders(ISheet sheet, ICellStyle headerStyle)
-        {
-            var headerRow = sheet.CreateRow(0);
-            for (int i = 0; i < StandardQRHeaders.Length; i++)
-            {
-                var cell = headerRow.CreateCell(i);
-                cell.SetCellValue(StandardQRHeaders[i]);
-                cell.CellStyle = headerStyle;
-            }
-        }
-
-        private static readonly string[] StandardQRHeaders = new string[]
-         {
-            "QRCodeNumber", "Project Number", "Drawing Number", "Production Series", "Nomenclature", "Component Type",
-            "ID Number", "Batch Idnumber", "IR Number", "MSN Number", "MRIR Number", "Quantity", "Desposition",
-            "Manufacturing Date", "Expiry Date", "Store In Date", "Users", "Production Order Number", "Purchase Order Number",
-            "Rack Location", "Assembly Number", "LN Item Code", "QRCode Status", "Consumed In Drawing",
-            "Remark", "Created Date", "Modified Date",
-            "Part No", "Size", "Shapes", "Customer Item Code", "Material", "HT Lot No",
-            "FAN/MAN Number", "FAN/MAN Serial Number", "Serial Number of Quantity",
-            "MSN/IR Number", "GFN No", "Sr No", "TQty", "WC", "Unit Name"
-         };
-
-        private static void WriteStandardQRDataRow(ISheet sheet, StandardQRDetailsResponseDto item, ICellStyle borderStyle, int rowIndex)
-        {
-            var row = sheet.CreateRow(rowIndex);
-            int colIndex = 0;
-            CreateCell(row, colIndex++, item.QrCodeNumber, borderStyle);
-            CreateCell(row, colIndex++, item.ProjectNumber, borderStyle);
-            CreateCell(row, colIndex++, item.DrawingNumber, borderStyle);
-            CreateCell(row, colIndex++, item.ProductionSeries, borderStyle);
-            CreateCell(row, colIndex++, item.Nomenclature, borderStyle);
-            CreateCell(row, colIndex++, item.ComponentType, borderStyle);
-            CreateCell(row, colIndex++, item.IdNumber, borderStyle);
-            CreateCell(row, colIndex++, item.BatchID, borderStyle);
-            CreateCell(row, colIndex++, item.IrNumber, borderStyle);
-            CreateCell(row, colIndex++, item.MsnNumber, borderStyle);
-            CreateCell(row, colIndex++, item.MRIRNumber, borderStyle);
-            CreateCell(row, colIndex++, item.Quantity?.ToString("0.####"), borderStyle);
-            CreateCell(row, colIndex++, item.Desposition, borderStyle);
-            CreateCell(row, colIndex++, item.ManufacturingDate?.ToString("yyyy-MM-dd"), borderStyle);
-            CreateCell(row, colIndex++, item.ExpiryDate?.ToString("yyyy-MM-dd"), borderStyle);
-            CreateCell(row, colIndex++, item.StoreInDate?.ToString("yyyy-MM-dd HH:mm:ss"), borderStyle);
-            CreateCell(row, colIndex++, item.Users, borderStyle);
-            CreateCell(row, colIndex++, item.ProductionOrderNumber, borderStyle);
-            CreateCell(row, colIndex++, item.PurchaseOrderNumber, borderStyle);
-            CreateCell(row, colIndex++, item.RackLocation, borderStyle);
-            CreateCell(row, colIndex++, item.AssemblyNumber, borderStyle);
-            CreateCell(row, colIndex++, item.LnItemCode, borderStyle);
-            CreateCell(row, colIndex++, item.QrCodeStatus, borderStyle);
-            CreateCell(row, colIndex++, item.ConsumedInDrawing, borderStyle);
-            CreateCell(row, colIndex++, item.ProjectDescription, borderStyle);
-            CreateCell(row, colIndex++, item.CreatedDate?.ToString("yyyy-MM-dd HH:mm:ss"), borderStyle);
-            CreateCell(row, colIndex++, item.ModifiedDate?.ToString("yyyy-MM-dd HH:mm:ss"), borderStyle);
-            CreateCell(row, colIndex++, item.PartNo, borderStyle);
-            CreateCell(row, colIndex++, item.Size, borderStyle);
-            CreateCell(row, colIndex++, item.Shapes, borderStyle);
-            CreateCell(row, colIndex++, item.CustomerItemCode, borderStyle);
-            CreateCell(row, colIndex++, item.Material, borderStyle);
-            CreateCell(row, colIndex++, item.HTLotNo, borderStyle);
-            CreateCell(row, colIndex++, item.FanManNumber, borderStyle);
-            CreateCell(row, colIndex++, item.FanManSerialNumber, borderStyle);
-            CreateCell(row, colIndex++, item.SerialNumberOfQuantity, borderStyle);
-            CreateCell(row, colIndex++, item.MsnIrNumber, borderStyle);
-            CreateCell(row, colIndex++, item.GFNNo, borderStyle);
-            CreateCell(row, colIndex++, item.SrNo, borderStyle);
-            CreateCell(row, colIndex++, item.TQty, borderStyle);
-            CreateCell(row, colIndex++, item.WC, borderStyle);
-            CreateCell(row, colIndex++, item.UnitName, borderStyle);
-        }
-
-       
         public async Task<List<string>> GetDistinctBatchIdNumbersServiceAsync()
         {
             try
@@ -1326,47 +1337,14 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
             }
         }
 
-        public async Task<List<GetAvailableComponentsResponse>> GetAvailableQrService(GetAvailableQrRequest request)
-        {
-            _logger.LogInformation($"Request for QRCodeService:GetAvailableQrService SearchQuery: {request.SearchQuery}, ProdSeries: {(request.ProdSeries != null ? string.Join(",", request.ProdSeries) : null)}, QrType: {request.QrType}");
-
-            try
-            {
-                var result = await _qrCodeRepository.GetAvailableQr(request);
-
-                var totalsByDrawing = result
-                    .GroupBy(x => x.DrawingnumberId)
-                    .ToDictionary(g => g.Key, g => (Quantity: g.Sum(x => x.Quantity), Number: g.Count()));
-
-                foreach (var item in result)
-                {
-                    var totals = totalsByDrawing[item.DrawingnumberId];
-                    item.TotalQrQuantity = totals.Quantity;
-                    item.TotalQrNumber = totals.Number;
-                }
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error occurred while GetAvailableQrService.");
-                throw;
-            }
-        }
 
         public async Task<GetAvailableQrPagedResponse> GetAvailableQrPagedService(GetAvailableQrRequest request, int pageNumber, int pageSize)
         {
-            var result = await GetAvailableQrService(request);
-
-            var totalRecords = result.Count;
-            var pagedData = result
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
+            var (items, totalRecords) = await _qrCodeRepository.GetAvailableQrPaged(request, pageNumber, pageSize);
 
             return new GetAvailableQrPagedResponse
             {
-                Data = pagedData,
+                Data = items,
                 TotalRecords = totalRecords,
                 PageNumber = pageNumber,
                 PageSize = pageSize

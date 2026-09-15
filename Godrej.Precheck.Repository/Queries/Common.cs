@@ -708,7 +708,7 @@ ORDER BY
             WHERE id = @Id";
 
         public static readonly string GET_ALL_USERS_QUERY = @"
-            SELECT 
+            SELECT
                 u.id,
                 u.email,
                 u.username,
@@ -730,6 +730,13 @@ ORDER BY
             LEFT JOIN tbl_userroles ur ON u.userroleid = ur.id
             LEFT JOIN tbl_department d ON u.departmentid = d.id
             LEFT JOIN tbl_plant p ON u.plantid = p.id
+            WHERE (
+                @SearchQuery IS NULL OR LTRIM(RTRIM(@SearchQuery)) = ''
+                OR u.username LIKE '%' + @SearchQuery + '%'
+                OR u.email LIKE '%' + @SearchQuery + '%'
+                OR ur.role LIKE '%' + @SearchQuery + '%'
+                OR d.name LIKE '%' + @SearchQuery + '%'
+            )
             ORDER BY u.createddate DESC";
 
         public static readonly string UPDATE_USER_QUERY = @"

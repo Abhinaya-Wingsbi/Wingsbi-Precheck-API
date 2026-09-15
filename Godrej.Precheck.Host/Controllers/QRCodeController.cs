@@ -475,7 +475,7 @@ namespace Godrej.Precheck.Host.Controllers
                     return NotFound($"No Stored In Component (QR code) data found for");
                 }
                 DateTime currentDate = DateTime.UtcNow;
-                var excelContent = _qrCodeService.ExportQRCodeToExcel(storedInComponent);
+                var excelContent = _qrCodeService.ExportQRCodeToExcel(storedInComponent, storeInRequest.SelectedColumns);
                 var fileName = $"StoredInQRCode_{currentDate:yyyy-MM-dd}.xlsx";
 
                 _logger.LogInformation($"Successfully exported StoredIn {storedInComponent.Count} QR codes.");
@@ -555,7 +555,7 @@ namespace Godrej.Precheck.Host.Controllers
                     }
 
                     var orderedStandardQrCodes = OrderByLatestCreatedStandardAscending(allStandardQRCodeDetails);
-                    var excelContent = _qrCodeService.ExportStandardQRCodeToExcel(orderedStandardQrCodes);
+                    var excelContent = _qrCodeService.ExportStandardQRCodeToExcel(orderedStandardQrCodes, payload.SelectedColumns);
                     
                     var firstDetail = orderedStandardQrCodes.First();
                     var userName = User.FindFirst("username")?.Value ?? "User";
@@ -600,7 +600,7 @@ namespace Godrej.Precheck.Host.Controllers
                     }
 
                     var orderedQrCodes = OrderByLatestCreatedAscending(allQRCodeDetails);
-                    var excelContent = _qrCodeService.ExportQRCodeToExcel(orderedQrCodes);
+                    var excelContent = _qrCodeService.ExportQRCodeToExcel(orderedQrCodes, payload.SelectedColumns);
                     
                     var firstDetail = orderedQrCodes.First();
                     var userName = User.FindFirst("username")?.Value ?? "User";
@@ -653,28 +653,15 @@ namespace Godrej.Precheck.Host.Controllers
 
         private static List<string> ExtractQrCodeNumbers(ExportQrCodeRequestDto payload)
         {
-            var numbers = new List<string>();
-
-            if (payload.QRCodeNumbers != null)
+            if (payload.QRCodeNumbers == null)
             {
-                numbers.AddRange(payload.QRCodeNumbers.Where(n => !string.IsNullOrWhiteSpace(n))!);
+                return new List<string>();
             }
 
-            if (payload.SerialNumberSummary != null)
-            {
-                numbers.AddRange(payload.SerialNumberSummary
-                    .Where(s => !string.IsNullOrWhiteSpace(s?.QrCodeNumber))
-                    .Select(s => s!.QrCodeNumber!));
-            }
-
-            if (payload.QrCodeDetails != null)
-            {
-                numbers.AddRange(payload.QrCodeDetails
-                    .Where(d => !string.IsNullOrWhiteSpace(d?.QrCodeNumber))
-                    .Select(d => d!.QrCodeNumber!));
-            }
-
-            return numbers.Distinct().ToList();
+            return payload.QRCodeNumbers
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct()
+                .ToList();
         }
 
         [Authorize]

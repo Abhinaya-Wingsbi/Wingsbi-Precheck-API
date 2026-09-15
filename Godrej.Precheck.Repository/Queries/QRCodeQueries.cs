@@ -1356,33 +1356,34 @@ WHERE tadm.drawingnumber = @DrawingNumberId";
             ";
 
         #region GET_AVAILABLE_QR_BY_LNITEM_DRAWING
-        public static readonly string GET_AVAILABLE_QR_BY_LNITEM_DRAWING = @"
-            WITH RankedQRCodes AS (
-   SELECT
-      q.drawingnumberid,
-      d.drawingnumber,
-      d.lnitemcode AS LnItemCode,
-      q.productionseriesid,
-      q.idnumber,
-      q.quantity,
-      q.remainingquantity,
-      tps.productionseries,
-      stl.racklocation AS Location,
-      q.qrcodenumber,
-      q.expirydate,
-      q.manufacturingdate,
-      q.projectnumber,
-      q.productionordernumber,
-      qs.qrcodestatus as Status,
-      u.unitname AS Unit,
-      ROW_NUMBER() OVER (
-           PARTITION BY q.drawingnumberid, q.productionseriesid
-           ORDER BY
-               CASE
-                   WHEN d.isexpiry = 1 THEN q.expirydate
-                   ELSE q.manufacturingdate
-               END DESC
-      ) AS rnk
+        // FROM/JOIN/WHERE shared by the count and paged queries below (kept in one place so the two
+        // stay in sync -- {SEARCH_FILTER}/{SERIES_FILTER} are built dynamically in
+        // QRCodeRepository.GetAvailableQrPaged). The count query only needs the base filter columns
+        // (drawingnumber/lnitemcode/productionseries), so it skips the display-only LEFT JOINs below.
+        private const string GET_AVAILABLE_QR_FROM_WHERE = @"
+   FROM tbl_qrcodedetails q
+   INNER JOIN tbl_drawingnumber d
+       ON q.drawingnumberid = d.id
+   INNER JOIN tbl_productionseries tps
+       ON tps.id = q.productionseriesid
+   WHERE q.qrcodestatusid = 1
+     AND q.isactive = 1
+     AND (
+           @QrType IS NULL
+        OR (@QrType = 1 AND d.lnitemcode NOT LIKE 'WJD%')
+        OR (@QrType = 2 AND d.lnitemcode LIKE 'WJD%')
+     )
+     {SEARCH_FILTER}
+     {SERIES_FILTER}";
+
+        public static readonly string GET_AVAILABLE_QR_BY_LNITEM_DRAWING_COUNT = @"
+            SELECT COUNT(*)"
+            + GET_AVAILABLE_QR_FROM_WHERE + ";";
+
+        // Per-drawing TotalQrQuantity/TotalQrNumber are computed here via window functions (over the
+        // whole matching set, not just the page) so the API can page at the SQL level instead of
+        // fetching every matching row and paging/aggregating in memory.
+        private const string GET_AVAILABLE_QR_FROM_WHERE_WITH_DISPLAY_JOINS = @"
    FROM tbl_qrcodedetails q
    INNER JOIN tbl_drawingnumber d
        ON q.drawingnumberid = d.id
@@ -1404,11 +1405,31 @@ WHERE tadm.drawingnumber = @DrawingNumberId";
         OR (@QrType = 2 AND d.lnitemcode LIKE 'WJD%')
      )
      {SEARCH_FILTER}
-     {SERIES_FILTER}
-)
-SELECT * FROM RankedQRCodes
-ORDER BY expirydate, manufacturingdate;
- ";
+     {SERIES_FILTER}";
+
+        public static readonly string GET_AVAILABLE_QR_BY_LNITEM_DRAWING_PAGED = @"
+            SELECT
+      q.drawingnumberid,
+      d.drawingnumber,
+      d.lnitemcode AS LnItemCode,
+      q.productionseriesid,
+      q.idnumber,
+      q.quantity,
+      q.remainingquantity,
+      tps.productionseries,
+      stl.racklocation AS Location,
+      q.qrcodenumber,
+      q.expirydate,
+      q.manufacturingdate,
+      q.projectnumber,
+      q.productionordernumber,
+      qs.qrcodestatus as Status,
+      u.unitname AS Unit,
+      SUM(q.quantity) OVER (PARTITION BY q.drawingnumberid) AS TotalQrQuantity,
+      COUNT(*) OVER (PARTITION BY q.drawingnumberid) AS TotalQrNumber"
+            + GET_AVAILABLE_QR_FROM_WHERE_WITH_DISPLAY_JOINS + @"
+ORDER BY q.expirydate, q.manufacturingdate
+{PAGING_CLAUSE};";
         #endregion
     }
 }
