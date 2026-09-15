@@ -474,8 +474,15 @@ namespace Godrej.Precheck.Repository.Queries
         // Same shape as GET_QRCODE_DETAILS_With_PARAMETER_QUERY, but every filter is ANDed
         // together (no QRCodeNumber short-circuit), searchQuery is a single free-text value matched
         // against several columns/subqueries, and ProdSeries accepts an array.
+        // No DISTINCT here: every join below matches on the joined table's own primary key
+        // (ir.id, msn.id, li.id, ...), so it's a 1:1 lookup per qd row and can't produce
+        // duplicates. DISTINCT was forcing SQL Server to materialize and sort the two
+        // correlated subquery columns (nomenclature, AssemblyNumber) for the ENTIRE filtered
+        // result set before OFFSET/FETCH could trim it down to one page -- without it, the
+        // optimizer can sort/limit by createddate first and only evaluate those subqueries for
+        // the page actually returned.
         public static readonly string GET_BARCODE_DETAILS_WITH_PARAMETERS_PAGED_QUERY =
-    @"SELECT DISTINCT
+    @"SELECT
         qd.id,
         qd.drawingnumberid,
         qd.productionseriesid,

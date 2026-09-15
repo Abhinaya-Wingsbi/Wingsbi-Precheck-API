@@ -376,21 +376,26 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     ToDate = toDate
                 };
 
-                var totalCount = await _db.ExecuteScalar<int>(countQuery, queryParams, commandTimeout: 300);
-
                 var offset = pageSize.HasValue ? (pageNumber - 1) * pageSize.Value : 0;
-                var results = await _db.GetAll<QRCodeDetailsResponseDto>(
-                    pagedQuery,
-                    new
-                    {
-                        SearchQuery = trimmedSearchQuery,
-                        ProdSeries = prodSeries,
-                        CreatedBy = createdBy,
-                        FromDate = fromDate,
-                        ToDate = toDate,
-                        Offset = offset,
-                        PageSize = pageSize
-                    });
+                var pagedParams = new
+                {
+                    SearchQuery = trimmedSearchQuery,
+                    ProdSeries = prodSeries,
+                    CreatedBy = createdBy,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    Offset = offset,
+                    PageSize = pageSize
+                };
+
+                // Count and page are independent reads (each opens its own connection), so run them
+                // concurrently instead of paying for the filter/join cost twice, back to back.
+                var countTask = _db.ExecuteScalar<int>(countQuery, queryParams, commandTimeout: 300);
+                var resultsTask = _db.GetAll<QRCodeDetailsResponseDto>(pagedQuery, pagedParams);
+                await Task.WhenAll(countTask, resultsTask);
+
+                var totalCount = countTask.Result;
+                var results = resultsTask.Result;
 
                 _logger.LogInformation("Successfully retrieved barcode details, count: {Count}, totalCount: {TotalCount}", results.Count(), totalCount);
 
