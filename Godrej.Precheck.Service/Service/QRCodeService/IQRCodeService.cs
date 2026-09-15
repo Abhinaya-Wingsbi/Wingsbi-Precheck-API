@@ -49,5 +49,6 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
         Task<int> BulkUpdateQRCodeService(BulkUpdateQRCodeRequestDto request);
 
         Task<List<GetAvailableComponentsResponse>> GetAvailableQrService(GetAvailableQrRequest request);
+        Task<GetAvailableQrPagedResponse> GetAvailableQrPagedService(GetAvailableQrRequest request, int pageNumber, int pageSize);
     }
 }

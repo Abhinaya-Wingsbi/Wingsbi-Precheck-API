@@ -1328,7 +1328,7 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
 
         public async Task<List<GetAvailableComponentsResponse>> GetAvailableQrService(GetAvailableQrRequest request)
         {
-            _logger.LogInformation($"Request for QRCodeService:GetAvailableQrService LnItemCode: {request.LnItemCode}, DrawingNumber: {request.DrawingNumber}");
+            _logger.LogInformation($"Request for QRCodeService:GetAvailableQrService SearchQuery: {request.SearchQuery}, ProdSeries: {(request.ProdSeries != null ? string.Join(",", request.ProdSeries) : null)}, QrType: {request.QrType}");
 
             try
             {
@@ -1352,6 +1352,25 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
                 _logger.LogError(ex, "Error occurred while GetAvailableQrService.");
                 throw;
             }
+        }
+
+        public async Task<GetAvailableQrPagedResponse> GetAvailableQrPagedService(GetAvailableQrRequest request, int pageNumber, int pageSize)
+        {
+            var result = await GetAvailableQrService(request);
+
+            var totalRecords = result.Count;
+            var pagedData = result
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return new GetAvailableQrPagedResponse
+            {
+                Data = pagedData,
+                TotalRecords = totalRecords,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
     }
 }

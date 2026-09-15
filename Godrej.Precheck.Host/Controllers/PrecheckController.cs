@@ -386,12 +386,12 @@ namespace Godrej.Precheck.Host.Controllers
 
                 _logger.LogInformation("PrecheckController:ExportPrecheckDetails - {Count} records fetched", response.Count);
 
-                var pdfContent = await _service.GeneratePrecheckPdfAsync(response, request);
+                var excelContent = _service.GeneratePrecheckExcel(response, request.SelectedColumns);
 
-                var fileName = "PrecheckDetailsReport.pdf";
-                _logger.LogInformation("PrecheckController:ExportPrecheckDetails - Successfully generated PDF: {FileName}", fileName);
+                var fileName = "PrecheckDetailsReport.xlsx";
+                _logger.LogInformation("PrecheckController:ExportPrecheckDetails - Successfully generated Excel: {FileName}", fileName);
 
-                return File(pdfContent, "application/pdf", fileName); 
+                return File(excelContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
             }
             catch (ApplicationException ex)
             {
@@ -515,6 +515,37 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:ViewPrechekByParameters - Unexpected error occurred");
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("ExportViewPrecheckdetails")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult> ExportViewPrecheckdetails(
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ExportViewPrecheckFilterRequestDto? request)
+        {
+            request ??= new ExportViewPrecheckFilterRequestDto();
+            _logger.LogInformation("Request received for PrecheckController:ExportViewPrecheckdetails {@Request}", request);
+
+            try
+            {
+                var excelContent = await _service.ExportViewPrecheckByParametersService(request);
+
+                var fileName = "PrecheckDetailsReport.xlsx";
+                _logger.LogInformation("PrecheckController:ExportViewPrecheckdetails - Successfully generated Excel: {FileName}", fileName);
+
+                return File(excelContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+            catch (ApplicationException ex)
+            {
+                _logger.LogError(ex, "PrecheckController:ExportViewPrecheckdetails - Application error occurred");
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "PrecheckController:ExportViewPrecheckdetails - Unexpected error occurred");
                 return StatusCode(500, new { message = ex.Message });
             }
         }

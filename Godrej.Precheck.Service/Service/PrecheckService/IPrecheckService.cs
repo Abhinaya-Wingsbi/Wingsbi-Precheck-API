@@ -19,10 +19,12 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
         Task<List<MakeOrderResponseDto>> MakeOrder(MakeOrderRequestDto request);
         Task<List<ViewPreCheckResponse>> ViewPrecheckDetailsService(ViewPreCheckRequestDto request);
         Task<ViewPrecheckByParametersPagedResponse> ViewPrecheckByParametersService(ViewPrecheckFilterRequestDto request, int pageNumber, int pageSize);
+        Task<byte[]> ExportViewPrecheckByParametersService(ExportViewPrecheckFilterRequestDto request);
         Task<List<AvailableComponentModel>> AvailableComponentDetailsService(AvailableComponentFilterDto qrCode);
         Task<AvailableComponentPagedResponse> AvailableComponentDetailsPagedService(AvailableComponentFilterDto filter, int pageNumber, int pageSize);
 
         Task<byte[]> GeneratePrecheckPdfAsync(List<ViewPreCheckResponse> preCheckResponses, ViewPreCheckRequestDto request);
+        byte[] GeneratePrecheckExcel(List<ViewPreCheckResponse> preCheckResponses, List<string>? selectedColumns);
 
         Task<int?> GetPrecheckStatusDetailsService(ViewPreCheckRequestDto request);
         Task<List<GetAvailableComponentsResponse>> GetAvailableComponentService(GetAvailableComponentsRequest request);

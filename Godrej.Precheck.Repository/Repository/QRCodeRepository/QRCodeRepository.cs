@@ -1146,18 +1146,37 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
 
         public async Task<List<GetAvailableComponentsResponse>> GetAvailableQr(GetAvailableQrRequest request)
         {
-            _logger.LogInformation($"Request for QRCodeRepository:GetAvailableQr LnItemCode: {request.LnItemCode}, DrawingNumber: {request.DrawingNumber}");
+            _logger.LogInformation($"Request for QRCodeRepository:GetAvailableQr SearchQuery: {request.SearchQuery}, ProdSeries: {(request.ProdSeries != null ? string.Join(",", request.ProdSeries) : null)}, QrType: {request.QrType}");
 
             try
             {
+                var searchFilter = " AND 1=1";
+                var trimmedSearchQuery = string.IsNullOrWhiteSpace(request.SearchQuery) ? null : request.SearchQuery.Trim();
+                if (trimmedSearchQuery != null)
+                {
+                    searchFilter = @" AND (
+                        d.lnitemcode LIKE '%' + @SearchQuery + '%'
+                        OR d.drawingnumber LIKE '%' + @SearchQuery + '%'
+                    )";
+                }
+
+                var seriesFilter = " AND 1=1";
+                if (request.ProdSeries != null && request.ProdSeries.Count > 0)
+                {
+                    seriesFilter = " AND tps.productionseries IN @ProdSeries";
+                }
+
+                var query = QRCodeQueries.GET_AVAILABLE_QR_BY_LNITEM_DRAWING
+                    .Replace("{SEARCH_FILTER}", searchFilter)
+                    .Replace("{SERIES_FILTER}", seriesFilter);
+
                 var results = await _db.GetAll<GetAvailableComponentsResponse>(
-                    QRCodeQueries.GET_AVAILABLE_QR_BY_LNITEM_DRAWING,
+                    query,
                     new
                     {
-                        LnItemCode = request.LnItemCode,
-                        DrawingNumber = request.DrawingNumber,
-                        ProdSeriesId = request.ProdSeriesId,
-                        QrType = request.QrType
+                        QrType = request.QrType,
+                        SearchQuery = trimmedSearchQuery,
+                        ProdSeries = request.ProdSeries
                     });
 
                 _logger.LogInformation("Successfully retrieved GetAvailableQr {@Results}", results);

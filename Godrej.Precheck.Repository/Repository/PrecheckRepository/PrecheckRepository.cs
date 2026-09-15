@@ -357,7 +357,7 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
         public async Task<List<ViewPreCheckResponse>> ViewPrecheckFiltered(ViewPrecheckFilterRequestDto request)
         {
             _logger.LogInformation(
-                $"Request for PrecheckRepository:ViewPrecheckFiltered SearchQuery: {request?.SearchQuery}, ProdSeries: {(request?.ProdSeries != null ? string.Join(",", request.ProdSeries) : null)}, Status: {request?.Status}, FromDate: {request?.FromDate}, ToDate: {request?.ToDate}");
+                $"Request for PrecheckRepository:ViewPrecheckFiltered SearchQuery: {request?.SearchQuery}, ProdSeries: {(request?.ProdSeries != null ? string.Join(",", request.ProdSeries) : null)}, Status: {(request?.Status != null ? string.Join(",", request.Status) : null)}, FromDate: {request?.FromDate}, ToDate: {request?.ToDate}");
 
             var searchFilter = " AND 1=1";
             if (!string.IsNullOrWhiteSpace(request?.SearchQuery))
@@ -375,7 +375,9 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
                 seriesFilter = " AND ps.productionseries IN @ProdSeries";
             }
 
-            var statusFilter = string.IsNullOrWhiteSpace(request?.Status) ? "" : " WHERE Result.PrecheckStatus = @Status";
+            var statusFilter = (request?.Status != null && request.Status.Count > 0)
+                ? " WHERE Result.PrecheckStatus IN @Status"
+                : "";
 
             var query = PrecheckQueries.GET_VIEW_PRECHECK_FILTERED
                 .Replace("{SEARCH_FILTER}", searchFilter)

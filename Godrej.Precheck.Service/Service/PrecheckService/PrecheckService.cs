@@ -22,6 +22,7 @@ using MathNet.Numerics.RootFinding;
 using Microsoft.Extensions.Logging;
 using MigraDoc.Rendering;
 using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
 using Org.BouncyCastle.Asn1.Pkcs;
 using PdfSharp;
 using PdfSharp.Drawing;
@@ -1153,6 +1154,27 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
             };
         }
 
+        public async Task<byte[]> ExportViewPrecheckByParametersService(ExportViewPrecheckFilterRequestDto request)
+        {
+            var filter = new ViewPrecheckFilterRequestDto
+            {
+                SearchQuery = request.SearchQuery,
+                ProdSeries = request.ProductionSeries,
+                Status = request.Status,
+                FromDate = request.FromDate,
+                ToDate = request.ToDate
+            };
+
+            var result = await _precheckRepository.ViewPrecheckFiltered(filter);
+
+            if (result == null || result.Count == 0)
+            {
+                throw new ApplicationException("No precheck details found.");
+            }
+
+            return GeneratePrecheckExcel(result, request.SelectedColumns);
+        }
+
         public async Task<int?> GetPrecheckStatusDetailsService(ViewPreCheckRequestDto request)
         {
 
@@ -1376,6 +1398,104 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
             using var stream = new MemoryStream();
             document.GeneratePdf(stream);
             return stream.ToArray();
+        }
+
+        // Every exportable column for GeneratePrecheckExcel, keyed by the camelCase name the client
+        // sends in selectedColumns. When selectedColumns is empty/null, all of these are exported (in
+        // this order); otherwise only the requested keys are used, in the order the caller specified.
+        // "qrCode" is a placeholder (always blank): a precheck detail row isn't tied to a single QR
+        // code number in this schema, so there is no value to put there yet.
+        private static readonly (string Key, string Header, Func<ViewPreCheckResponse, string> GetValue)[] PrecheckExportColumnDefinitions = new (string, string, Func<ViewPreCheckResponse, string>)[]
+        {
+            ("sr", "Sr. No.", item => item.SrNumber?.ToString() ?? string.Empty),
+            ("lnItemCode", "LN Item Code", item => item.LnItemCode ?? string.Empty),
+            ("drawingNumber", "Drawing Number", item => item.DrawingNumber ?? string.Empty),
+            ("nomenclature", "Nomenclature", item => item.Nomenclature ?? string.Empty),
+            ("quantity", "Quantity", item => item.Quantity?.ToString("0.####") ?? string.Empty),
+            ("scannedQuantity", "Scanned Quantity", item => (item.Quantity.HasValue && item.RemainingQuantity.HasValue)
+                ? (item.Quantity.Value - item.RemainingQuantity.Value).ToString("0.####")
+                : string.Empty),
+            ("remainingQuantity", "Remaining Quantity", item => item.RemainingQuantity?.ToString("0.####") ?? string.Empty),
+            ("qrCode", "QR Code", item => string.Empty),
+            ("idNumber", "ID Number", item => item.IdNumber ?? string.Empty),
+            ("ir", "IR Number", item => item.IrNumber ?? string.Empty),
+            ("msn", "MSN Number", item => item.MsnNumber ?? string.Empty),
+            ("mrirNumber", "MRIR Number", item => item.MrirNumber ?? string.Empty),
+            ("componentType", "Component Type", item => item.ComponentType ?? string.Empty),
+            ("precheckStatus", "Precheck Status", item => item.PrecheckStatus ?? string.Empty),
+            ("remark", "Remark", item => item.Remarks ?? string.Empty),
+        };
+
+        public byte[] GeneratePrecheckExcel(List<ViewPreCheckResponse> preCheckResponses, List<string>? selectedColumns)
+        {
+            if (preCheckResponses == null || preCheckResponses.Count == 0)
+                throw new ArgumentNullException(nameof(preCheckResponses));
+
+            var activeColumns = PrecheckExportColumnDefinitions;
+            if (selectedColumns != null && selectedColumns.Count > 0)
+            {
+                var byKey = PrecheckExportColumnDefinitions.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
+                var resolved = selectedColumns
+                    .Where(k => !string.IsNullOrWhiteSpace(k) && byKey.ContainsKey(k))
+                    .Select(k => byKey[k])
+                    .Distinct()
+                    .ToArray();
+
+                if (resolved.Length > 0)
+                {
+                    activeColumns = resolved;
+                }
+            }
+
+            using var workbook = new XSSFWorkbook();
+            var sheet = workbook.CreateSheet("PrecheckDetails");
+
+            var headerStyle = workbook.CreateCellStyle();
+            var headerFont = workbook.CreateFont();
+            headerFont.IsBold = true;
+            headerStyle.SetFont(headerFont);
+            headerStyle.FillForegroundColor = IndexedColors.Grey25Percent.Index;
+            headerStyle.FillPattern = FillPattern.SolidForeground;
+            headerStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Center;
+            headerStyle.VerticalAlignment = NPOI.SS.UserModel.VerticalAlignment.Center;
+            headerStyle.BorderTop = BorderStyle.Thin;
+            headerStyle.BorderBottom = BorderStyle.Thin;
+            headerStyle.BorderLeft = BorderStyle.Thin;
+            headerStyle.BorderRight = BorderStyle.Thin;
+
+            var borderStyle = workbook.CreateCellStyle();
+            borderStyle.BorderTop = BorderStyle.Thin;
+            borderStyle.BorderBottom = BorderStyle.Thin;
+            borderStyle.BorderLeft = BorderStyle.Thin;
+            borderStyle.BorderRight = BorderStyle.Thin;
+
+            var headerRow = sheet.CreateRow(0);
+            for (int c = 0; c < activeColumns.Length; c++)
+            {
+                var cell = headerRow.CreateCell(c);
+                cell.SetCellValue(activeColumns[c].Header);
+                cell.CellStyle = headerStyle;
+            }
+
+            for (int r = 0; r < preCheckResponses.Count; r++)
+            {
+                var row = sheet.CreateRow(r + 1);
+                for (int c = 0; c < activeColumns.Length; c++)
+                {
+                    var cell = row.CreateCell(c);
+                    cell.SetCellValue(activeColumns[c].GetValue(preCheckResponses[r]));
+                    cell.CellStyle = borderStyle;
+                }
+            }
+
+            for (int c = 0; c < activeColumns.Length; c++)
+            {
+                sheet.AutoSizeColumn(c);
+            }
+
+            using var ms = new MemoryStream();
+            workbook.Write(ms);
+            return ms.ToArray();
         }
 
         public Task<List<GetAvailableComponentsResponse>> GetAvailableComponentService(GetAvailableComponentsRequest request)

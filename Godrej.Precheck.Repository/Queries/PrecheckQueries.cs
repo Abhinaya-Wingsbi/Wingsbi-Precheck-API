@@ -640,6 +640,16 @@ ORDER BY pd.productionordernumber, TRY_CAST(adm.findno AS INT) ASC;
     ppd.remainingquantity AS RemainingQuantity,
     adm.findno AS FindNo,
     ppd.isrejected AS IsRejected,
+    CASE
+        WHEN ppd.componenttype = 'ID' AND ppd.remainingquantity IS NULL AND ppd.isprecheckcomplete = 1
+            THEN 'Completed'
+        WHEN ppd.componenttype = 'BATCH' AND ppd.remainingquantity = 0 AND ppd.isprecheckcomplete = 1
+            THEN 'Completed'
+        WHEN ppd.remainingquantity IS NULL THEN 'Pending'
+        WHEN ppd.remainingquantity = 0 THEN 'Completed'
+        WHEN ppd.remainingquantity >= ppd.quantity THEN 'Pending'
+        WHEN ppd.remainingquantity < ppd.quantity THEN 'Updated'
+    END AS PrecheckStatus,
    CASE
     WHEN ppd.isprecheckcomplete = 1
          AND ppd.isrejected = 0
@@ -848,6 +858,17 @@ SELECT
     adm.findno AS FindNo,
 
     ppd.isrejected AS IsRejected,
+    ppd.remainingquantity AS RemainingQuantity,
+    CASE
+        WHEN ppd.componenttype = 'ID' AND ppd.remainingquantity IS NULL AND ppd.isprecheckcomplete = 1
+            THEN 'Completed'
+        WHEN ppd.componenttype = 'BATCH' AND ppd.remainingquantity = 0 AND ppd.isprecheckcomplete = 1
+            THEN 'Completed'
+        WHEN ppd.remainingquantity IS NULL THEN 'Pending'
+        WHEN ppd.remainingquantity = 0 THEN 'Completed'
+        WHEN ppd.remainingquantity >= ppd.quantity THEN 'Pending'
+        WHEN ppd.remainingquantity < ppd.quantity THEN 'Updated'
+    END AS PrecheckStatus,
 
    CASE
     WHEN EXISTS (

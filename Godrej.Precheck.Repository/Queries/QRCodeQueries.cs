@@ -1398,14 +1398,13 @@ WHERE tadm.drawingnumber = @DrawingNumberId";
        ON q.unitid = u.id
    WHERE q.qrcodestatusid = 1
      AND q.isactive = 1
-     AND (@LnItemCode IS NULL OR LTRIM(RTRIM(@LnItemCode)) = '' OR d.lnitemcode = @LnItemCode)
-     AND (@DrawingNumber IS NULL OR LTRIM(RTRIM(@DrawingNumber)) = '' OR d.drawingnumber = @DrawingNumber)
-     AND (@ProdSeriesId IS NULL OR q.productionseriesid = @ProdSeriesId)
      AND (
            @QrType IS NULL
         OR (@QrType = 1 AND d.lnitemcode NOT LIKE 'WJD%')
         OR (@QrType = 2 AND d.lnitemcode LIKE 'WJD%')
      )
+     {SEARCH_FILTER}
+     {SERIES_FILTER}
 )
 SELECT * FROM RankedQRCodes
 ORDER BY expirydate, manufacturingdate;

@@ -1016,28 +1016,24 @@ namespace Godrej.Precheck.Host.Controllers
         }
 
         [Authorize]
-        [HttpGet("GetAvailableQr")]
+        [HttpPost("GetAvailableQr")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult> GetAvailableQr(
-            [FromQuery] string? lnItemCode = null,
-            [FromQuery] string? drawingNumber = null,
-            [FromQuery] int? prodSeriesId = null,
-            [FromQuery] int? qrType = null)
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] GetAvailableQrRequest? request,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
         {
-            _logger.LogInformation($"Request received for QRCodeController:GetAvailableQr LnItemCode={lnItemCode}, DrawingNumber={drawingNumber}, ProdSeriesId={prodSeriesId}, QrType={qrType}");
+            request ??= new GetAvailableQrRequest();
+            _logger.LogInformation("Request received for QRCodeController:GetAvailableQr {@Request}, pageNumber: {PageNumber}, pageSize: {PageSize}", request, pageNumber, pageSize);
 
             try
             {
-                var request = new GetAvailableQrRequest
-                {
-                    LnItemCode = lnItemCode,
-                    DrawingNumber = drawingNumber,
-                    ProdSeriesId = prodSeriesId,
-                    QrType = qrType
-                };
+                if (pageNumber < 1) pageNumber = 1;
+                if (pageSize < 1) pageSize = 20;
+                if (pageSize > 200) pageSize = 200;
 
-                var response = await _qrCodeService.GetAvailableQrService(request);
+                var response = await _qrCodeService.GetAvailableQrPagedService(request, pageNumber, pageSize);
 
                 if (response == null)
                 {
