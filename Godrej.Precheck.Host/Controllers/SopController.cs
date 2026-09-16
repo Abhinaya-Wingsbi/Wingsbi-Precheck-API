@@ -1,7 +1,7 @@
 using Godrej.Precheck.Models.DTOs.Precheck;
 using Godrej.Precheck.Models.DTOs.Sop;
 using Godrej.Precheck.Models.DTOs.Bom;
-using Godrej.Precheck.Service.Service.CommonSevice;
+using Godrej.Precheck.Service.Service.CommonService;
 using Godrej.Precheck.Service.Service.SopService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

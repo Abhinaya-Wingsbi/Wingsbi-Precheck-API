@@ -26,7 +26,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Godrej.Precheck.Service.Service.CommonSevice
+namespace Godrej.Precheck.Service.Service.CommonService
 {
     public class CommonService : ICommonService
     {

@@ -15,7 +15,7 @@ using Godrej.Precheck.Service.Helper;
 using Godrej.Precheck.Service.MapperSetup;
 using Godrej.Precheck.Service.Service.ArchiveService;
 using Godrej.Precheck.Service.Service.AuthService;
-using Godrej.Precheck.Service.Service.CommonSevice;
+using Godrej.Precheck.Service.Service.CommonService;
 using Godrej.Precheck.Service.Service.DrawingNumberService;
 using Godrej.Precheck.Service.Service.IdentifierService;
 using Godrej.Precheck.Service.Service.MaterialRequisitionService;
@@ -151,7 +151,7 @@ builder.Services.AddScoped<IBackupArchiveRepository, BackupArchiveRepository>();
 // Register Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICommonService, CommonService>();
-builder.Services.AddScoped<IQRCodeService, QRCodeSevice>();
+builder.Services.AddScoped<IQRCodeService, QRCodeService>();
 builder.Services.AddScoped<IIdentifierService, IdentifierService>();
 builder.Services.AddScoped<IPrecheckService, PrecheckService>();
 builder.Services.AddScoped<ISopService, SopService>();

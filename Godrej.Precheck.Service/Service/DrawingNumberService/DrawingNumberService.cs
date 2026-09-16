@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Godrej.Precheck.Models.DTOs.DrawingNumber;
 using Godrej.Precheck.Repository.Repository.DrawingNumberRepository;
 using Godrej.Precheck.Service.Cache;
-using Godrej.Precheck.Service.Service.CommonSevice;
+using Godrej.Precheck.Service.Service.CommonService;
 using Microsoft.Extensions.Logging;
 
 namespace Godrej.Precheck.Service.Service.DrawingNumberService

@@ -9,7 +9,7 @@ using Godrej.Precheck.Models.DTOs.Sop;
 using Godrej.Precheck.Models.DTOs.Bom;
 using Godrej.Precheck.Repository.Repository.SopRepository;
 using Godrej.Precheck.Service.Cache;
-using Godrej.Precheck.Service.Service.CommonSevice;
+using Godrej.Precheck.Service.Service.CommonService;
 using Mapster;
 using Microsoft.EntityFrameworkCore.ValueGeneration.Internal;
 using Microsoft.Extensions.Logging;

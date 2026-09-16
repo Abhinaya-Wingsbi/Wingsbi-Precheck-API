@@ -9,7 +9,7 @@ using Godrej.Precheck.Models.DTOs.MSNNumber;
 using Godrej.Precheck.Models.DTOs.Precheck;
 using Godrej.Precheck.Models.DTOs.ProductionSeries;
 using Godrej.Precheck.Models.DTOs.Stage;
-using Godrej.Precheck.Service.Service.CommonSevice;
+using Godrej.Precheck.Service.Service.CommonService;
 using Mapster;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

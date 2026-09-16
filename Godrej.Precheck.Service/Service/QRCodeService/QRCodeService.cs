@@ -8,7 +8,7 @@ using Godrej.Precheck.Models.DTOs.QRCodeDetails;
 using Godrej.Precheck.Repository.Repository.CommonRepository;
 using Godrej.Precheck.Repository.Repository.PrecheckRepository;
 using Godrej.Precheck.Repository.Repository.QRCodeRepository;
-using Godrej.Precheck.Service.Service.CommonSevice;
+using Godrej.Precheck.Service.Service.CommonService;
 using Godrej.Precheck.Service.Service.PrecheckService;
 using Mapster;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -26,9 +26,9 @@ using static Godrej.Precheck.Models.DataModel.Validation;
 
 namespace Godrej.Precheck.Service.Service.QRCodeService
 {
-    public class QRCodeSevice : IQRCodeService
+    public class QRCodeService : IQRCodeService
     {
-        private readonly ILogger<QRCodeSevice> _logger;
+        private readonly ILogger<QRCodeService> _logger;
 
         private readonly IQRCodeRepository _qrCodeRepository;
 
@@ -38,7 +38,7 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
         private readonly IPrecheckService _precheckService;
 
         private readonly IPrecheckRepository _precheckRepository;
-        public QRCodeSevice(ILogger<QRCodeSevice> logger, IQRCodeRepository qrCodeRepository, ICommonRepository commonRepository, ICommonService commonService, IPrecheckService precheckService, IPrecheckRepository precheckRepository)
+        public QRCodeService(ILogger<QRCodeService> logger, IQRCodeRepository qrCodeRepository, ICommonRepository commonRepository, ICommonService commonService, IPrecheckService precheckService, IPrecheckRepository precheckRepository)
         {
             _qrCodeRepository = qrCodeRepository;
             _logger = logger;

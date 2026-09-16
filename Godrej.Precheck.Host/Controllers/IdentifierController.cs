@@ -4,7 +4,7 @@ using Godrej.Precheck.Models.DTOs.IdentifierReports;
 using Godrej.Precheck.Models.DTOs.IRNumber;
 using Godrej.Precheck.Models.DTOs.MSNNumber;
 using Godrej.Precheck.Repository.Queries;
-using Godrej.Precheck.Service.Service.CommonSevice;
+using Godrej.Precheck.Service.Service.CommonService;
 using Godrej.Precheck.Service.Service.IdentifierService;
 using Mapster;
 using Microsoft.AspNetCore.Authorization;

@@ -16,7 +16,7 @@ using Godrej.Precheck.Repository.Repository.ProductionOrderRepository;
 using Godrej.Precheck.Repository.Repository.QRCodeRepository;
 using Godrej.Precheck.Repository.Repository.UserRepository;
 using Godrej.Precheck.Service.Helper;
-using Godrej.Precheck.Service.Service.CommonSevice;
+using Godrej.Precheck.Service.Service.CommonService;
 using Mapster;
 using MathNet.Numerics.RootFinding;
 using Microsoft.Extensions.Logging;

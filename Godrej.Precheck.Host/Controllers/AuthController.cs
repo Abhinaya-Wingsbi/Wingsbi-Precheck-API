@@ -5,7 +5,7 @@ using Godrej.Precheck.Models.DTOs.Register;
 using Godrej.Precheck.Models.DTOs.Reset;
 using Godrej.Precheck.Models.DTOs.User;
 using Godrej.Precheck.Service.Service.AuthService;
-using Godrej.Precheck.Service.Service.CommonSevice;
+using Godrej.Precheck.Service.Service.CommonService;
 using Mapster;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

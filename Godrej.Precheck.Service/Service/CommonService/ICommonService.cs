@@ -16,7 +16,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Godrej.Precheck.Service.Service.CommonSevice
+namespace Godrej.Precheck.Service.Service.CommonService
 {
     public interface ICommonService
     {

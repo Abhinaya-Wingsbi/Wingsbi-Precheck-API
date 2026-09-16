@@ -1,7 +1,7 @@
 using Godrej.Precheck.Models.DTOs.DrawingNumber;
 using Godrej.Precheck.Models.DTOs.Stage;
 using Godrej.Precheck.Models.DTOs.User;
-using Godrej.Precheck.Service.Service.CommonSevice;
+using Godrej.Precheck.Service.Service.CommonService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
