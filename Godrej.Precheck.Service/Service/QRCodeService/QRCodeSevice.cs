@@ -677,7 +677,7 @@ namespace Godrej.Precheck.Service.Service.QRCodeService
             ("productionSeries", "Production Series", item => item.ProductionSeries),
             ("nomenclature", "Nomenclature", item => item.Nomenclature),
             ("componentType", "Component Type", item => item.ComponentType),
-            ("batchIdNumber", "Batch Idnumber", item => null),
+            ("batchIdNumber", "Batch Idnumber", item => item.BatchID),
             ("unitName", "Unit Name", item => item.UnitName),
             ("idNumber", "ID Number", item => item.IdNumber),
             ("irNumber", "IR Number", item => item.IrNumber),

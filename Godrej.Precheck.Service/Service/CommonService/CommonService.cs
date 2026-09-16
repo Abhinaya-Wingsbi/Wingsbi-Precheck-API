@@ -523,19 +523,32 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
         }
 
         // Column key -> (header text, value selector) for ViewIrMsnResponseDto, in default export order.
+        // "displayNumber"/"recordType"/"orderNumber" are aliases the client sends alongside (or instead
+        // of) the canonical keys below -- kept as separate entries so both naming conventions resolve.
         private static readonly List<(string Key, string Header, Func<ViewIrMsnResponseDto, string> Value)> IrMsnExportColumns =
             new List<(string, string, Func<ViewIrMsnResponseDto, string>)>
         {
             ("Id", "Id", r => r.Id?.ToString()),
             ("DocumentType", "Document Type", r => r.DocumentType),
+            ("recordType", "Document Type", r => r.DocumentType),
             ("IrNumber", "IR Number", r => r.IrNumber),
             ("MsnNumber", "MSN Number", r => r.MsnNumber),
+            ("displayNumber", "IR/MSN Number", r => string.Equals(r.DocumentType, "MSN", StringComparison.OrdinalIgnoreCase) ? r.MsnNumber : r.IrNumber),
             ("ProductionOrderNumber", "Production Order Number", r => r.ProductionOrderNumber),
+            ("orderNumber", "Production Order Number", r => r.ProductionOrderNumber),
             ("DrawingNumber", "Drawing Number", r => r.DrawingNumber),
+            ("drawingNumberIdName", "Drawing Number", r => r.DrawingNumber),
             ("LnItemCode", "LN Item Code", r => r.LnItemCode),
             ("ProductionSeriesName", "Production Series", r => r.ProductionSeriesName),
             ("DepartmentName", "Department", r => r.DepartmentName),
             ("CreatedDate", "Created Date", r => r.CreatedDate?.ToString("yyyy-MM-dd")),
+            ("idNumberRange", "ID Number Range", r => r.IdNumberRange),
+            // No mrirnumber column exists on tbl_irnumber/tbl_msnnumber -- MRIR is tracked against
+            // QR codes/precheck records, not IR/MSN numbers, so there is no value to put here.
+            ("mrirNumber", "MRIR Number", r => string.Empty),
+            ("userName", "Created By", r => r.UserName),
+            ("stage", "Stage", r => r.Stage),
+            ("buildNumber", "Build Number", r => r.BuildNumber),
         };
 
         public async Task<byte[]> ExportIrMsnService(ExportIrMsnRequestDto request)

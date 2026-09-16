@@ -294,12 +294,19 @@ ORDER BY
         COALESCE(ir.lnitemcode, map.lnitemcode) AS lnitemcode,
         ps.productionseries AS productionseriesname,
         d.name AS departmentname,
-        ir.createddate AS createddate
+        ir.createddate AS createddate,
+        ir.stage AS stage,
+        ir.buildnumber AS buildnumber,
+        CASE WHEN ir.idnumberstart IS NOT NULL AND ir.idnumberend IS NOT NULL
+             THEN CAST(ir.idnumberstart AS VARCHAR(20)) + '-' + CAST(ir.idnumberend AS VARCHAR(20))
+             ELSE NULL END AS idnumberrange,
+        tu.username AS username
     FROM tbl_irnumber ir
     LEFT JOIN tbl_productionseries ps ON ir.prodseriesid = ps.id
     LEFT JOIN tbl_drawingnumber td ON ir.drawingnumberid = td.id
     LEFT JOIN tbl_department d ON ir.departmentid = d.id
     LEFT JOIN tbl_drawing_lnitem_map map ON td.drawingnumber = map.drawingnumber
+    LEFT JOIN tbl_users tu ON ir.createdby = tu.id
     WHERE ir.isactive = 1
     {SERIES_FILTER}
     {DEPT_FILTER}";
@@ -315,11 +322,18 @@ ORDER BY
         msn.lnitemcode AS lnitemcode,
         ps.productionseries AS productionseriesname,
         d.name AS departmentname,
-        msn.createddate AS createddate
+        msn.createddate AS createddate,
+        msn.stage AS stage,
+        msn.buildnumber AS buildnumber,
+        CASE WHEN msn.idnumberstart IS NOT NULL AND msn.idnumberend IS NOT NULL
+             THEN CAST(msn.idnumberstart AS VARCHAR(20)) + '-' + CAST(msn.idnumberend AS VARCHAR(20))
+             ELSE NULL END AS idnumberrange,
+        tu.username AS username
     FROM tbl_msnnumber msn
     LEFT JOIN tbl_productionseries ps ON msn.prodseriesid = ps.id
     LEFT JOIN tbl_drawingnumber td ON msn.drawingnumberid = td.id
     LEFT JOIN tbl_department d ON msn.departmentid = d.id
+    LEFT JOIN tbl_users tu ON msn.createdby = tu.id
     WHERE msn.isactive = 1
     {SERIES_FILTER}
     {DEPT_FILTER}";

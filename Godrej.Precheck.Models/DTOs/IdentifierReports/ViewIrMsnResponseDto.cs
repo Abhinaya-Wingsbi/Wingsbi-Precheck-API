@@ -14,5 +14,9 @@ namespace Godrej.Precheck.Models.DTOs.IdentifierReports
         public string? ProductionSeriesName { get; set; }
         public string? DepartmentName { get; set; }
         public DateTime? CreatedDate { get; set; }
+        public string? Stage { get; set; }
+        public string? BuildNumber { get; set; }
+        public string? IdNumberRange { get; set; }
+        public string? UserName { get; set; }
     }
 }

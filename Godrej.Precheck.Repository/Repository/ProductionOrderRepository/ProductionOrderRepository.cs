@@ -730,7 +730,8 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                         FromDate = fromDate,
                         ToDate = toDate,
                         PrecheckStatus = filter.PrecheckStatus
-                    });
+                    },
+                    commandTimeout: 300);
 
                 return result ?? new ProductionOrderCountsDto();
             }

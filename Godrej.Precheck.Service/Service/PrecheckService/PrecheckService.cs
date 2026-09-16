@@ -1483,7 +1483,10 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                 for (int c = 0; c < activeColumns.Length; c++)
                 {
                     var cell = row.CreateCell(c);
-                    cell.SetCellValue(activeColumns[c].GetValue(preCheckResponses[r]));
+                    var value = string.Equals(activeColumns[c].Key, "sr", StringComparison.OrdinalIgnoreCase)
+                        ? (r + 1).ToString()
+                        : activeColumns[c].GetValue(preCheckResponses[r]);
+                    cell.SetCellValue(value);
                     cell.CellStyle = borderStyle;
                 }
             }
