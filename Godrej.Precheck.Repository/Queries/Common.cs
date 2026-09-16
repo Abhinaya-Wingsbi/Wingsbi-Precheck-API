@@ -598,6 +598,32 @@ ORDER BY
                 modifieddate = GETDATE()
             WHERE id = @RecordId;
 
+            UPDATE tbl_assemblydrawingmapping
+            SET isactive     = 0,
+                modifiedby   = @ModifiedBy,
+                modifieddate = GETDATE()
+            WHERE drawingnumber = @RecordId
+              AND parentdrawingnumber IN (
+                    SELECT id FROM tbl_drawingnumber WHERE drawingnumber IN @AssemblyNumber
+                  );
+
+            UPDATE tbl_lnitemcode
+            SET isactive     = 0,
+                modifiedby   = @ModifiedBy,
+                modifieddate = GETDATE()
+            WHERE lnitemcode = @LnItemCode;
+
+            UPDATE tbl_drawing_lnitem_map
+            SET isactive = 0
+            WHERE drawingnumber = @DrawingNumber
+              AND lnitemcode    = @LnItemCode;
+
+            UPDATE tbl_drawingcomponenttypemapping
+            SET isactive     = 0,
+                modifiedby   = @ModifiedBy,
+                modifieddate = GETDATE()
+            WHERE drawingnumberid = @RecordId;
+
             SELECT @RecordId AS DeletedRecordId;";
 
         public static readonly string GET_DocumentType_QUERY = @"SELECT * FROM tbl_documenttype Where isactive=1";
@@ -965,10 +991,9 @@ public static readonly string GET_USER_BY_ID_QUERY = @"
         #region ADD_PROD_SERIES_QUERY
         public static readonly string ADD_PROD_SERIES_QUERY = @"
     INSERT INTO tbl_productionseries 
-    (id, productionseries, createdby, createddate, isactive)
+    ( productionseries, createdby, createddate, isactive)
     VALUES 
     (
-        (SELECT ISNULL(MAX(id), 0) + 1 FROM tbl_productionseries),
         @ProductionSeries, 
         @CreatedBy, 
         GETDATE(), 
@@ -1000,9 +1025,10 @@ public static readonly string GET_USER_BY_ID_QUERY = @"
             DECLARE @AssemblyId INT;
             DECLARE @ExistingId INT;
 
-            -- Resolve drawing numbers to IDs
-            SELECT @ChildId    = id FROM tbl_drawingnumber WHERE drawingnumber = @ChildDrawingNumber    AND isactive = 1;
-            SELECT @AssemblyId = id FROM tbl_drawingnumber WHERE drawingnumber = @AssemblyDrawingNumber AND isactive = 1;
+            -- Resolve drawing numbers to IDs (drawingnumber + lnitemcode together, since drawingnumber alone
+            -- isn't guaranteed unique across different lnitemcodes)
+            SELECT @ChildId    = id FROM tbl_drawingnumber WHERE drawingnumber = @ChildDrawingNumber    AND lnitemcode = @ChildLnItemCode    AND isactive = 1;
+            SELECT @AssemblyId = id FROM tbl_drawingnumber WHERE drawingnumber = @AssemblyDrawingNumber AND lnitemcode = @AssemblyLnItemCode AND isactive = 1;
 
             IF @ChildId IS NULL
                 THROW 50001, 'Child drawing number not found or inactive.', 1;
@@ -1049,8 +1075,8 @@ public static readonly string GET_USER_BY_ID_QUERY = @"
 
             -- Only overwrite findno/quantity when a real value was supplied
             UPDATE tbl_assemblydrawingmapping
-            SET findno       = CASE WHEN @FindNo IS NOT NULL AND @FindNo <> '' THEN @FindNo ELSE findno END,
-                quantity     = CASE WHEN @Quantity IS NOT NULL AND @Quantity <> 0 THEN @Quantity ELSE quantity END,
+            SET findno       = CASE WHEN @UpdatedFindNo IS NOT NULL AND @UpdatedFindNo <> '' THEN @UpdatedFindNo ELSE findno END,
+                quantity     = CASE WHEN @Quantity IS NOT NULL THEN @Quantity ELSE quantity END,
                 modifiedby   = @ModifiedBy,
                 modifieddate = GETDATE()
             WHERE id = @ExistingId;
@@ -1061,6 +1087,7 @@ public static readonly string GET_USER_BY_ID_QUERY = @"
             DECLARE @ChildId    INT;
             DECLARE @ParentId   INT;
             DECLARE @NewId      INT;
+            DECLARE @ResolvedChildLnItemCode NVARCHAR(MAX);
 
             -- Resolve drawing number strings to IDs
             SELECT @ChildId  = id FROM tbl_drawingnumber WHERE drawingnumber = @DrawingNumber       AND isactive = 1;
@@ -1072,12 +1099,28 @@ public static readonly string GET_USER_BY_ID_QUERY = @"
             IF @ParentId IS NULL
                 THROW 50002, 'Parent drawing number not found or inactive.', 1;
 
+            -- Resolve the child's own LnItemCode from its master row rather than trusting the
+            -- caller-supplied value, so what gets stored always matches tbl_drawingnumber.
+            SELECT @ResolvedChildLnItemCode = lnitemcode FROM tbl_drawingnumber WHERE id = @ChildId;
+
+            -- A component can only be added once per assembly. Without this check, re-adding the
+            -- same child drawing number under the same parent (e.g. after only a component-type
+            -- change) created a second active mapping row instead of failing loudly - the exact
+            -- duplicate-mapping pattern that caused intermittent update/delete failures elsewhere.
+            IF EXISTS (
+                SELECT 1 FROM tbl_assemblydrawingmapping
+                WHERE drawingnumber       = @ChildId
+                  AND parentdrawingnumber = @ParentId
+                  AND isactive            = 1
+            )
+                THROW 50003, 'This drawing number is already added in this assembly.', 1;
+
             INSERT INTO tbl_assemblydrawingmapping
                 (drawingnumber, parentdrawingnumber, createdby, createddate, modifiedby, modifieddate,
                  isactive, quantity, assembly_lnitemcode, child_lnitemcode, findno, consumedprodseriesid,nomenclature,unit)
             VALUES
                 (@ChildId, @ParentId, @CreatedBy, GETDATE(), NULL, NULL,
-                 1, @Quantity, @AssemblyLnItemCode, @ChildLnItemCode, @FindNo, @ConsumedProdSeriesId, @Nomenclature,@Unit);
+                 1, @Quantity, @AssemblyLnItemCode, @ResolvedChildLnItemCode, @FindNo, @ConsumedProdSeriesId, @Nomenclature,@Unit);
 
             SELECT @NewId = SCOPE_IDENTITY();
 
@@ -1105,10 +1148,20 @@ public static readonly string GET_USER_BY_ID_QUERY = @"
     FROM tbl_assemblydrawingmapping adm
     INNER JOIN tbl_drawingnumber dn  ON dn.id  = adm.drawingnumber
     INNER JOIN tbl_drawingnumber pdn ON pdn.id = adm.parentdrawingnumber
-    LEFT  JOIN tbl_drawingcomponenttypemapping dctm ON dctm.drawingnumberid = dn.id AND dctm.isactive = 1
+    OUTER APPLY (
+        -- A drawing can (and in production, does) have more than one active componenttype
+        -- mapping row - a plain LEFT JOIN would fan out one assembly mapping row into duplicates.
+        SELECT TOP 1 dctm2.componenttypeid
+        FROM tbl_drawingcomponenttypemapping dctm2
+        WHERE dctm2.drawingnumberid = dn.id
+          AND dctm2.isactive = 1
+        ORDER BY dctm2.createddate DESC
+    ) dctm
     LEFT  JOIN tbl_componenttype ct ON ct.id = dctm.componenttypeid AND ct.isactive = 1
     WHERE adm.isactive = 1
       AND (@SearchQuery IS NULL OR @SearchQuery = ''
            OR adm.assembly_lnitemcode    LIKE '%' + @SearchQuery + '%')";
+
+
     }
 }

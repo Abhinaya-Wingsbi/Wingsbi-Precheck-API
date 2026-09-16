@@ -269,9 +269,12 @@ namespace Godrej.Precheck.Host.Controllers
         /// Export BOM details to Excel file.
         /// </summary>
         [Authorize]
-        [HttpGet("ExportBom")]
-        public async Task<IActionResult> ExportBomAsync([FromQuery] string assemblyNumber)
+        [HttpPost("ExportBom")]
+        public async Task<IActionResult> ExportBomAsync(
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ExportBomRequestDto? request)
         {
+            request ??= new ExportBomRequestDto();
+            var assemblyNumber = request.AssemblyNumber;
             _logger.LogInformation($"SopController:ExportBom - Request for assembly: {assemblyNumber}");
 
             try
@@ -282,7 +285,7 @@ namespace Godrej.Precheck.Host.Controllers
                 }
 
                 var bomData = await _sopService.GetBomDetails(assemblyNumber);
-                var response = _sopService.ExportBomToExcel(bomData, assemblyNumber);
+                var response = _sopService.ExportBomToExcel(bomData, assemblyNumber, request.SelectedColumn);
 
                 var timestamp = DateTime.Now.ToString("dd-MM-yy_HH-mm-ss");
                 var fileName = $"BOM_{assemblyNumber}_{timestamp}.xlsx";

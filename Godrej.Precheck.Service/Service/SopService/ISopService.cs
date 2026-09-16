@@ -18,7 +18,7 @@ namespace Godrej.Precheck.Service.Service.SopService
 
         Task<List<BomDetailsResponseDto>> GetBomDetails(string assemblyNumber);
         Task<List<AssemblySearchResponseDto>> SearchAssemblyNumbers(string searchText);
-        byte[] ExportBomToExcel(List<BomDetailsResponseDto> items, string assemblyNumber);
+        byte[] ExportBomToExcel(List<BomDetailsResponseDto> items, string assemblyNumber, List<string>? selectedColumn = null);
     }
 }
 

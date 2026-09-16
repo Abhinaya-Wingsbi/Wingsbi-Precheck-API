@@ -764,7 +764,9 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
                         RejectedRemarks = request.RejectedRemarks,
                         DuplicateRemarks = request.DuplicateRemarks,
                         ComponentType = request.ComponentType,
-                        CreatedBy = request.CreatedBy
+                        CreatedBy = request.CreatedBy,
+                        ProductionSeriesId = request.ProductionSeriesId,
+                        IdNumber = request.IdNumber
                     });
 
                 _logger.LogInformation($"Successfully rejected and duplicated precheck for PrecheckDetailsId: {request.PrecheckDetailsId}");

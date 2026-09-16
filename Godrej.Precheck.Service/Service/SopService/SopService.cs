@@ -881,13 +881,49 @@ namespace Godrej.Precheck.Service.Service.SopService
             }
         }
 
+        // Every exportable column for ExportBomToExcel, keyed by the camelCase name the client sends
+        // in selectedColumn. When selectedColumn is empty/null, all of these are exported (in this
+        // order); otherwise only the requested keys are used, in the order the caller specified.
+        private static readonly (string Key, string Header, Func<BomDetailsResponseDto, string> GetValue)[] BomExportColumnDefinitions = new (string, string, Func<BomDetailsResponseDto, string>)[]
+        {
+            ("level", "Level", item => item.Level.ToString()),
+            ("childDrawingNumber", "Drawing Number", item => item.ChildDrawingNumber ?? string.Empty),
+            ("nomenclature", "Nomenclature", item => item.Nomenclature ?? string.Empty),
+            ("lnItemCode", "LN Item Code", item => item.LnItemCode ?? string.Empty),
+            ("componentType", "Component Type", item => item.ComponentType ?? string.Empty),
+            ("quantity", "Qty", item => item.Quantity?.ToString() ?? string.Empty),
+            ("findNo", "Find No", item => item.FindNo ?? string.Empty),
+            ("parentDrawingNumber", "Parent Drawing", item => item.ParentDrawingNumber ?? string.Empty),
+            ("idNumber", "ID Number", item => item.IdNumber ?? string.Empty),
+            ("irNumber", "IR Number", item => item.IrNumber ?? string.Empty),
+            ("msnNumber", "MSN Number", item => item.MsnNumber ?? string.Empty),
+            ("unit", "Unit", item => item.Unit ?? string.Empty),
+            ("remarks", "Remarks", item => item.Remarks ?? string.Empty),
+        };
+
         /// <summary>
         /// Export BOM details to Excel.
         /// </summary>
-        public byte[] ExportBomToExcel(List<BomDetailsResponseDto> items, string assemblyNumber)
+        public byte[] ExportBomToExcel(List<BomDetailsResponseDto> items, string assemblyNumber, List<string>? selectedColumn = null)
         {
             _logger.LogInformation($"SopService:ExportBomToExcel - Exporting {items?.Count ?? 0} items for assembly: {assemblyNumber}");
-            
+
+            var activeColumns = BomExportColumnDefinitions;
+            if (selectedColumn != null && selectedColumn.Count > 0)
+            {
+                var byKey = BomExportColumnDefinitions.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
+                var resolved = selectedColumn
+                    .Where(k => !string.IsNullOrWhiteSpace(k) && byKey.ContainsKey(k))
+                    .Select(k => byKey[k])
+                    .Distinct()
+                    .ToArray();
+
+                if (resolved.Length > 0)
+                {
+                    activeColumns = resolved;
+                }
+            }
+
             using (var workbook = new XSSFWorkbook())
             {
                 var sheet = workbook.CreateSheet("BOM Details");
@@ -921,39 +957,27 @@ namespace Godrej.Precheck.Service.Service.SopService
                 titleFont.FontHeightInPoints = 14;
                 titleStyle.SetFont(titleFont);
                 titleCell.CellStyle = titleStyle;
-                sheet.AddMergedRegion(new NPOI.SS.Util.CellRangeAddress(0, 0, 0, 12));
+                sheet.AddMergedRegion(new NPOI.SS.Util.CellRangeAddress(0, 0, 0, Math.Max(activeColumns.Length - 1, 0)));
 
                 var tableHeaderRow = sheet.CreateRow(2);
-                string[] headers = new string[]
-                {
-                    "Level", "Drawing Number", "Nomenclature", "LN Item Code", "Component Type",
-                    "Qty", "Parent Drawing", "Find No"
-                };
-
-                for (int i = 0; i < headers.Length; i++)
+                for (int i = 0; i < activeColumns.Length; i++)
                 {
                     var cell = tableHeaderRow.CreateCell(i);
-                    cell.SetCellValue(headers[i]);
+                    cell.SetCellValue(activeColumns[i].Header);
                     cell.CellStyle = headerStyle;
                 }
 
                 int rowNum = 3;
-                int serialNumber = 1;
                 foreach (var item in items ?? new List<BomDetailsResponseDto>())
                 {
                     var row = sheet.CreateRow(rowNum++);
-                    CreateCell(row, 0, item.Level.ToString(), borderStyle);
-                    CreateCell(row, 1, item.ChildDrawingNumber ?? "", borderStyle);
-                    CreateCell(row, 2, item.Nomenclature ?? "", borderStyle);
-                    CreateCell(row, 3, item.LnItemCode ?? "", borderStyle);
-                    CreateCell(row, 4, item.ComponentType ?? "", borderStyle);
-                    CreateCell(row, 5, item.Quantity?.ToString() ?? "", borderStyle);
-                    CreateCell(row, 6, item.ParentDrawingNumber ?? "", borderStyle);
-                    CreateCell(row, 7, item.FindNo ?? "", borderStyle);
-                    serialNumber++;
+                    for (int c = 0; c < activeColumns.Length; c++)
+                    {
+                        CreateCell(row, c, activeColumns[c].GetValue(item), borderStyle);
+                    }
                 }
 
-                for (int i = 0; i < headers.Length; i++)
+                for (int i = 0; i < activeColumns.Length; i++)
                 {
                     sheet.AutoSizeColumn(i);
                     if (sheet.GetColumnWidth(i) < 3000)

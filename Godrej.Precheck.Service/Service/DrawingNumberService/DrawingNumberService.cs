@@ -462,13 +462,25 @@ namespace Godrej.Precheck.Service.Service.DrawingNumberService
 
                 if (!string.IsNullOrWhiteSpace(drawingNumberTextForMap) && !string.IsNullOrWhiteSpace(lnItemCodeForMap))
                 {
-                    var mapExists = await _drawingNumberRepository.CheckDrawingLnItemMapExists(drawingNumberTextForMap, lnItemCodeForMap);
-                    if (!mapExists)
+                    // tbl_drawing_lnitem_map has a UNIQUE constraint on (drawingnumber, lnitemcode) that
+                    // applies regardless of isactive, so a soft-deleted row for this same pair still blocks
+                    // a plain INSERT with a raw SQL "Violation of UNIQUE KEY constraint" error. Check the
+                    // row's actual status first: null = doesn't exist (insert), false = exists but inactive
+                    // (reactivate instead of inserting a duplicate), true = already active (nothing to do).
+                    var mapStatus = await _drawingNumberRepository.GetDrawingLnItemMapStatus(drawingNumberTextForMap, lnItemCodeForMap);
+                    if (mapStatus == null)
                     {
                         await _drawingNumberRepository.InsertDrawingLnItemMap(drawingNumberTextForMap, lnItemCodeForMap, createdBy, createdDate);
                         response.Details.DrawingLnItemMapCreated = true;
                         masterTableChanged = true;
                         _logger.LogInformation($"Created tbl_drawing_lnitem_map entry for DrawingNumberId: {drawingNumberId} ({drawingNumberTextForMap} -> {lnItemCodeForMap})");
+                    }
+                    else if (mapStatus == false)
+                    {
+                        await _drawingNumberRepository.ReactivateDrawingLnItemMap(drawingNumberTextForMap, lnItemCodeForMap);
+                        response.Details.DrawingLnItemMapReactivated = true;
+                        masterTableChanged = true;
+                        _logger.LogInformation($"Reactivated existing tbl_drawing_lnitem_map entry for DrawingNumberId: {drawingNumberId} ({drawingNumberTextForMap} -> {lnItemCodeForMap})");
                     }
                 }
 
@@ -492,6 +504,7 @@ namespace Godrej.Precheck.Service.Service.DrawingNumberService
                 if (response.Details.UnitMappingUpdated) updatedMappings.Add("Unit");
                 if (response.Details.ProdSeriesMappingUpdated) updatedMappings.Add("ProdSeries");
                 if (response.Details.AssemblyDrawingMappingUpdated) updatedMappings.Add("AssemblyDrawingMapping");
+                if (response.Details.DrawingLnItemMapReactivated) updatedMappings.Add("DrawingLnItemMap");
 
                 var statusMessages = new List<string>();
                 if (createdMappings.Any())

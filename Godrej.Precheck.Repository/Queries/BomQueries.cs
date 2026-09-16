@@ -23,14 +23,14 @@ namespace Godrej.Precheck.Repository.Queries
           DECLARE @assemblyDrawingId INT;
 
   SELECT @assemblyDrawingId = id FROM tbl_drawingnumber WHERE drawingnumber = @assemblyNumber;
- 
+
   IF @assemblyDrawingId IS NULL
 
   BEGIN
 
       -- Return empty result if assembly not found
 
-      SELECT 
+      SELECT
 
           0 AS Level,
 
@@ -67,12 +67,12 @@ namespace Godrej.Precheck.Repository.Queries
       RETURN;
 
   END
- 
+
   ;WITH RecursiveAssembly AS (
 
       -- Anchor: Get direct children of the assembly
 
-      SELECT 
+      SELECT
 
           adm.drawingnumber AS child_id,
 
@@ -89,12 +89,12 @@ namespace Godrej.Precheck.Repository.Queries
       FROM tbl_assemblydrawingmapping adm
 
       WHERE adm.parentdrawingnumber = @assemblyDrawingId and adm.isactive=1
- 
+
       UNION ALL
- 
+
       -- Recursive: Get children of children
 
-      SELECT 
+      SELECT
 
           c.drawingnumber AS child_id,
 
@@ -163,7 +163,7 @@ namespace Godrej.Precheck.Repository.Queries
 
       FROM tbl_drawingnomenclaturemapping dnm
 
-      INNER JOIN tbl_nomenclature n 
+      INNER JOIN tbl_nomenclature n
 
           ON dnm.nomenclatureid = n.id
 
@@ -175,11 +175,26 @@ namespace Godrej.Precheck.Repository.Queries
 
   ) n
 
-  LEFT JOIN tbl_drawingcomponenttypemapping dctm ON cdn.id = dctm.drawingnumberid AND dctm.isactive = 1
+  OUTER APPLY (
+      -- A drawing can (and in production, does) have more than one active componenttype
+      -- mapping row - a plain LEFT JOIN would fan out one BOM row into several duplicates.
+      SELECT TOP 1 dctm2.componenttypeid
+      FROM tbl_drawingcomponenttypemapping dctm2
+      WHERE dctm2.drawingnumberid = cdn.id
+        AND dctm2.isactive = 1
+      ORDER BY dctm2.createddate DESC
+  ) dctm
 
   LEFT JOIN tbl_componenttype ct ON dctm.componenttypeid = ct.id
 
-  LEFT JOIN tbl_drawing_lnitem_map dlm ON cdn.drawingnumber = dlm.drawingnumber AND dlm.isactive = 1
+  OUTER APPLY (
+      -- Same fan-out risk as above - a drawing can have more than one active lnitem_map row.
+      SELECT TOP 1 dlm2.lnitemcode
+      FROM tbl_drawing_lnitem_map dlm2
+      WHERE dlm2.drawingnumber = cdn.drawingnumber
+        AND dlm2.isactive = 1
+      ORDER BY dlm2.createddate DESC
+  ) dlm
 
   ORDER BY ra.level, pdn.drawingnumber, cdn.drawingnumber";
 
@@ -219,7 +234,7 @@ namespace Godrej.Precheck.Repository.Queries
   IF @assemblyDrawingId IS NULL
   BEGIN
       -- Return empty result if assembly not found
-      SELECT 
+      SELECT
           0 AS Level,
           0 AS ParentDrawingId,
           0 AS ChildDrawingId,
@@ -241,7 +256,7 @@ namespace Godrej.Precheck.Repository.Queries
 
   ;WITH RecursiveAssembly AS (
       -- Anchor: Get direct children of the assembly
-      SELECT 
+      SELECT
           adm.drawingnumber AS child_id,
           adm.parentdrawingnumber AS parent_id,
           0 AS level,
@@ -254,7 +269,7 @@ namespace Godrej.Precheck.Repository.Queries
       UNION ALL
 
       -- Recursive: Get children of children
-      SELECT 
+      SELECT
           c.drawingnumber AS child_id,
           c.parentdrawingnumber AS parent_id,
           p.level + 1 AS level,
@@ -288,15 +303,30 @@ namespace Godrej.Precheck.Repository.Queries
   OUTER APPLY (
       SELECT TOP 1 n.nomenclature
       FROM tbl_drawingnomenclaturemapping dnm
-      INNER JOIN tbl_nomenclature n 
+      INNER JOIN tbl_nomenclature n
           ON dnm.nomenclatureid = n.id
       WHERE dnm.drawingnumberid = cdn.id
         AND dnm.isactive = 1
       ORDER BY dnm.id DESC   -- or isprimary desc
   ) n
-  LEFT JOIN tbl_drawingcomponenttypemapping dctm ON cdn.id = dctm.drawingnumberid AND dctm.isactive = 1
+  OUTER APPLY (
+      -- A drawing can (and in production, does) have more than one active componenttype
+      -- mapping row - a plain LEFT JOIN would fan out one BOM row into several duplicates.
+      SELECT TOP 1 dctm2.componenttypeid
+      FROM tbl_drawingcomponenttypemapping dctm2
+      WHERE dctm2.drawingnumberid = cdn.id
+        AND dctm2.isactive = 1
+      ORDER BY dctm2.createddate DESC
+  ) dctm
   LEFT JOIN tbl_componenttype ct ON dctm.componenttypeid = ct.id
-  LEFT JOIN tbl_drawing_lnitem_map dlm ON cdn.drawingnumber = dlm.drawingnumber AND dlm.isactive = 1
+  OUTER APPLY (
+      -- Same fan-out risk as above - a drawing can have more than one active lnitem_map row.
+      SELECT TOP 1 dlm2.lnitemcode
+      FROM tbl_drawing_lnitem_map dlm2
+      WHERE dlm2.drawingnumber = cdn.drawingnumber
+        AND dlm2.isactive = 1
+      ORDER BY dlm2.createddate DESC
+  ) dlm
   ORDER BY ra.level, pdn.drawingnumber, cdn.drawingnumber
  ";
 

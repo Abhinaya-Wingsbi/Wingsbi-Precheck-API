@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace Godrej.Precheck.Models.DTOs.DrawingNumber
@@ -6,5 +7,6 @@ namespace Godrej.Precheck.Models.DTOs.DrawingNumber
     {
         [Required] public string DrawingNumber { get; set; }
         [Required] public string LnItemCode { get; set; }
+        public List<string>? AssemblyNumber { get; set; }
     }
 }

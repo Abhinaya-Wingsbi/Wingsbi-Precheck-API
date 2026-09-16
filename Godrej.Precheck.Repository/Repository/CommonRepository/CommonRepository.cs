@@ -499,6 +499,7 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
                     ChildLnItemCode  = request.DrawingNumberLnitemcode,
                     ParentLnItemCode = request.ParentDrawingNumberLnitemcode,
                     FindNo           = request.FindNo,
+                    UpdatedFindNo    = request.UpdatedFindNo,
                     Quantity         = request.Quantity,
                     ModifiedBy       = modifiedBy
                 });
@@ -541,9 +542,10 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
                 Common.DELETE_DRAWING_NUMBER_QUERY,
                 new
                 {
-                    DrawingNumber = request.DrawingNumber,
-                    LnItemCode    = request.LnItemCode,
-                    ModifiedBy    = modifiedBy
+                    DrawingNumber  = request.DrawingNumber,
+                    LnItemCode     = request.LnItemCode,
+                    AssemblyNumber = request.AssemblyNumber ?? new List<string>(),
+                    ModifiedBy     = modifiedBy
                 });
 
             _logger.LogInformation("Result for CommonRepository:DeleteDrawingNumberAsync, DeletedRecordId: {Id}", deletedId);

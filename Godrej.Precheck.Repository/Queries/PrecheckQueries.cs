@@ -1074,52 +1074,112 @@ ORDER BY expirydate, manufacturingdate;
         public static readonly string REJECT_AND_DUPLICATE_PRECHECK = @"
 BEGIN TRANSACTION;
 
--- 2️⃣ Update current row → mark as rejected (keep isprecheckcomplete as is)
-UPDATE tbl_projectprecheckdetails
-SET 
-    isrejected = 1,
-    remarks = @RejectedRemarks,
-    modifieddate = GETDATE(),
-    modifiedby = @CreatedBy
-WHERE Id = @PrecheckDetailsId;
+DECLARE @NewQuantity DECIMAL(18,4);
+DECLARE @OriginalComponentType VARCHAR(100);
+DECLARE @OriginalQuantity DECIMAL(18,4);
 
--- 3️⃣ Insert new row → duplicate with only drawingnumberid, quantity, and nomenclatureid (set isprecheckcomplete to 0)
-INSERT INTO tbl_projectprecheckdetails
-(
-    drawingnumberid,
-    quantity,
-    nomenclatureid,
-    componenttype,
-    remarks,
-    createdby,
-    createddate,
-    modifiedby,
-    modifieddate,
-    isactive,
-    prodseriesid,
-    projectdetailsid,
-    isprecheckcomplete,
-    isrejected,
-    unit
-)
-SELECT
-    drawingnumberid,
-    quantity,
-    nomenclatureid,
-    @ComponentType,
-    @DuplicateRemarks,
-    @CreatedBy,
-    GETDATE(),
-    @CreatedBy,
-    GETDATE(),
-    1,
-    prodseriesid,
-    projectdetailsid,
-    0,
-    0,
-    unit
+SELECT @OriginalComponentType = componenttype, @OriginalQuantity = quantity
 FROM tbl_projectprecheckdetails
 WHERE Id = @PrecheckDetailsId;
+
+-- 1️⃣ Pull the actually-requested/rejected quantity for this specific drawing/series/id-number
+-- from the material requisition record - but only for component types where this partial-rejection
+-- workflow applies. For any other component type, @NewQuantity stays NULL and the old, simple
+-- behaviour (duplicate with the original quantity, untouched) is used further down.
+IF @OriginalComponentType IN ('FIM', 'BATCH', 'SI')
+BEGIN
+    SELECT TOP 1 @NewQuantity = quantity
+    FROM tbl_material_requestion
+    WHERE rejectedcomponentdrawingnumberid = @DrawingNumberId
+      AND prodseriesid = @ProductionSeriesId
+      AND idnumber = @IdNumber
+      AND isactive = 1
+      AND statusid = 2;
+END
+
+IF @NewQuantity IS NOT NULL AND @NewQuantity < @OriginalQuantity
+BEGIN
+    -- Partial rejection (e.g. reject 1 of 50): the original quantity must be split three ways
+    -- instead of collapsing the whole row into the rejected amount, or the remaining 49 (still
+    -- good, already precheck-complete) quantity would silently disappear.
+
+    -- 2a️⃣ Reduce the original row to the remaining, still-good quantity. It is NOT rejected -
+    -- this row keeps representing the portion that passed and stays precheck-complete as before.
+    UPDATE tbl_projectprecheckdetails
+    SET
+        quantity = @OriginalQuantity - @NewQuantity,
+        modifieddate = GETDATE(),
+        modifiedby = @CreatedBy
+    WHERE Id = @PrecheckDetailsId;
+
+    -- 2b️⃣ Insert a new row that is a full, exact copy of every column on the original row
+    -- (idnumber, irnumber, msnnumber, mrirnumber, qrcodeid, username, precheckdate,
+    -- consumedindrawing, etc. all carried over as-is) - the only fields that differ are
+    -- isrejected (now 1), quantity (the rejected quantity from tbl_material_requestion), and
+    -- the remarks/audit fields for this new record. This is a separate historical record of
+    -- exactly what was already checked and rejected, distinct from the remaining-quantity row above.
+    INSERT INTO tbl_projectprecheckdetails
+    (
+        projectdetailsid, drawingnumberid, prodseriesid, nomenclatureid, isactive,
+        isprecheckcomplete, oldrow, modifiedby, modifieddate, createdby, createddate,
+        irnumber, msnnumber, mrirnumber, username, consumedindrawing,
+        consumedinproductionordernumber, remarks, quantity, unit, idnumber,
+        idnumbers, precheckdate, remainingquantity, qrcodeid, mydate,
+        componentcodeid, srnumber, componenttype, isrejected, productionordernumberid,
+        consumedinquantity
+    )
+    SELECT
+        projectdetailsid, drawingnumberid, prodseriesid, nomenclatureid, 1,
+        isprecheckcomplete, oldrow, @CreatedBy, GETDATE(), @CreatedBy, GETDATE(),
+        irnumber, msnnumber, mrirnumber, username, consumedindrawing,
+        consumedinproductionordernumber, @RejectedRemarks, @NewQuantity, unit, idnumber,
+        idnumbers, precheckdate, remainingquantity, qrcodeid, mydate,
+        componentcodeid, srnumber, componenttype, 1, productionordernumberid,
+        consumedinquantity
+    FROM tbl_projectprecheckdetails
+    WHERE Id = @PrecheckDetailsId;
+
+    -- 2c️⃣ Insert the replacement row for the rejected quantity, awaiting a fresh precheck.
+    INSERT INTO tbl_projectprecheckdetails
+    (
+        drawingnumberid, quantity, nomenclatureid, componenttype, remarks,
+        createdby, createddate, modifiedby, modifieddate, isactive,
+        prodseriesid, projectdetailsid, isprecheckcomplete, isrejected, unit
+    )
+    SELECT
+        drawingnumberid, @NewQuantity, nomenclatureid, @ComponentType, @DuplicateRemarks,
+        @CreatedBy, GETDATE(), @CreatedBy, GETDATE(), 1,
+        prodseriesid, projectdetailsid, 0, 0, unit
+    FROM tbl_projectprecheckdetails
+    WHERE Id = @PrecheckDetailsId;
+END
+ELSE
+BEGIN
+    -- Full rejection (rejected quantity equals the original), a non-applicable component type,
+    -- or no matching material requisition found: nothing remains to track separately, so the
+    -- original row itself becomes the rejected row, plus one replacement row - as before.
+    UPDATE tbl_projectprecheckdetails
+    SET
+        isrejected = 1,
+        remarks = @RejectedRemarks,
+        modifieddate = GETDATE(),
+        modifiedby = @CreatedBy,
+        quantity = COALESCE(@NewQuantity, quantity)
+    WHERE Id = @PrecheckDetailsId;
+
+    INSERT INTO tbl_projectprecheckdetails
+    (
+        drawingnumberid, quantity, nomenclatureid, componenttype, remarks,
+        createdby, createddate, modifiedby, modifieddate, isactive,
+        prodseriesid, projectdetailsid, isprecheckcomplete, isrejected, unit
+    )
+    SELECT
+        drawingnumberid, COALESCE(@NewQuantity, quantity), nomenclatureid, @ComponentType, @DuplicateRemarks,
+        @CreatedBy, GETDATE(), @CreatedBy, GETDATE(), 1,
+        prodseriesid, projectdetailsid, 0, 0, unit
+    FROM tbl_projectprecheckdetails
+    WHERE Id = @PrecheckDetailsId;
+END
 
 -- 4️⃣ Update existing material requisition that triggered this rejection to 'Completed'
 UPDATE tbl_material_requestion
