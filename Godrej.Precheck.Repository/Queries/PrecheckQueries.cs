@@ -404,6 +404,7 @@ WHERE asdmapping.parentdrawingnumber   = @assemblyNumber and asdmapping.isactive
     tu.username AS Username,
     ppd.remainingquantity AS RemainingQuantity,
     adm.findno AS FindNo,
+    qd.qrcodenumber AS QrCodeNumber,
     CASE
 
     WHEN ppd.componenttype = 'ID' AND ppd.remainingquantity IS NULL AND ppd.isprecheckcomplete = 1
@@ -477,6 +478,8 @@ OUTER APPLY (
     ORDER BY adm2.id
 ) adm
 
+LEFT JOIN tbl_qrcodedetails qd ON ppd.qrcodeid = qd.id
+
 WHERE
     pd.isactive = 1
     -- AND ppd.isrejected = 0
@@ -531,6 +534,7 @@ ORDER BY TRY_CAST(adm.findno AS INT) ASC;
     tu.username AS Username,
     ppd.remainingquantity AS RemainingQuantity,
     adm.findno AS FindNo,
+    qd.qrcodenumber AS QrCodeNumber,
     CASE
 
     WHEN ppd.componenttype = 'ID' AND ppd.remainingquantity IS NULL AND ppd.isprecheckcomplete = 1
@@ -599,6 +603,8 @@ OUTER APPLY (
     ORDER BY adm2.id
 ) adm
 
+LEFT JOIN tbl_qrcodedetails qd ON ppd.qrcodeid = qd.id
+
 WHERE
     pd.isactive = 1
     AND pd.productionordernumber IN {{PO_LIST}}
@@ -639,6 +645,7 @@ ORDER BY pd.productionordernumber, TRY_CAST(adm.findno AS INT) ASC;
     ppd.precheckdate,
     ppd.remainingquantity AS RemainingQuantity,
     adm.findno AS FindNo,
+    qd.qrcodenumber AS QrCodeNumber,
     ppd.isrejected AS IsRejected,
     CASE
         WHEN ppd.componenttype = 'ID' AND ppd.remainingquantity IS NULL AND ppd.isprecheckcomplete = 1
@@ -698,6 +705,8 @@ OUTER APPLY (
       AND adm2.isactive = 1
     ORDER BY adm2.id
 ) adm
+
+LEFT JOIN tbl_qrcodedetails qd ON ppd.qrcodeid = qd.id
 WHERE
       pd.isactive = 1 AND ppd.isactive = 1
        AND (@drawingnumberid IS NULL OR pd.drawingnumberid = @drawingnumberid)
@@ -750,6 +759,7 @@ SELECT
     ppd.precheckdate,
     ppd.remainingquantity AS RemainingQuantity,
     adm.findno AS FindNo,
+    qd.qrcodenumber AS QrCodeNumber,
     ppd.isrejected AS IsRejected,
     CASE
         WHEN ppd.componenttype = 'ID' AND ppd.remainingquantity IS NULL AND ppd.isprecheckcomplete = 1
@@ -806,6 +816,8 @@ OUTER APPLY (
       AND adm2.isactive = 1
     ORDER BY adm2.id
 ) adm
+
+LEFT JOIN tbl_qrcodedetails qd ON ppd.qrcodeid = qd.id
 WHERE
     pd.isactive = 1 AND ppd.isactive = 1
     AND (@FromDate IS NULL OR CAST(ppd.createddate AS DATE) >= CAST(@FromDate AS DATE))
@@ -856,6 +868,7 @@ SELECT
     ppd.componenttype,
     ppd.precheckdate,
     adm.findno AS FindNo,
+    qd.qrcodenumber AS QrCodeNumber,
 
     ppd.isrejected AS IsRejected,
     ppd.remainingquantity AS RemainingQuantity,
@@ -920,6 +933,8 @@ OUTER APPLY (
       AND adm2.isactive = 1
     ORDER BY adm2.id
 ) adm
+
+LEFT JOIN tbl_qrcodedetails qd ON ppd.qrcodeid = qd.id
 
 WHERE
     pd.isactive = 1

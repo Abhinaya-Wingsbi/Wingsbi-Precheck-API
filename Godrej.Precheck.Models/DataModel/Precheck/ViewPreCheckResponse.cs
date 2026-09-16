@@ -58,6 +58,7 @@ namespace Godrej.Precheck.Models.DataModel.Precheck
         public string? PrecheckStatus { get; set; }
         public decimal? TotalQrQty { get; set; }
         public string? FindNo { get; set; }
+        public string? QrCodeNumber { get; set; }
     }
 }
 
