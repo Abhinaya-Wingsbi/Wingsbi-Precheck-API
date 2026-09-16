@@ -14,7 +14,6 @@ namespace Godrej.Precheck.Models.DTOs.MaterialRequisition
         
         public string? RequestOwner { get; set; }
         
-        // Store-specific fields
         public string? OutPONo { get; set; }
         
         public DateTime? MinDate { get; set; }

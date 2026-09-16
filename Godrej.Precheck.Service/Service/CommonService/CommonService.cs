@@ -4,6 +4,7 @@ using Godrej.Precheck.Models.DataModel.Common;
 using Godrej.Precheck.Models.DataModel.Precheck;
 using Godrej.Precheck.Models.DTOs.Assembly;
 using Godrej.Precheck.Models.DTOs.DrawingNumber;
+using Godrej.Precheck.Models.DTOs.IdentifierReports;
 using Godrej.Precheck.Models.DTOs.IRNumber;
 using Godrej.Precheck.Models.DTOs.MSNNumber;
 using Godrej.Precheck.Models.DTOs.Precheck;
@@ -13,10 +14,13 @@ using Godrej.Precheck.Repository.Repository.CommonRepository;
 using Godrej.Precheck.Service.Cache;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.Extensions.Logging;
+using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
 using Org.BouncyCastle.Crypto.Generators;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -48,7 +52,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             try
             {
                 _logger.LogDebug("Attempting to get precheck modules from cache: {CacheKey}", CacheSettings.PrecheckModulesCacheKey);
-                // Get all precheck modules from cache or repository
                 var allModules = await _cacheService.GetOrSetAsync(
                     CacheSettings.PrecheckModulesCacheKey,
                     async () => {
@@ -73,12 +76,12 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             {
                 _logger.LogInformation("Starting AddUserAsync for user: {UserName}", request.UserName);
 
-                // ✅ Use same HashPassword method as RegisterAsync
+                // Use same HashPassword method as RegisterAsync
                 if (!string.IsNullOrEmpty(request.Password))
                 {
                     var (hash, securityStamp) = HashPassword(request.Password);
-                    request.Password = hash;           // ✅ BCrypt hash
-                    request.SecurityStamp = securityStamp;  // ✅ SecurityStamp from same password
+                    request.Password = hash;
+                    request.SecurityStamp = securityStamp;
                 }
 
                 var result = await _commonRepository.AddUserAsync(request, createdBy);
@@ -101,17 +104,14 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             }
         }
 
-        // Updated secure password hashing method
         private (string Hash, string SecurityStamp) HashPassword(string password)
         {
-            // Generate a cryptographically secure random salt
             byte[] salt = new byte[SaltSize];
             using (var rng = RandomNumberGenerator.Create())
             {
                 rng.GetBytes(salt);
             }
 
-            // Hash the password using PBKDF2 with HMAC-SHA256
             byte[] hash = KeyDerivation.Pbkdf2(
                 password: password,
                 salt: salt,
@@ -120,7 +120,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
                 numBytesRequested: HashSize
             );
 
-            // Store both hash and salt as Base64 strings
             string hashString = Convert.ToBase64String(hash);
             string saltString = Convert.ToBase64String(salt);
 
@@ -178,7 +177,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             try
             {
                 _logger.LogDebug("Attempting to get component types from cache: {CacheKey}", CacheSettings.ComponentTypesCacheKey);
-                // Get all component types from cache or repository
                 var allComponentTypes = await _cacheService.GetOrSetAsync(
                     CacheSettings.ComponentTypesCacheKey,
                     async () => {
@@ -256,7 +254,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             try
             {
                 _logger.LogDebug("Attempting to get units from cache: {CacheKey}", CacheSettings.UnitsCacheKey);
-                // Get all units from cache or repository
                 var allUnits = await _cacheService.GetOrSetAsync(
                     CacheSettings.UnitsCacheKey,
                     async () =>
@@ -335,7 +332,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             try
             {
                 _logger.LogDebug("Attempting to get production series from cache: {CacheKey}", CacheSettings.ProductionSeriesCacheKey);
-                // Get all production series from cache or repository
                 var allProductionSeries = await _cacheService.GetOrSetAsync(
                     CacheSettings.ProductionSeriesCacheKey,
                     async () => {
@@ -502,6 +498,137 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             }
         }
 
+        public async Task<ViewIrMsnPagedResponse> ViewIrMsnService(ViewIrMsnRequestDto request, int pageNumber, int pageSize)
+        {
+            _logger.LogInformation("Starting ViewIrMsnService");
+            try
+            {
+                var (items, totalCount) = await _commonRepository.GetViewIrMsn(request, pageNumber, pageSize);
+
+                _logger.LogInformation("Successfully retrieved {Count} IR/MSN rows, totalCount: {TotalCount}", items.Count, totalCount);
+
+                return new ViewIrMsnPagedResponse
+                {
+                    Data = items,
+                    TotalRecords = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving combined IR/MSN report. Error: {ErrorMessage}", ex.Message);
+                throw;
+            }
+        }
+
+        // Column key -> (header text, value selector) for ViewIrMsnResponseDto, in default export order.
+        // "displayNumber"/"recordType"/"orderNumber" are aliases the client sends alongside (or instead
+        // of) the canonical keys below -- kept as separate entries so both naming conventions resolve.
+        private static readonly List<(string Key, string Header, Func<ViewIrMsnResponseDto, string> Value)> IrMsnExportColumns =
+            new List<(string, string, Func<ViewIrMsnResponseDto, string>)>
+        {
+            ("Id", "Id", r => r.Id?.ToString()),
+            ("DocumentType", "Document Type", r => r.DocumentType),
+            ("recordType", "Document Type", r => r.DocumentType),
+            ("IrNumber", "IR Number", r => r.IrNumber),
+            ("MsnNumber", "MSN Number", r => r.MsnNumber),
+            ("displayNumber", "IR/MSN Number", r => string.Equals(r.DocumentType, "MSN", StringComparison.OrdinalIgnoreCase) ? r.MsnNumber : r.IrNumber),
+            ("ProductionOrderNumber", "Production Order Number", r => r.ProductionOrderNumber),
+            ("orderNumber", "Production Order Number", r => r.ProductionOrderNumber),
+            ("DrawingNumber", "Drawing Number", r => r.DrawingNumber),
+            ("drawingNumberIdName", "Drawing Number", r => r.DrawingNumber),
+            ("LnItemCode", "LN Item Code", r => r.LnItemCode),
+            ("ProductionSeriesName", "Production Series", r => r.ProductionSeriesName),
+            ("DepartmentName", "Department", r => r.DepartmentName),
+            ("CreatedDate", "Created Date", r => r.CreatedDate?.ToString("yyyy-MM-dd")),
+            ("idNumberRange", "ID Number Range", r => r.IdNumberRange),
+            // No mrirnumber column exists on tbl_irnumber/tbl_msnnumber -- MRIR is tracked against
+            // QR codes/precheck records, not IR/MSN numbers, so there is no value to put here.
+            ("mrirNumber", "MRIR Number", r => string.Empty),
+            ("userName", "Created By", r => r.UserName),
+            ("stage", "Stage", r => r.Stage),
+            ("buildNumber", "Build Number", r => r.BuildNumber),
+        };
+
+        public async Task<byte[]> ExportIrMsnService(ExportIrMsnRequestDto request)
+        {
+            _logger.LogInformation("Starting ExportIrMsnService");
+            try
+            {
+                var (items, totalCount) = await _commonRepository.GetViewIrMsn(request, 1, int.MaxValue);
+
+                var selectedColumns = request?.SelectedColumns;
+                var columns = (selectedColumns == null || selectedColumns.Count == 0)
+                    ? IrMsnExportColumns
+                    : selectedColumns
+                        .Select(name => IrMsnExportColumns.FirstOrDefault(c => string.Equals(c.Key, name, StringComparison.OrdinalIgnoreCase)))
+                        .Where(c => c.Key != null)
+                        .ToList();
+
+                if (columns.Count == 0)
+                {
+                    columns = IrMsnExportColumns;
+                }
+
+                using (var workbook = new XSSFWorkbook())
+                {
+                    var sheet = workbook.CreateSheet("IR-MSN");
+
+                    var headerStyle = workbook.CreateCellStyle();
+                    var headerFont = workbook.CreateFont();
+                    headerFont.IsBold = true;
+                    headerStyle.SetFont(headerFont);
+                    headerStyle.FillForegroundColor = IndexedColors.Grey25Percent.Index;
+                    headerStyle.FillPattern = FillPattern.SolidForeground;
+                    headerStyle.Alignment = HorizontalAlignment.Center;
+                    headerStyle.VerticalAlignment = VerticalAlignment.Center;
+
+                    var borderStyle = workbook.CreateCellStyle();
+                    borderStyle.BorderTop = BorderStyle.Thin;
+                    borderStyle.BorderBottom = BorderStyle.Thin;
+                    borderStyle.BorderLeft = BorderStyle.Thin;
+                    borderStyle.BorderRight = BorderStyle.Thin;
+
+                    var headerRow = sheet.CreateRow(0);
+                    for (int c = 0; c < columns.Count; c++)
+                    {
+                        var cell = headerRow.CreateCell(c);
+                        cell.SetCellValue(columns[c].Header);
+                        cell.CellStyle = headerStyle;
+                    }
+
+                    for (int r = 0; r < items.Count; r++)
+                    {
+                        var row = sheet.CreateRow(r + 1);
+                        for (int c = 0; c < columns.Count; c++)
+                        {
+                            var cell = row.CreateCell(c);
+                            cell.SetCellValue(columns[c].Value(items[r]) ?? string.Empty);
+                            cell.CellStyle = borderStyle;
+                        }
+                    }
+
+                    for (int c = 0; c < columns.Count; c++)
+                    {
+                        sheet.AutoSizeColumn(c);
+                    }
+
+                    using (var ms = new MemoryStream())
+                    {
+                        workbook.Write(ms);
+                        _logger.LogInformation("ExportIrMsnService completed successfully, rows: {Count}", items.Count);
+                        return ms.ToArray();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting IR/MSN report. Error: {ErrorMessage}", ex.Message);
+                throw;
+            }
+        }
+
         public async Task<List<MSNNumbers>> MSNNumberService(GetAllMSNNumberRequestDto getAllMSNNumberRequestDto)
         {
             _logger.LogInformation("Starting MSNNumberService with request criteria");
@@ -537,6 +664,7 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
         {
             if (string.IsNullOrWhiteSpace(csv)) return new List<string>();
             return csv.Split(DrawingNumberListSeparator, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .ToList();
         }
@@ -595,8 +723,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
                                 AvailableSeries = g.SelectMany(x => ParseCsvStringList(x.AvailableSeries))
                                     .Distinct()
                                     .ToList(),
-                                //AssemblyId = g.First().AssemblyId,
-                                //AssemblyNumber = g.First().AssemblyNumber
                             })
                             .ToList();
                         _logger.LogDebug("Grouped raw drawing numbers into {Count} unique drawing numbers", grouped.Count);
@@ -621,11 +747,24 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
                     if (!string.IsNullOrEmpty(request.Search))
                     {
                         var search = request.Search.ToLower();
-                        query = query.Where(d => 
+                        query = query.Where(d =>
                             (d.DrawingNumber != null && d.DrawingNumber.ToLower().Contains(search)) ||
                             (d.Nomenclature != null && d.Nomenclature.ToLower().Contains(search)) ||
-                            (d.LnItemCode != null && d.LnItemCode.ToLower().Contains(search))
+                            (d.LnItemCode != null && d.LnItemCode.ToLower().Contains(search)) ||
+                            (d.ComponentType != null && d.ComponentType.ToLower().Contains(search))
                         );
+                    }
+
+                    if (request.ProdSeries != null && request.ProdSeries.Count > 0)
+                    {
+                        query = query.Where(d => d.AvailableSeries != null &&
+                            d.AvailableSeries.Any(s => request.ProdSeries.Contains(s, StringComparer.OrdinalIgnoreCase)));
+                    }
+
+                    if (request.Unit != null && request.Unit.Count > 0)
+                    {
+                        query = query.Where(d => d.UnitName != null &&
+                            request.Unit.Contains(d.UnitName, StringComparer.OrdinalIgnoreCase));
                     }
 
                     result = query.OrderBy(d => d.Id).ToList();
@@ -868,7 +1007,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
                 _logger.LogDebug("Fetching all assemblies");
                 var result = await _commonRepository.GetAllAssembly();
 
-                // Filter out null values
                 var filteredResult = result.Where(x => x != null).ToList();
 
                 _logger.LogInformation("Successfully retrieved {Count} assemblies", filteredResult?.Count ?? 0);
@@ -1057,13 +1195,13 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
             }
         }
 
-        public async Task<List<User>> GetAllUsersService()
+        public async Task<List<User>> GetAllUsersService(string? searchQuery = null)
         {
-            _logger.LogInformation("Starting GetAllUsersService");
+            _logger.LogInformation("Starting GetAllUsersService SearchQuery: {SearchQuery}", searchQuery);
             try
             {
                 _logger.LogDebug("Fetching all users from repository");
-                var result = await _commonRepository.GetAllUsers();
+                var result = await _commonRepository.GetAllUsers(searchQuery);
 
                 _logger.LogInformation("Successfully retrieved {Count} users", result?.Count ?? 0);
                 return result ?? new List<User>();
@@ -1188,7 +1326,6 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
                 if (request == null || !request.Any())
                     throw new ValidationException("Request list cannot be null or empty");
 
-                // Validate each record
                 foreach (var item in request)
                 {
                     if (item.RoleId <= 0)

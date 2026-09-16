@@ -47,6 +47,15 @@ namespace Godrej.Precheck.Models.DTOs.Bom
     }
 
     /// <summary>
+    /// Request DTO for POST /api/Sop/ExportBom.
+    /// </summary>
+    public class ExportBomRequestDto
+    {
+        public string? AssemblyNumber { get; set; }
+        public List<string>? SelectedColumn { get; set; }
+    }
+
+    /// <summary>
     /// Response DTO for assembly number search/autocomplete
     /// </summary>
     public class AssemblySearchResponseDto

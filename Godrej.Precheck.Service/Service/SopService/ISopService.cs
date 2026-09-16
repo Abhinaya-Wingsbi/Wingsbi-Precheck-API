@@ -14,12 +14,11 @@ namespace Godrej.Precheck.Service.Service.SopService
         Task<List<SopAssemblyResponseDto>> GetAllAssembly();
         Task<List<GetSopResponseDto>> GetSopForAssembly(GetSopRequestDto request);
         Task<List<GetSopResponseDto>> GetSopForAssembly(GetSopRequestDto request, bool excludeRawMaterial);
-        byte[] ExportToExcel(List<GetSopResponseDto> items, string projectId);
-        
-        // BOM Details methods
+        byte[] ExportToExcel(List<GetSopResponseDto> items, string projectId, List<string>? selectedColumns = null);
+
         Task<List<BomDetailsResponseDto>> GetBomDetails(string assemblyNumber);
         Task<List<AssemblySearchResponseDto>> SearchAssemblyNumbers(string searchText);
-        byte[] ExportBomToExcel(List<BomDetailsResponseDto> items, string assemblyNumber);
+        byte[] ExportBomToExcel(List<BomDetailsResponseDto> items, string assemblyNumber, List<string>? selectedColumn = null);
     }
 }
 

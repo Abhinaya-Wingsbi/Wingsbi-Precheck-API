@@ -27,12 +27,21 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
         Task<MakePrecheckRequest> UpdateBatchComponentConsumption(MakePrecheckRequest precheckRequest);
 
         Task<List<ViewPreCheckResponse>> ViewPrecheckDetails(ViewPreCheckRequest request);
+        Task<List<ViewPreCheckResponse>> ViewPrecheckFiltered(ViewPrecheckFilterRequestDto request);
 
         Task<List<ViewPreCheckResponse>> ViewPrecheckDetailsForProductionOrders(List<string> productionOrderNumbers);
 
         Task<List<ViewPreCheckResponse>> ExportViewPrecheckDetails(ViewPreCheckRequest request);
 
-        Task<List<AvailableComponentModel>> GetAvailableComponentDetails(int DrawingId, int ProdSeriesId, DateTime? fromDate,DateTime? toDate);
+        Task<List<AvailableComponentModel>> GetAvailableComponentDetails(
+            int? qrDrawingNumberId,
+            int? qrProdSeriesId,
+            string? drawingNumber,
+            List<string>? prodSeries,
+            string? searchQuery,
+            string? status,
+            DateTime? fromDate,
+            DateTime? toDate);
         Task<ProjectPrecheckResponse> GetProjectDetails(ViewPreCheckRequest precheckRequest);
         Task<ProjectContextResult?> GetProjectContextByPoAndId(string productionOrderNumber, int idNumber, int? parentDrawingNumberId = null);
         Task<int?> GetDrawingNumberIdByName(string drawingNumber);
@@ -40,7 +49,6 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
 
         Task<List<ProjectDetailsResponse>> ValidateOrder(int prodSeriesId, int drawingId, string pONumber, int idNumber);
 
-        //Get Available component Qunatity by using the Drawing Number.
         Task<int> GetAvailableComponentQunatity(int DrawingId);
 
         Task<int> RejectAndDuplicatePrecheck(Models.DTOs.Precheck.RejectPrecheckRequestDto request);

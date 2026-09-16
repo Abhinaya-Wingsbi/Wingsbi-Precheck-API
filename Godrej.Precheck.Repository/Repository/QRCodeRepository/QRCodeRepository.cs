@@ -1,4 +1,3 @@
-using Azure;
 using Godrej.Precheck.Models.DataModel;
 using Godrej.Precheck.Models.DTOs.ConsumedIn;
 using Godrej.Precheck.Models.DTOs.Precheck;
@@ -9,8 +8,6 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
-using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -63,8 +60,6 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                          ExpiryDate = qrCodeDetails.ExpiryDate,
                          CreatedBy = qrCodeDetails.CreatedBy,
                          CreatedDate = qrCodeDetails.CreatedDate,
-                         //ModifiedBy = qrCodeDetails.ModifiedBy,
-                         //ModifiedDate = qrCodeDetails.ModifiedDate,
                          UnitId = qrCodeDetails.UnitId > 0 ? qrCodeDetails.UnitId : (int?)null,
                          LnItemCodeId = qrCodeDetails.LnItemCodeId > 0 ? qrCodeDetails.LnItemCodeId : (int?)null,
                          RackLocationId = qrCodeDetails.RackLocationId > 0 ? qrCodeDetails.RackLocationId : (int?)null,
@@ -211,7 +206,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
 
         public async Task<QRCodeDetailsResponseDto> GetQRcodeDetailsAsync(string QRCodeNumber, int? qrCodeStatusId = null)
         {
-            _logger.LogInformation("Request for QRCodeRepository:GetQRcodeDetailsAsync", QRCodeNumber);
+            _logger.LogInformation("Request for QRCodeRepository:GetQRcodeDetailsAsync {QRCodeNumber}", QRCodeNumber);
 
             try
             {
@@ -219,7 +214,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     QRCodeQueries.GET_QRCODE_DETAILS_QUERY,
                     new { qrcodenumber = QRCodeNumber, qrcodestatusid = qrCodeStatusId });
 
-                _logger.LogInformation("Successfully retrieved QRCode details", results);
+                _logger.LogInformation("Successfully retrieved QRCode details {@Results}", results);
 
                 return results;
 
@@ -233,13 +228,13 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
 
         public async Task<StandardQRDetailsResponseDto> GetStandardQRCodeDetailsAsync(string QRCodeNumber)
         {
-            _logger.LogInformation("Request for QRCodeRepository:GetStandardQRCodeDetailsAsync", QRCodeNumber);
+            _logger.LogInformation("Request for QRCodeRepository:GetStandardQRCodeDetailsAsync {QRCodeNumber}", QRCodeNumber);
             try
             {
                 var results = await _db.GetSingle<StandardQRDetailsResponseDto>(
                     QRCodeQueries.GET_STANDARD_QRCODE_DETAILS_QUERY,
                     new { qrcodenumber = QRCodeNumber });
-                _logger.LogInformation("Successfully retrieved Standard QRCode details", results);
+                _logger.LogInformation("Successfully retrieved Standard QRCode details {@Results}", results);
                 return results;
             }
             catch (Exception ex)
@@ -249,11 +244,9 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
             }
         }
 
-        //Get Componenet storeinByDate
-
-        public async Task<List<QRCodeDetailsResponseDto>> GetComponentByStorInByDate(StoredInQrCodeRequest storeindate)
+        public async Task<List<QRCodeDetailsResponseDto>> GetComponentByStoreInByDate(StoredInQrCodeRequest storeindate)
         {
-            _logger.LogInformation("Request for QRCodeRepository:GetComponentByStorInByDate", storeindate);
+            _logger.LogInformation("Request for QRCodeRepository:GetComponentByStoreInByDate {@StoreInDate}", storeindate);
             try
             {
                 var results = await _db.GetAll<QRCodeDetailsResponseDto>(
@@ -261,23 +254,22 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     new
                     {
                         storeindate = storeindate.StoreInDate,
-                        drawingnumber = storeindate.DrawingNumber // Add this
+                        drawingnumber = storeindate.DrawingNumber
                     });
-                _logger.LogInformation("Successfully retrieved storein qrcodes by date", results);
+                _logger.LogInformation("Successfully retrieved storein qrcodes by date {@Results}", results);
                 return results.ToList();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while QRCodeRepository: GetComponentByStorInByDate.");
+                _logger.LogError(ex, "Error occurred while QRCodeRepository: GetComponentByStoreInByDate.");
                 throw;
             }
         }
 
 
-        //GET QRCODE DETAILS WITH PARAMETERS
         public async Task<List<QRCodeDetailsResponseDto>> GetQRcodeWithParameterAsync(GetQRCodeRequestDto getQRCodeRequestDto)
         {
-            _logger.LogInformation("Request for QRCodeRepository:GetQRcodeDetailsAsync", getQRCodeRequestDto);
+            _logger.LogInformation("Request for QRCodeRepository:GetQRcodeDetailsAsync {@GetQRCodeRequestDto}", getQRCodeRequestDto);
 
             try
             {
@@ -297,7 +289,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                         });
 
 
-                _logger.LogInformation("Successfully retrieved QRCode details", results);
+                _logger.LogInformation("Successfully retrieved QRCode details {@Results}", results);
 
                 return results.ToList();
 
@@ -309,9 +301,116 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
             }
         }
 
+        public async Task<(List<QRCodeDetailsResponseDto> Items, int TotalCount)> GetBarcodeDetailsWithParametersAsync(
+            string? searchQuery, List<string>? prodSeries, List<int>? createdBy, DateTime? fromDate, DateTime? toDate,
+            int pageNumber, int? pageSize)
+        {
+            _logger.LogInformation("Request for QRCodeRepository:GetBarcodeDetailsWithParametersAsync");
+
+            try
+            {
+                var searchFilter = " AND 1=1";
+                var seriesFilter = " AND 1=1";
+                var createdByFilter = " AND 1=1";
+                var dateFilter = " AND 1=1";
+
+                // Single free-text value matched against qrCodeNumber/idNumber/productionOrderNumber
+                // directly on tbl_qrcodedetails, and against drawingNumber/lnItemCode via tbl_drawingnumber
+                // (the source of truth for both) resolved to matching drawing ids.
+                var trimmedSearchQuery = string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery.Trim();
+                if (trimmedSearchQuery != null)
+                {
+                    searchFilter = @" AND (
+                        qd.qrcodenumber LIKE '%' + @SearchQuery + '%'
+                        OR qd.idnumber LIKE '%' + @SearchQuery + '%'
+                        OR qd.productionordernumber LIKE '%' + @SearchQuery + '%'
+                        OR qd.drawingnumberid IN (
+                            SELECT id FROM tbl_drawingnumber
+                            WHERE drawingnumber LIKE '%' + @SearchQuery + '%'
+                               OR lnitemcode LIKE '%' + @SearchQuery + '%'
+                        )
+                    )";
+                }
+
+                if (prodSeries != null && prodSeries.Count > 0)
+                {
+                    seriesFilter = " AND ps.productionseries IN @ProdSeries";
+                }
+
+                if (createdBy != null && createdBy.Count > 0)
+                {
+                    createdByFilter = " AND qd.createdby IN @CreatedBy";
+                }
+
+                if (fromDate.HasValue || toDate.HasValue)
+                {
+                    dateFilter = @" AND (@FromDate IS NULL OR CAST(qd.createddate AS DATE) >= CAST(@FromDate AS DATE))
+                                    AND (@ToDate IS NULL OR CAST(qd.createddate AS DATE) <= CAST(@ToDate AS DATE))";
+                }
+
+                var countQuery = QRCodeQueries.GET_BARCODE_DETAILS_WITH_PARAMETERS_COUNT_QUERY
+                    .Replace("{SEARCH_FILTER}", searchFilter)
+                    .Replace("{SERIES_FILTER}", seriesFilter)
+                    .Replace("{CREATEDBY_FILTER}", createdByFilter)
+                    .Replace("{DATE_FILTER}", dateFilter);
+
+                // pageSize null == no pagination -- omit OFFSET/FETCH entirely rather than
+                // faking "no limit" with a huge pageSize value.
+                var pagingClause = pageSize.HasValue
+                    ? "OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY"
+                    : "";
+
+                var pagedQuery = QRCodeQueries.GET_BARCODE_DETAILS_WITH_PARAMETERS_PAGED_QUERY
+                    .Replace("{SEARCH_FILTER}", searchFilter)
+                    .Replace("{SERIES_FILTER}", seriesFilter)
+                    .Replace("{CREATEDBY_FILTER}", createdByFilter)
+                    .Replace("{DATE_FILTER}", dateFilter)
+                    .Replace("{PAGING_CLAUSE}", pagingClause);
+
+                var queryParams = new
+                {
+                    SearchQuery = trimmedSearchQuery,
+                    ProdSeries = prodSeries,
+                    CreatedBy = createdBy,
+                    FromDate = fromDate,
+                    ToDate = toDate
+                };
+
+                var offset = pageSize.HasValue ? (pageNumber - 1) * pageSize.Value : 0;
+                var pagedParams = new
+                {
+                    SearchQuery = trimmedSearchQuery,
+                    ProdSeries = prodSeries,
+                    CreatedBy = createdBy,
+                    FromDate = fromDate,
+                    ToDate = toDate,
+                    Offset = offset,
+                    PageSize = pageSize
+                };
+
+                // Count and page are independent reads (each opens its own connection), so run them
+                // concurrently instead of paying for the filter/join cost twice, back to back.
+                var countTask = _db.ExecuteScalar<int>(countQuery, queryParams, commandTimeout: 300);
+                var resultsTask = _db.GetAll<QRCodeDetailsResponseDto>(pagedQuery, pagedParams);
+                await Task.WhenAll(countTask, resultsTask);
+
+                var totalCount = countTask.Result;
+                var results = resultsTask.Result;
+
+                _logger.LogInformation("Successfully retrieved barcode details, count: {Count}, totalCount: {TotalCount}", results.Count(), totalCount);
+
+                return (results.ToList(), totalCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while GetBarcodeDetailsWithParametersAsync.");
+                throw;
+            }
+        }
+
         public async Task<List<QRCodeDetailsResponseDto>> GetConsumedQRcodeWithParameterAsync(GetQRCodeRequestDto getQRCodeRequestDto)
         {
-            _logger.LogInformation("Request for QRCodeRepository:GetConsumedQRcodeWithParameterAsync", getQRCodeRequestDto);
+            _logger.LogInformation("Request for QRCodeRepository:GetConsumedQRcodeWithParameterAsync {@GetQRCodeRequestDto}", getQRCodeRequestDto);
 
             try
             {
@@ -330,7 +429,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                           fanmannumber = getQRCodeRequestDto.FanManNumber
                         });
 
-                _logger.LogInformation("Successfully retrieved consumed QRCode details", results);
+                _logger.LogInformation("Successfully retrieved consumed QRCode details {@Results}", results);
 
                 return results.ToList();
 
@@ -344,7 +443,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
 
         public async Task<QRCodeDetailsResponseDto?> GetActiveQRcodeDetailsAsync(string QRCodeNumber)
         {
-            _logger.LogInformation("Request for QRCodeRepository:GetActiveQRcodeDetailsAsync", QRCodeNumber);
+            _logger.LogInformation("Request for QRCodeRepository:GetActiveQRcodeDetailsAsync {QRCodeNumber}", QRCodeNumber);
 
             try
             {
@@ -352,7 +451,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     QRCodeQueries.GET_QRCODE_DETAILS_QUERY,
                     new { qrcodenumber = QRCodeNumber, qrcodestatusid = (int?)null });
 
-                _logger.LogInformation("Successfully retrieved ActiveQRcode details", results);
+                _logger.LogInformation("Successfully retrieved ActiveQRcode details {@Results}", results);
 
                 return results;
             }
@@ -407,7 +506,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
 
         public async Task<bool> InsertQRCodeInConsumptionAsync(QRCodeDetails qrCodeDetails)
         {
-            _logger.LogInformation("Request for QRCodeRepository:Inserting InsertQRCodeInConsumptionAsync", qrCodeDetails);
+            _logger.LogInformation("Request for QRCodeRepository:Inserting InsertQRCodeInConsumptionAsync {@QrCodeDetails}", qrCodeDetails);
             try
             {
                 await _db.Execute(
@@ -424,8 +523,6 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                         nomenclatureid = qrCodeDetails.NomenclatureId,
                         createdby = qrCodeDetails.CreatedBy,
                         createddate = qrCodeDetails.CreatedDate,
-                        //modifiedby = qrCodeDetails.ModifiedBy,
-                        //modifieddate = qrCodeDetails.ModifiedDate,
                         prodseriesid = qrCodeDetails.ProductionSeriesId,
                         qrcodenumber = qrCodeDetails.QRCodeNumber,
                         productionordernumber = qrCodeDetails.ProductionOrderNumber,
@@ -433,7 +530,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                         isactive = 1
                     });
 
-                _logger.LogInformation("Successfully inserted QR code details:InsertQRCodeInConsumptionAsync", qrCodeDetails);
+                _logger.LogInformation("Successfully inserted QR code details:InsertQRCodeInConsumptionAsync {@QrCodeDetails}", qrCodeDetails);
                 return true;
             }
 
@@ -451,7 +548,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
 
         public async Task<bool> InsertStandardQRCodeInConsumptionAsync(StandardQRCodeDetails qrCodeDetails)
         {
-            _logger.LogInformation("Request for QRCodeRepository:Inserting InsertStandardQRCodeInConsumptionAsync", qrCodeDetails);
+            _logger.LogInformation("Request for QRCodeRepository:Inserting InsertStandardQRCodeInConsumptionAsync {@QrCodeDetails}", qrCodeDetails);
             try
             {
                 await _db.Execute(
@@ -467,15 +564,13 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                         nomenclatureid = qrCodeDetails.NomenclatureId,
                         createdby = qrCodeDetails.CreatedBy,
                         createddate = qrCodeDetails.CreatedDate,
-                        //modifiedby = qrCodeDetails.ModifiedBy,
-                        //modifieddate = qrCodeDetails.ModifiedDate,
                         prodseriesid = qrCodeDetails.ProductionSeriesId,
                         qrcodenumber = qrCodeDetails.QRCodeNumber,
                         productionordernumber = qrCodeDetails.ProductionOrderNumber,
                         purchaseordernumber = qrCodeDetails.PurchaseOrderNumber,
                         isactive = 1
                     });
-                _logger.LogInformation("Successfully inserted Standard QR code details:InsertStandardQRCodeInConsumptionAsync", qrCodeDetails);
+                _logger.LogInformation("Successfully inserted Standard QR code details:InsertStandardQRCodeInConsumptionAsync {@QrCodeDetails}", qrCodeDetails);
                 return true;
             }
             catch (Exception ex)
@@ -485,10 +580,10 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
             }
         }
 
-        public async Task<bool> UpdateQrCodeDetails(string qrCode, string consumedInDrawing, decimal? quantity)
+        public async Task<bool> UpdateQrCodeDetails(string qrCode, string consumedInDrawing, decimal? quantity, int modifiedBy)
         {
 
-            _logger.LogInformation($"Request for QRCodeRepository:Upadate UpdateQrCodeDetails: {qrCode}");
+            _logger.LogInformation($"Request for QRCodeRepository:Update UpdateQrCodeDetails: {qrCode}");
             try
             {
                 var updatedId = await _db.Update(
@@ -497,13 +592,13 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     new
                     {
                         QrCodeNumber = qrCode,
-                        ModifiedBy = 1,
+                        ModifiedBy = modifiedBy,
                         ModifiedDate = DateTime.Now,
                         ConsumedInDrawing = consumedInDrawing,
                         Quantity= quantity
                     });
 
-                _logger.LogInformation($"successfully Upadated UpdateQrCodeDetails: {qrCode}");
+                _logger.LogInformation($"successfully Updated UpdateQrCodeDetails: {qrCode}");
 
                 return true;
             }
@@ -521,7 +616,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
 
         public async Task<bool> ComponentStoreIn(string QRCodeNumber)
         {
-            _logger.LogInformation("Request for QRCodeRepository:ComponentStoreIn", QRCodeNumber);
+            _logger.LogInformation("Request for QRCodeRepository:ComponentStoreIn {QRCodeNumber}", QRCodeNumber);
             try
             {
                 var indianTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
@@ -536,7 +631,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                         StoreInDate = indianTime,
                     });
 
-                _logger.LogInformation($"successfully Upadated UpdateQrCodeDetails: {QRCodeNumber}");
+                _logger.LogInformation($"successfully Updated UpdateQrCodeDetails: {QRCodeNumber}");
 
                 return true;
 
@@ -547,9 +642,9 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                 throw;
             }
         }
-        public async Task<QRCodeDetailsResponseDto> ValiadateQrCode(int productionseriesid, int idnumbers, int drawingnumberid, string? productionOrderNumber)
+        public async Task<QRCodeDetailsResponseDto> ValidateQrCode(int productionseriesid, int idnumbers, int drawingnumberid, string? productionOrderNumber)
         {
-            _logger.LogInformation("Request for QRCodeRepository:ValiadateQrCode", productionseriesid, idnumbers, drawingnumberid, productionOrderNumber);
+            _logger.LogInformation("Request for QRCodeRepository:ValidateQrCode {ProductionSeriesId} {IdNumbers} {DrawingNumberId} {ProductionOrderNumber}", productionseriesid, idnumbers, drawingnumberid, productionOrderNumber);
 
             try
             {
@@ -562,21 +657,21 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                         ProductionOrderNumber = productionOrderNumber
                     });
 
-                _logger.LogInformation("Successfully retrieved QRCode details", results);
+                _logger.LogInformation("Successfully retrieved QRCode details {@Results}", results);
 
                 return results;
 
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while ValiadateQrCode.");
+                _logger.LogError(ex, "Error occurred while ValidateQrCode.");
                 throw;
             }
         }
 
         public async Task<List<ConsumedInResponseDto>> ConsumedInRepoAsync(ConsumedInRequestDto request)
         {
-            _logger.LogInformation("Request for QRCodeRepository:ConsumedInRepoAsync", request);
+            _logger.LogInformation("Request for QRCodeRepository:ConsumedInRepoAsync {@Request}", request);
 
             try
             {
@@ -590,7 +685,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                             drawingnumberid = request.DrawingNumberId,
                             assemblynumber = request.AssemblyNumber
                         });
-                    _logger.LogInformation($"Successfully retrieved ConsumedIn details", result);
+                    _logger.LogInformation("Successfully retrieved ConsumedIn details {@Result}", result);
 
                     return result.ToList();
                 
@@ -604,7 +699,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
 
         public async Task<string> VerifyIdNumber(string idNumber)
         {
-            _logger.LogInformation("Request for QRCodeRepository:VerifyIdNumber", idNumber);
+            _logger.LogInformation("Request for QRCodeRepository:VerifyIdNumber {IdNumber}", idNumber);
 
             try
             {
@@ -612,7 +707,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     QRCodeQueries.VERIFY_IDNUMBER_QUERY,
                     new { idNumber = idNumber });
 
-                _logger.LogInformation("Successfully VerifyIdNumber", results);
+                _logger.LogInformation("Successfully VerifyIdNumber {Results}", results);
 
                 return results;
 
@@ -634,7 +729,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     QRCodeQueries.LATEST_BATCHID_NUMBER,
                     new {  });
 
-                _logger.LogInformation("Successfully retrieved LatestBatchIdNumbers", results);
+                _logger.LogInformation("Successfully retrieved LatestBatchIdNumbers {Results}", results);
 
                 return results;
 
@@ -646,9 +741,9 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
             }
         }
         
-        public async Task<List<BatchQRcodeResponse>> GetChildComponenetforAssembly(int DrawingId)
+        public async Task<List<BatchQRcodeResponse>> GetChildComponentForAssembly(int DrawingId)
         {
-            _logger.LogInformation($"Request for QRCodeRepository:GetChildComponenetforAssembly{DrawingId}");
+            _logger.LogInformation("Request for QRCodeRepository:GetChildComponentForAssembly {DrawingId}", DrawingId);
 
             try
             {
@@ -658,7 +753,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                         DrawingNumberId = DrawingId
                     });
 
-                _logger.LogInformation("Successfully retrieved ChildComponenetforAssembly", results);
+                _logger.LogInformation("Successfully retrieved ChildComponentForAssembly {@Results}", results);
 
                 return results.ToList();
                  
@@ -714,7 +809,6 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     return new List<StandardQRDetailsResponseDto>();
                 }
 
-                // Build dynamic query to check for each combination
                 var query = @"
                     SELECT 
                         qd.id,
@@ -742,7 +836,6 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     var lnItemCodeParam = $"@LnItemCodeId{i}";
                     var drawingNumberParam = $"@DrawingNumberId{i}";
 
-                    // Handle NULL values properly in the condition
                     string condition;
                     if (string.IsNullOrWhiteSpace(combo.Mirir) && string.IsNullOrWhiteSpace(combo.HtLotNo))
                     {
@@ -941,8 +1034,6 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                     QRCodeQueries.GET_ALL_USERS_QUERY,
                     new { });
 
-               // _logger.LogInformation("Successfully retrieved all active users. Count: {Count}", results.Count);
-
                 return results?.ToList() ?? new List<UserDto>();
             }
             catch (Exception ex)
@@ -1058,31 +1149,60 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
             }
         }
 
-        public async Task<List<GetAvailableComponentsResponse>> GetAvailableQr(GetAvailableQrRequest request)
+        public async Task<(List<GetAvailableComponentsResponse> Items, int TotalCount)> GetAvailableQrPaged(GetAvailableQrRequest request, int pageNumber, int pageSize)
         {
-            _logger.LogInformation($"Request for QRCodeRepository:GetAvailableQr LnItemCode: {request.LnItemCode}, DrawingNumber: {request.DrawingNumber}");
+            _logger.LogInformation("Request for QRCodeRepository:GetAvailableQrPaged SearchQuery: {SearchQuery}, ProdSeries: {ProdSeries}, QrType: {QrType}, pageNumber: {PageNumber}, pageSize: {PageSize}",
+                request.SearchQuery, request.ProdSeries != null ? string.Join(",", request.ProdSeries) : null, request.QrType, pageNumber, pageSize);
 
             try
             {
-                var results = await _db.GetAll<GetAvailableComponentsResponse>(
-                    QRCodeQueries.GET_AVAILABLE_QR_BY_LNITEM_DRAWING,
-                    new
-                    {
-                        LnItemCode = request.LnItemCode,
-                        DrawingNumber = request.DrawingNumber,
-                        ProdSeriesId = request.ProdSeriesId,
-                        QrType = request.QrType
-                    });
+                var searchFilter = " AND 1=1";
+                var trimmedSearchQuery = string.IsNullOrWhiteSpace(request.SearchQuery) ? null : request.SearchQuery.Trim();
+                if (trimmedSearchQuery != null)
+                {
+                    searchFilter = @" AND (
+                        d.lnitemcode LIKE '%' + @SearchQuery + '%'
+                        OR d.drawingnumber LIKE '%' + @SearchQuery + '%'
+                    )";
+                }
 
-                _logger.LogInformation("Successfully retrieved GetAvailableQr", results);
+                var seriesFilter = " AND 1=1";
+                if (request.ProdSeries != null && request.ProdSeries.Count > 0)
+                {
+                    seriesFilter = " AND tps.productionseries IN @ProdSeries";
+                }
 
-                return results.ToList();
+                var countQuery = QRCodeQueries.GET_AVAILABLE_QR_BY_LNITEM_DRAWING_COUNT
+                    .Replace("{SEARCH_FILTER}", searchFilter)
+                    .Replace("{SERIES_FILTER}", seriesFilter);
+
+                var pagedQuery = QRCodeQueries.GET_AVAILABLE_QR_BY_LNITEM_DRAWING_PAGED
+                    .Replace("{SEARCH_FILTER}", searchFilter)
+                    .Replace("{SERIES_FILTER}", seriesFilter)
+                    .Replace("{PAGING_CLAUSE}", "OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY");
+
+                var queryParams = new
+                {
+                    QrType = request.QrType,
+                    SearchQuery = trimmedSearchQuery,
+                    ProdSeries = request.ProdSeries,
+                    Offset = (pageNumber - 1) * pageSize,
+                    PageSize = pageSize
+                };
+
+                var totalCount = await _db.GetSingle<int>(countQuery, queryParams, commandTimeout: 300);
+                var items = await _db.GetAll<GetAvailableComponentsResponse>(pagedQuery, queryParams);
+
+                _logger.LogInformation("Successfully retrieved GetAvailableQrPaged, totalCount: {TotalCount}", totalCount);
+
+                return (items.ToList(), totalCount);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while GetAvailableQr.");
+                _logger.LogError(ex, "Error occurred while GetAvailableQrPaged.");
                 throw;
             }
         }
+
     }
 }

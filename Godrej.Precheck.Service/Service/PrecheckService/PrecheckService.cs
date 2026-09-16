@@ -22,6 +22,7 @@ using MathNet.Numerics.RootFinding;
 using Microsoft.Extensions.Logging;
 using MigraDoc.Rendering;
 using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
 using Org.BouncyCastle.Asn1.Pkcs;
 using PdfSharp;
 using PdfSharp.Drawing;
@@ -115,10 +116,7 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
                 var lastrequest = requestDto.LastOrDefault();
                 var viewLastPreCheckRequest = CreateViewPreCheckRequest(lastrequest);
-                // 5. Get and return updated precheck details
                 var response = await _precheckRepository.ViewPrecheckDetails(viewLastPreCheckRequest);
-                // var response = await _precheckRepository.PrecheckDetails(viewLastPreCheckRequest);
-                //update the precheck status based on the view precheck
                 var status = GetPrecheckStatus(response);
 
                 await _precheckRepository.UpdateProjectStatusDetails(viewLastPreCheckRequest, status);
@@ -134,7 +132,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
         private async Task ProcessSinglePrecheckItem(PrecheckRequestDto request)
         {
-            // 1. Validate and get QR code details
             var qrCodeDetails = await ValidateAndGetQRCodeDetails(request.QrCodeNumber);
             decimal? remainingQtyAfterConsume = request.RemainingQuantity;
 
@@ -147,11 +144,8 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
             await ValidateComponentDrawing(preCheckResponses, request.DrawingNumberId.Value);
 
-            // 3. Prepare precheck request with QR code details
-            //var precheckRequest = PreparePrecheckRequest(request, qrCodeDetails);
             var precheckRequest = request.Adapt<MakePrecheckRequest>();
             precheckRequest.QrCodeId = qrCodeDetails.Id;
-            //Added UserName
             User UserDetails = await _userRepository.GetUserByIdAsync(request.CreatedBy);
 
             precheckRequest.RemainingQuantity = request.RemainingQuantity;
@@ -164,7 +158,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                         : 1;
             }
 
-            //Call update- quantity service
             await _precheckRepository.UpdateQrcodeStatus(request);
             var updateQuantityResult = await UpdateQuantity(
                 request.ConsumeInProductionOrderNumber,        // string productionOrderNumber
@@ -181,7 +174,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                 request.CreatedBy                     // int userId
             );
 
-            // 4. Process based on component type
             await ProcessComponentType(precheckRequest);
         }
 
@@ -616,6 +608,20 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                 throw new ApplicationException("ChildLnItemCode is required.");
             }
 
+            if (!request.UserInput)
+            {
+                _logger.LogInformation(
+                    "AddPrecheckComponentAsync: UserInput is false, not applying to existing production orders, AssemblyLnItemCode: {AssemblyLnItemCode}, ChildLnItemCode: {ChildLnItemCode}",
+                    request.AssemblyLnItemCode, request.ChildLnItemCode);
+
+                return new AddPrecheckComponentResponseDto
+                {
+                    ProjectsChecked = 0,
+                    ComponentsAdded = 0,
+                    AlreadyPresentSkipped = 0
+                };
+            }
+
             // 1. Resolve every production order (tbl_productionordermaster) building this assembly
             var assemblyOrders = await _precheckRepository.GetAssemblyProductionOrdersByLnItemCode(request.AssemblyLnItemCode);
             if (assemblyOrders == null || assemblyOrders.Count == 0)
@@ -752,10 +758,8 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                 return 1;  //NotStarted;
             }
 
-            // Check if any precheck is completed
             bool hasAnyCompleted = precheckResponses.Any(x => x.IsPrecheckComplete);
 
-            // Check if all prechecks are completed
             bool areAllCompleted = precheckResponses.All(x => x.IsPrecheckComplete);
 
             if (!hasAnyCompleted)
@@ -965,7 +969,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                 ProductionSeriesId = request.ConsumedInProdSeriesID,
                 DrawingNumberId = request.ConsumedInDrawingNumberID,
                 CreatedBy = request.CreatedBy
-                //  ProductionOrderNumber = request.ProductionOrderNumber
             };
         }
 
@@ -997,48 +1000,31 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
         private async Task ProcessIdComponent(MakePrecheckRequest precheckRequest)
         {
-            // Update component consumption
             await _precheckRepository.UpdateIdComponentConsumption(precheckRequest);
 
-            // Update precheck details
             await _precheckRepository.UpdatePrecheckDetails(precheckRequest);
 
-            // Disable QR code
-            await _qRCodeRepository.UpdateQrCodeDetails(precheckRequest.QrCodeNumber, precheckRequest.ConsumedDrawingNo, precheckRequest.RemainingQuantity);
+            await _qRCodeRepository.UpdateQrCodeDetails(precheckRequest.QrCodeNumber, precheckRequest.ConsumedDrawingNo, precheckRequest.RemainingQuantity, precheckRequest.CreatedBy);
         }
 
         private async Task ProcessBatchComponent(MakePrecheckRequest precheckRequest)
         {
-            //Set IdNumber
-            //precheckRequest.IdNumbers = ($"Batch-{precheckRequest.Id}");
-            // Update component consumption
             await _precheckRepository.UpdateIdComponentConsumption(precheckRequest);
 
-            // Update precheck details
             await _precheckRepository.UpdatePrecheckDetails(precheckRequest);
 
-            // Disable QR code
-            await _qRCodeRepository.UpdateQrCodeDetails(precheckRequest.QrCodeNumber, precheckRequest.ConsumedDrawingNo, precheckRequest.RemainingQuantity);
+            await _qRCodeRepository.UpdateQrCodeDetails(precheckRequest.QrCodeNumber, precheckRequest.ConsumedDrawingNo, precheckRequest.RemainingQuantity, precheckRequest.CreatedBy);
         }
 
         private async Task ProcessOtherComponent(MakePrecheckRequest precheckRequest)
         {
-            //Set IdNumber
-            //var Id = precheckRequest.ComponentType == "FIM" ? "FIM" : "SI";
-
-            //precheckRequest.IdNumbers = Id;
-            // Update component consumption
             await _precheckRepository.UpdateBatchComponentConsumption(precheckRequest);
 
-            // Update precheck details
             await _precheckRepository.UpdatePrecheckDetails(precheckRequest);
 
-            // Disable QR code
-            await _qRCodeRepository.UpdateQrCodeDetails(precheckRequest.QrCodeNumber, precheckRequest.ConsumedDrawingNo, precheckRequest.RemainingQuantity);
+            await _qRCodeRepository.UpdateQrCodeDetails(precheckRequest.QrCodeNumber, precheckRequest.ConsumedDrawingNo, precheckRequest.RemainingQuantity, precheckRequest.CreatedBy);
         }
 
-
-        //MakeOrder
         public async Task<List<MakeOrderResponseDto>> MakeOrder(MakeOrderRequestDto request)
         {
             List<MakeOrderResponseDto> response = new();
@@ -1116,10 +1102,8 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
                 response = assemblyResponses.Adapt<List<MakeOrderResponseDto>>();
 
-                // 1. Multiply TotalQuantity = Quantity * request.Ids.Count
                 response.ForEach(r => r.TotalQuantity = r.Quantity * request.Ids.Count);
 
-                // 2. Set AvailableQuantity using DrawingNumberId
                 foreach (var responseDto in response)
                 {
                     int quantity = await _precheckRepository.GetAvailableComponentQunatity(responseDto.DrawingNumberId);
@@ -1141,16 +1125,54 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
 
 
-        //view precheck API
-
         public async Task<List<ViewPreCheckResponse>> ViewPrecheckDetailsService(ViewPreCheckRequestDto request)
         {
 
             var precheckRequest = request.Adapt<ViewPreCheckRequest>();
             var result = await _precheckRepository.ViewPrecheckDetails(precheckRequest);
 
-             
+
             return result;
+        }
+
+        public async Task<ViewPrecheckByParametersPagedResponse> ViewPrecheckByParametersService(ViewPrecheckFilterRequestDto request, int pageNumber, int pageSize)
+        {
+            var result = await _precheckRepository.ViewPrecheckFiltered(request);
+
+            var totalRecords = result.Count;
+            var pagedData = result
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return new ViewPrecheckByParametersPagedResponse
+            {
+                Data = pagedData,
+                TotalRecords = totalRecords,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<byte[]> ExportViewPrecheckByParametersService(ExportViewPrecheckFilterRequestDto request)
+        {
+            var filter = new ViewPrecheckFilterRequestDto
+            {
+                SearchQuery = request.SearchQuery,
+                ProdSeries = request.ProductionSeries,
+                Status = request.Status,
+                FromDate = request.FromDate,
+                ToDate = request.ToDate
+            };
+
+            var result = await _precheckRepository.ViewPrecheckFiltered(filter);
+
+            if (result == null || result.Count == 0)
+            {
+                throw new ApplicationException("No precheck details found.");
+            }
+
+            return GeneratePrecheckExcel(result, request.SelectedColumns);
         }
 
         public async Task<int?> GetPrecheckStatusDetailsService(ViewPreCheckRequestDto request)
@@ -1183,27 +1205,59 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
             return result;
         }
 
-        //Avaible precheck API
-
         public async Task<List<AvailableComponentModel>> AvailableComponentDetailsService(AvailableComponentFilterDto filter)
         {
-            var qrCodeDetails = await _qRCodeRepository.GetActiveQRcodeDetailsAsync(filter.QrCode);
-            if (qrCodeDetails == null)
+            int? qrDrawingNumberId = null;
+            int? qrProdSeriesId = null;
+
+            // A QR code pins the search to its own drawing+series (original behaviour). Without one,
+            // the caller's SearchQuery/DrawingNumber/ProdSeries/Status filters drive the search instead.
+            if (!string.IsNullOrWhiteSpace(filter.QrCode))
             {
-                throw new ApplicationException($"QR Code {filter.QrCode} is not active");
-            }
-            if (qrCodeDetails.QrCodeStatusId != 1)
-            {
-                throw new ApplicationException($"QR Code {filter.QrCode} is not ready for consumption");
+                var qrCodeDetails = await _qRCodeRepository.GetActiveQRcodeDetailsAsync(filter.QrCode);
+                if (qrCodeDetails == null)
+                {
+                    throw new ApplicationException($"QR Code {filter.QrCode} is not active");
+                }
+                if (qrCodeDetails.QrCodeStatusId != 1)
+                {
+                    throw new ApplicationException($"QR Code {filter.QrCode} is not ready for consumption");
+                }
+
+                qrDrawingNumberId = qrCodeDetails.DrawingNumberId;
+                qrProdSeriesId = qrCodeDetails.ProductionSeriesId;
             }
 
             var result = await _precheckRepository.GetAvailableComponentDetails(
-                qrCodeDetails.DrawingNumberId,
-                qrCodeDetails.ProductionSeriesId,
+                qrDrawingNumberId,
+                qrProdSeriesId,
+                filter.DrawingNumber,
+                filter.ProdSeries,
+                filter.SearchQuery,
+                filter.Status,
                 filter.FromDate,
                 filter.ToDate
             );
             return result;
+        }
+
+        public async Task<AvailableComponentPagedResponse> AvailableComponentDetailsPagedService(AvailableComponentFilterDto filter, int pageNumber, int pageSize)
+        {
+            var result = await AvailableComponentDetailsService(filter);
+
+            var totalRecords = result.Count;
+            var pagedData = result
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return new AvailableComponentPagedResponse
+            {
+                Data = pagedData,
+                TotalRecords = totalRecords,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
 
         public async Task<byte[]> GeneratePrecheckPdfAsync(List<ViewPreCheckResponse> preCheckResponses, ViewPreCheckRequestDto request)
@@ -1258,7 +1312,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                     page.Margin(30);
                     page.DefaultTextStyle(x => x.FontSize(8));
 
-                    // ---- Header
                     page.Header().Column(header =>
                     {
                         header.Item().Text($"Pre-check List for : {consumedInDrawing}")
@@ -1273,7 +1326,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                         header.Item().PaddingBottom(10);
                     });
 
-                    // ---- Content Table
                     page.Content().Table(table =>
                     {
                         string[] headers = {
@@ -1291,7 +1343,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                                 columns.ConstantColumn(width);
                         });
 
-                        // ---- Table Header Row
                         table.Header(header =>
                         {
                             foreach (var title in headers)
@@ -1300,7 +1351,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                             }
                         });
 
-                        // ---- Data Rows
                         int srNo = 1;
                         foreach (var item in preCheckResponses)
                         {
@@ -1334,7 +1384,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                         }
                     });
 
-                    // ---- Footer Row
                     page.Footer().Row(row =>
                     {
                         row.RelativeItem().Text("Sign of QC representative");
@@ -1349,6 +1398,107 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
             using var stream = new MemoryStream();
             document.GeneratePdf(stream);
             return stream.ToArray();
+        }
+
+        // Every exportable column for GeneratePrecheckExcel, keyed by the camelCase name the client
+        // sends in selectedColumns. When selectedColumns is empty/null, all of these are exported (in
+        // this order); otherwise only the requested keys are used, in the order the caller specified.
+        // "qrCode" is a placeholder (always blank): a precheck detail row isn't tied to a single QR
+        // code number in this schema, so there is no value to put there yet.
+        private static readonly (string Key, string Header, Func<ViewPreCheckResponse, string> GetValue)[] PrecheckExportColumnDefinitions = new (string, string, Func<ViewPreCheckResponse, string>)[]
+        {
+            ("sr", "Sr. No.", item => item.SrNumber?.ToString() ?? string.Empty),
+            ("lnItemCode", "LN Item Code", item => item.LnItemCode ?? string.Empty),
+            ("drawingNumber", "Drawing Number", item => item.DrawingNumber ?? string.Empty),
+            ("nomenclature", "Nomenclature", item => item.Nomenclature ?? string.Empty),
+            ("quantity", "Quantity", item => item.Quantity?.ToString("0.####") ?? string.Empty),
+            ("scannedQuantity", "Scanned Quantity", item => (item.Quantity.HasValue && item.RemainingQuantity.HasValue)
+                ? (item.Quantity.Value - item.RemainingQuantity.Value).ToString("0.####")
+                : string.Empty),
+            ("remainingQuantity", "Remaining Quantity", item => item.RemainingQuantity?.ToString("0.####") ?? string.Empty),
+            ("qrCode", "QR Code", item => string.Empty),
+            ("idNumber", "ID Number", item => item.IdNumber ?? string.Empty),
+            ("ir", "IR Number", item => item.IrNumber ?? string.Empty),
+            ("msn", "MSN Number", item => item.MsnNumber ?? string.Empty),
+            ("mrirNumber", "MRIR Number", item => item.MrirNumber ?? string.Empty),
+            ("componentType", "Component Type", item => item.ComponentType ?? string.Empty),
+            ("precheckStatus", "Precheck Status", item => item.PrecheckStatus ?? string.Empty),
+            ("remark", "Remark", item => item.Remarks ?? string.Empty),
+        };
+
+        public byte[] GeneratePrecheckExcel(List<ViewPreCheckResponse> preCheckResponses, List<string>? selectedColumns)
+        {
+            if (preCheckResponses == null || preCheckResponses.Count == 0)
+                throw new ArgumentNullException(nameof(preCheckResponses));
+
+            var activeColumns = PrecheckExportColumnDefinitions;
+            if (selectedColumns != null && selectedColumns.Count > 0)
+            {
+                var byKey = PrecheckExportColumnDefinitions.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
+                var resolved = selectedColumns
+                    .Where(k => !string.IsNullOrWhiteSpace(k) && byKey.ContainsKey(k))
+                    .Select(k => byKey[k])
+                    .Distinct()
+                    .ToArray();
+
+                if (resolved.Length > 0)
+                {
+                    activeColumns = resolved;
+                }
+            }
+
+            using var workbook = new XSSFWorkbook();
+            var sheet = workbook.CreateSheet("PrecheckDetails");
+
+            var headerStyle = workbook.CreateCellStyle();
+            var headerFont = workbook.CreateFont();
+            headerFont.IsBold = true;
+            headerStyle.SetFont(headerFont);
+            headerStyle.FillForegroundColor = IndexedColors.Grey25Percent.Index;
+            headerStyle.FillPattern = FillPattern.SolidForeground;
+            headerStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Center;
+            headerStyle.VerticalAlignment = NPOI.SS.UserModel.VerticalAlignment.Center;
+            headerStyle.BorderTop = BorderStyle.Thin;
+            headerStyle.BorderBottom = BorderStyle.Thin;
+            headerStyle.BorderLeft = BorderStyle.Thin;
+            headerStyle.BorderRight = BorderStyle.Thin;
+
+            var borderStyle = workbook.CreateCellStyle();
+            borderStyle.BorderTop = BorderStyle.Thin;
+            borderStyle.BorderBottom = BorderStyle.Thin;
+            borderStyle.BorderLeft = BorderStyle.Thin;
+            borderStyle.BorderRight = BorderStyle.Thin;
+
+            var headerRow = sheet.CreateRow(0);
+            for (int c = 0; c < activeColumns.Length; c++)
+            {
+                var cell = headerRow.CreateCell(c);
+                cell.SetCellValue(activeColumns[c].Header);
+                cell.CellStyle = headerStyle;
+            }
+
+            for (int r = 0; r < preCheckResponses.Count; r++)
+            {
+                var row = sheet.CreateRow(r + 1);
+                for (int c = 0; c < activeColumns.Length; c++)
+                {
+                    var cell = row.CreateCell(c);
+                    var value = string.Equals(activeColumns[c].Key, "sr", StringComparison.OrdinalIgnoreCase)
+                        ? (r + 1).ToString()
+                        : activeColumns[c].GetValue(preCheckResponses[r]);
+                    cell.SetCellValue(value);
+                    cell.CellStyle = borderStyle;
+                }
+            }
+
+            for (int c = 0; c < activeColumns.Length; c++)
+            {
+                sheet.AutoSizeColumn(c);
+            }
+
+            using var ms = new MemoryStream();
+            workbook.Write(ms);
+            return ms.ToArray();
         }
 
         public Task<List<GetAvailableComponentsResponse>> GetAvailableComponentService(GetAvailableComponentsRequest request)
@@ -1385,13 +1535,11 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
             try
             {
-                // 1️⃣ Validate input
                 if (request.UpdatedQuantity <= 0)
                 {
                     throw new ApplicationException("Updated quantity must be greater than zero.");
                 }
 
-                // 2️⃣ Get CURRENT remaining quantity from DB
                 decimal? currentRemaining;
                 try
                 {
@@ -1404,25 +1552,21 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
                         "Failed to retrieve current remaining quantity.");
                 }
 
-                // 3️⃣ Check if enough quantity is available
                 if (request.UpdatedQuantity > currentRemaining)
                 {
                     throw new ApplicationException(
                         $"Entered quantity exceeds available balance ({currentRemaining}).");
                 }
 
-                // 4️⃣ Subtract from remaining
                 decimal? newRemainingQuantity = (currentRemaining ?? 0) - request.UpdatedQuantity;
 
-                //  Update remianing qty in qrcodedetails DB
                 decimal remainingComponentQuantity=await _precheckRepository.UpdateComponentRemaningQuantity(
                     request,
                     request.UpdatedQuantity?? 0);
 
                 await _precheckRepository.UpdateQrcodeQuantity(request.QrCodeNumber, newRemainingQuantity?? 0);
-                
-               
-                // 6️⃣ Return response
+
+
                 return new UpdateQuantityResponseDto
                 {
                     RemainingQuantity = remainingComponentQuantity,
@@ -1454,7 +1598,6 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
         public async Task<bool> ResetRemainingQuantityService(ResetRemainingQuantityDto remainingQuantityDto)
         {
-            // Validate DrawingNumber exists
             var drawingDetails = await _precheckRepository.GetDrawingNumberIdAsync(remainingQuantityDto.DrawingNumberId);
             if (!drawingDetails)
             {

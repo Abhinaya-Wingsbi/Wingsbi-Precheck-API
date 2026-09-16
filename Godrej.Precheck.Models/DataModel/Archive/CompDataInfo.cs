@@ -20,7 +20,6 @@ namespace Godrej.Precheck.Models.DataModel.Archive
         public int? ModifiedBy { get; set; }
         public DateTime? ModifiedDate { get; set; }
 
-        // Navigation properties
         public virtual DrawingNumbers DrawingNumber { get; set; }
         public virtual ICollection<CompData> CompDataRecords { get; set; }
     }

@@ -350,17 +350,16 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                     ProductionOrderQueries.GET_ALL_PRODUCTION_ORDERS,
                     new { });
 
-                // ✅ Log database name AFTER the call
                 _logger.LogInformation("Query executed on Database: {DatabaseName}, Server: {DataSource}",
-                    _db.Database,           // Database name
-                    _db.DataSource);        // Server/instance name (if available)
+                    _db.Database,
+                    _db.DataSource);
                 return results.ToList();
             }
             catch (Exception ex)
             {
                 _logger.LogError("Query executed on Database: {DatabaseName}, Server: {DataSource}",
-                    _db.Database,           // Database name
-                    _db.DataSource);        // Server/instance name (if available)
+                    _db.Database,
+                    _db.DataSource);
                 _logger.LogError(ex, "Error fetching all ProductionOrders");
                 throw;
             }
@@ -381,57 +380,48 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                 dateFilterType, precheckStatus);
             try
             {
-                // Build dynamic WHERE clause
                 var dateFilter = " AND 1=1";
                 var statusFilter = " AND 1=1";
                 var poFilter = " AND 1=1";
                 var lnItemFilter = " AND 1=1";
                 var drawingFilter = " AND 1=1";
 
-
-                // Date filtering logic
                 if (!string.IsNullOrEmpty(dateFilterType) && dateFilterType.Equals("single", StringComparison.OrdinalIgnoreCase) && filterDate.HasValue)
                 {
-                    // Single date filter - match PO creation date only
                     dateFilter = @" AND CAST(pom.createddate AS DATE) = CAST(@FilterDate AS DATE)";
                 }
                 else if (!string.IsNullOrEmpty(dateFilterType) && dateFilterType.Equals("range", StringComparison.OrdinalIgnoreCase)
                     && fromDate.HasValue && toDate.HasValue)
                 {
-                    // Date range filter - match PO creation date only (whole-day inclusive, ignores time-of-day)
                     dateFilter = @" AND CAST(pom.createddate AS DATE) BETWEEN CAST(@FromDate AS DATE) AND CAST(@ToDate AS DATE)";
                 }
 
-                //Drawing Number Filter
                 if (!string.IsNullOrWhiteSpace(drawingnumber))
                 {
                     drawingFilter = " AND dn.drawingnumber LIKE '%' + @DrawingNumber + '%'";
                 }
 
-                // Status filtering
                 if (precheckStatus.HasValue)
                 {
                     statusFilter = " AND COALESCE(psc.CalculatedStatus, 1) = @PrecheckStatus";
                 }
 
-                // PO Number filter (string, partial match)
                 if (!string.IsNullOrWhiteSpace(poNumber))
                 {
                     poFilter = " AND pom.productionordernumber LIKE '%' + @PoNumber + '%'";
                 }
 
-                // LN Item Code filter (string, partial match)
                 if (!string.IsNullOrWhiteSpace(lnItemCode))
                 {
                     lnItemFilter = " AND pom.lnitemcode LIKE '%' + @LnItemCode + '%'";
                 }
-                // Replace placeholders in query
+
                 var query = ProductionOrderQueries.GET_FILTERED_PRODUCTION_ORDERS
                     .Replace("{DATE_FILTER}", dateFilter)
                     .Replace("{STATUS_FILTER}", statusFilter)
                     .Replace("{PO_FILTER}", poFilter)
                     .Replace("{LNITEM_FILTER}", lnItemFilter)
-                    .Replace("{DRAWING_FILTER}", drawingFilter);  // ADD
+                    .Replace("{DRAWING_FILTER}", drawingFilter);
 
 
                 var results = await _db.GetAll<ProductionOrderMasterDto>(
@@ -463,7 +453,7 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
             {
                 var offset = (pageNumber - 1) * pageSize;
 
-                var totalCount = await _db.ExecuteScalar<int>(ProductionOrderQueries.GET_ALL_PRODUCTION_ORDERS_COUNT, new { });
+                var totalCount = await _db.ExecuteScalar<int>(ProductionOrderQueries.GET_ALL_PRODUCTION_ORDERS_COUNT, new { }, commandTimeout: 300);
 
                 var results = await _db.GetAll<ProductionOrderMasterDto>(
                     ProductionOrderQueries.GET_ALL_PRODUCTION_ORDERS_PAGED,
@@ -576,7 +566,7 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                     .Replace("{SEARCH_FILTER}", searchFilter)
                     .Replace("{SERIES_FILTER}", seriesFilter);
 
-                var totalCount = await _db.ExecuteScalar<int>(countQuery, queryParams);
+                var totalCount = await _db.ExecuteScalar<int>(countQuery, queryParams, commandTimeout: 300);
 
                 var offset = (pageNumber - 1) * pageSize;
                 var dataQuery = ProductionOrderQueries.GET_FILTERED_PRODUCTION_ORDERS_PAGED
@@ -661,7 +651,6 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
             try
             {
 
-                // Normalize date filters
                 DateTime? fromDate = filter.FromDate;
                 DateTime? toDate = filter.ToDate;
 
@@ -697,7 +686,6 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                             break;
 
                         case "custom":
-                            // use FromDate / ToDate as passed
                             dateFilter = @" AND ((pom.createddate >= @FromDate AND pom.createddate <= @ToDate)
                                             OR (psc.LastModifiedDate >= @FromDate AND psc.LastModifiedDate <= @ToDate))";
                             break;
@@ -742,7 +730,8 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                         FromDate = fromDate,
                         ToDate = toDate,
                         PrecheckStatus = filter.PrecheckStatus
-                    });
+                    },
+                    commandTimeout: 300);
 
                 return result ?? new ProductionOrderCountsDto();
             }
@@ -753,120 +742,6 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
             }
         }
 
-        //    async Task<List<ProductionOrderMasterDto>>
-        //IProductionOrderRepository.GetAllProductionOrdersAsync(
-        //    string? dateFilterType,
-        //    DateTime? filterDate,
-        //    DateTime? fromDate,
-        //    DateTime? toDate,
-        //    int? precheckStatus,
-        //    string? poNumber,
-        //    string? lnItemCode)
-        //    {
-        //        _logger.LogInformation(
-        //            "Repository: Fetching Production Orders with filters - DateType: {DateType}, Status: {Status}, PO: {PO}, Item: {Item}",
-        //            dateFilterType, precheckStatus, poNumber, lnItemCode);
-
-        //        try
-        //        {
-        //            string dateFilter = "";
-        //            string statusFilter = "";
-        //            string otherFilters = "";
-
-        //            // Normalize date range
-        //            DateTime? normalizedFromDate = fromDate;
-        //            DateTime? normalizedToDate = toDate;
-
-        //            if (!string.IsNullOrWhiteSpace(dateFilterType))
-        //            {
-        //                var today = DateTime.Today;
-
-        //                switch (dateFilterType.ToLower())
-        //                {
-        //                    case "single":
-        //                        if (filterDate.HasValue)
-        //                        {
-        //                            dateFilter = @" AND (CAST(pom.createddate AS DATE) = CAST(@FilterDate AS DATE)
-        //                                    OR CAST(psc.LastModifiedDate AS DATE) = CAST(@FilterDate AS DATE))";
-        //                        }
-        //                        break;
-
-        //                    case "range":
-        //                    case "custom":
-        //                        if (fromDate.HasValue && toDate.HasValue)
-        //                        {
-        //                            dateFilter = @" AND ((pom.createddate >= @FromDate AND pom.createddate < @ToDate)
-        //                                    OR (psc.LastModifiedDate >= @FromDate AND psc.LastModifiedDate < @ToDate))";
-        //                        }
-        //                        break;
-
-        //                    case "today":
-        //                        normalizedFromDate = today;
-        //                        normalizedToDate = today.AddDays(1);
-        //                        dateFilter = @" AND ((pom.createddate >= @FromDate AND pom.createddate < @ToDate)
-        //                                OR (psc.LastModifiedDate >= @FromDate AND psc.LastModifiedDate < @ToDate))";
-        //                        break;
-
-        //                    case "yesterday":
-        //                        normalizedFromDate = today.AddDays(-1);
-        //                        normalizedToDate = today;
-        //                        dateFilter = @" AND ((pom.createddate >= @FromDate AND pom.createddate < @ToDate)
-        //                                OR (psc.LastModifiedDate >= @FromDate AND psc.LastModifiedDate < @ToDate))";
-        //                        break;
-
-        //                    case "thismonth":
-        //                        normalizedFromDate = new DateTime(today.Year, today.Month, 1);
-        //                        normalizedToDate = normalizedFromDate.Value.AddMonths(1);
-        //                        dateFilter = @" AND ((pom.createddate >= @FromDate AND pom.createddate < @ToDate)
-        //                                OR (psc.LastModifiedDate >= @FromDate AND psc.LastModifiedDate < @ToDate))";
-        //                        break;
-        //                }
-        //            }
-
-        //            // Status filter
-        //            if (precheckStatus.HasValue)
-        //            {
-        //                statusFilter = " AND COALESCE(psc.CalculatedStatus, 1) = @PrecheckStatus";
-        //            }
-
-        //            if (!string.IsNullOrWhiteSpace(poNumber))
-        //            {
-        //                otherFilters += " AND pom.productionordernumber LIKE '%' + @PoNumber + '%'";
-        //            }
-
-
-        //            if (!string.IsNullOrWhiteSpace(lnItemCode))
-        //            {
-        //                otherFilters += " AND pom.lnitemcode LIKE '%' + @LnItemCode + '%'";
-        //            }
-
-
-        //            var query = ProductionOrderQueries.GET_FILTERED_PRODUCTION_ORDERS
-        //                .Replace("{DATE_FILTER}", dateFilter)
-        //                .Replace("{STATUS_FILTER}", statusFilter)
-        //                .Replace("{OTHER_FILTERS}", otherFilters);
-
-        //            var results = await _db.GetAll<ProductionOrderMasterDto>(
-        //                query,
-        //                new
-        //                {
-        //                    FilterDate = filterDate,
-        //                    FromDate = normalizedFromDate,
-        //                    ToDate = normalizedToDate,
-        //                    PrecheckStatus = precheckStatus,
-        //                    PoNumber = poNumber,
-        //                    LnItemCode = lnItemCode
-        //                });
-
-        //            return results.ToList();
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            _logger.LogError(ex, "Error fetching Production Orders");
-        //            throw;
-        //        }
-        //    }
-
         public async Task<MinStatusUploadResultDto> UpdateMinStatusAsync(List<MinStatusUploadRowDto> poList)
         {
             var result = new MinStatusUploadResultDto();
@@ -876,18 +751,15 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
 
             try
             {
-                // 1. Get all distinct non-empty PO numbers
                 var poNumbers = poList.Select(x => x.ProductionOrderNumber)
                                       .Where(x => !string.IsNullOrWhiteSpace(x))
                                       .Distinct()
                                       .ToList();
 
-                // 2. Query DB to see which POs actually exist
                 string checkQuery = "SELECT productionordernumber FROM tbl_productionordermaster WHERE productionordernumber IN @PoNumbers AND isactive = 1";
                 var existingPOs = await _db.GetAll<string>(checkQuery, new { PoNumbers = poNumbers });
                 var existingSet = new HashSet<string>(existingPOs ?? new List<string>());
 
-                // 3. Separate them into Found and Not Found
                 var validUpdates = new List<MinStatusUploadRowDto>();
                 var notFound = new List<string>();
 
@@ -903,7 +775,6 @@ namespace Godrej.Precheck.Repository.Repository.ProductionOrderRepository
                     }
                 }
 
-                // 4. Update the ones that exist using Dapper's batch update capability
                 // Passing a List as the parameter object causes Dapper to automatically parameterize and execute it for every item efficiently.
                 if (validUpdates.Count > 0)
                 {

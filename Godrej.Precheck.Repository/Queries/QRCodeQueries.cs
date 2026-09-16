@@ -453,6 +453,147 @@ namespace Godrej.Precheck.Repository.Queries
     ORDER BY qd.createddate DESC;";
         #endregion
 
+        #region GET_BARCODE_DETAILS_WITH_PARAMETERS_QUERY
+
+        // Count query only needs the joins the filter placeholders actually reference
+        // (ps for {SERIES_FILTER}) -- the display-only joins used by the paged query below are omitted.
+        // {SEARCH_FILTER} is self-contained (it resolves drawingNumber/lnItemCode via a subquery
+        // against tbl_drawingnumber), so no join to td/li is needed here for it.
+        public static readonly string GET_BARCODE_DETAILS_WITH_PARAMETERS_COUNT_QUERY =
+    @"SELECT COUNT(DISTINCT qd.id) AS TotalCount
+    FROM tbl_qrcodedetails qd
+    INNER JOIN tbl_productionseries ps
+        ON qd.productionseriesid = ps.id
+    WHERE
+        qd.isactive = 1
+        {SEARCH_FILTER}
+        {SERIES_FILTER}
+        {CREATEDBY_FILTER}
+        {DATE_FILTER}";
+
+        // Same shape as GET_QRCODE_DETAILS_With_PARAMETER_QUERY, but every filter is ANDed
+        // together (no QRCodeNumber short-circuit), searchQuery is a single free-text value matched
+        // against several columns/subqueries, and ProdSeries accepts an array.
+        // No DISTINCT here: every join below matches on the joined table's own primary key
+        // (ir.id, msn.id, li.id, ...), so it's a 1:1 lookup per qd row and can't produce
+        // duplicates. DISTINCT was forcing SQL Server to materialize and sort the two
+        // correlated subquery columns (nomenclature, AssemblyNumber) for the ENTIRE filtered
+        // result set before OFFSET/FETCH could trim it down to one page -- without it, the
+        // optimizer can sort/limit by createddate first and only evaluate those subqueries for
+        // the page actually returned.
+        public static readonly string GET_BARCODE_DETAILS_WITH_PARAMETERS_PAGED_QUERY =
+    @"SELECT
+        qd.id,
+        qd.drawingnumberid,
+        qd.productionseriesid,
+        qd.nomenclatureid,
+        qd.idnumber,
+        qd.idnumbers,
+        qd.irnumberid,
+        qd.msnnumberid,
+        qd.componenttypeid,
+        qd.quantity,
+        qd.expirydate,
+        qd.racklocationid,
+        qd.lnitemcodeid,
+        qd.createdby,
+        qd.createddate,
+        qd.modifiedby,
+        qd.modifieddate,
+        qd.mydate,
+        qd.sopnamesid,
+        qd.unitid,
+        qd.storeindate,
+        qd.isactive,
+        qd.partno,
+        qd.[size],
+        qd.shapeid,
+        sh.materialname AS Shapes,
+        qd.customeritemcode AS CustomerIC,
+        qd.material,
+        qd.htlotno,
+        qd.fanmannumber AS FAN,
+        qd.fanmanserialnumber AS GIC,
+        qd.serialnumberofquantity AS DTD,
+        qd.msnirnumber AS IRNo,
+        qd.gfnno,
+        qd.srno,
+        qd.tqty,
+        qd.wc,
+        qd.togglecomponenttypeid,
+        td.drawingnumber,
+        ct.componenttype,
+        ir.irnumber,
+        msn.msnnumber,
+        (SELECT TOP 1 n2.nomenclature
+         FROM tbl_drawingnomenclaturemapping dnm2
+         INNER JOIN tbl_nomenclature n2 ON dnm2.nomenclatureid = n2.id
+         WHERE dnm2.drawingnumberid = td.id AND dnm2.isactive = 1
+         ORDER BY dnm2.createddate DESC) AS nomenclature,
+        ps.productionseries,
+        qd.refdocremarks,
+        qd.qrcodenumber,
+        tu.username AS users,
+        ts.racklocation,
+        qd.desposition,
+        qd.productionordernumber,
+        qd.purchaseordernumber,
+        qd.operationno,
+        tq.qrcodestatus,
+        qd.qrcodestatusid,
+        qd.consumedIndrawing,
+        qd.mrirnumber,
+        qd.remainingquantity,
+        qd.manufacturingdate,
+        qd.projectdescription AS Remark,
+        qd.projectnumber,
+        li.lnitemcode,
+        (
+            SELECT TOP 1 tdParent.drawingnumber
+            FROM tbl_assemblydrawingmapping adm
+            INNER JOIN tbl_drawingnumber tdParent
+                ON adm.parentdrawingnumber = tdParent.id
+            WHERE adm.drawingnumber = qd.drawingnumberid
+            ORDER BY adm.id ASC
+        ) AS AssemblyNumber,
+        u.unitname AS unitname,
+        sop.sopnames AS sopnames
+    FROM tbl_qrcodedetails qd
+    INNER JOIN tbl_drawingnumber td
+        ON qd.drawingnumberid = td.id
+    INNER JOIN tbl_productionseries ps
+        ON qd.productionseriesid = ps.id
+    LEFT JOIN tbl_lnitemcode li
+        ON qd.lnitemcodeid = li.id
+    LEFT JOIN tbl_componenttype ct
+        ON qd.componenttypeid = ct.id
+    LEFT JOIN tbl_irnumber ir
+        ON qd.irnumberid = ir.id
+    LEFT JOIN tbl_msnnumber msn
+        ON qd.msnnumberid = msn.id
+    LEFT JOIN tbl_users tu
+        ON qd.createdby = tu.id
+    LEFT JOIN tbl_storeitemlocation ts
+        ON qd.racklocationid = ts.id
+    LEFT JOIN tbl_qrcodestatus tq
+        ON qd.qrcodestatusid = tq.id
+    LEFT JOIN tbl_unit u
+        ON qd.unitid = u.id
+    LEFT JOIN tbl_sopnames sop
+        ON qd.sopnamesid = sop.id
+    LEFT JOIN tbl_shapes sh
+        ON qd.shapeid = sh.id
+    WHERE
+        qd.isactive = 1
+        {SEARCH_FILTER}
+        {SERIES_FILTER}
+        {CREATEDBY_FILTER}
+        {DATE_FILTER}
+    ORDER BY qd.createddate DESC
+    {PAGING_CLAUSE};";
+
+        #endregion
+
         #region GET_CONSUMED_QRCODE_DETAILS_With_PARAMETER_QUERY
         public static readonly string GET_CONSUMED_QRCODE_DETAILS_With_PARAMETER_QUERY =
     @"SELECT DISTINCT
@@ -1222,9 +1363,59 @@ WHERE tadm.drawingnumber = @DrawingNumberId";
             ";
 
         #region GET_AVAILABLE_QR_BY_LNITEM_DRAWING
-        public static readonly string GET_AVAILABLE_QR_BY_LNITEM_DRAWING = @"
-            WITH RankedQRCodes AS (
-   SELECT
+        // FROM/JOIN/WHERE shared by the count and paged queries below (kept in one place so the two
+        // stay in sync -- {SEARCH_FILTER}/{SERIES_FILTER} are built dynamically in
+        // QRCodeRepository.GetAvailableQrPaged). The count query only needs the base filter columns
+        // (drawingnumber/lnitemcode/productionseries), so it skips the display-only LEFT JOINs below.
+        private const string GET_AVAILABLE_QR_FROM_WHERE = @"
+   FROM tbl_qrcodedetails q
+   INNER JOIN tbl_drawingnumber d
+       ON q.drawingnumberid = d.id
+   INNER JOIN tbl_productionseries tps
+       ON tps.id = q.productionseriesid
+   WHERE q.qrcodestatusid = 1
+     AND q.isactive = 1
+     AND (
+           @QrType IS NULL
+        OR (@QrType = 1 AND d.lnitemcode NOT LIKE 'WJD%')
+        OR (@QrType = 2 AND d.lnitemcode LIKE 'WJD%')
+     )
+     {SEARCH_FILTER}
+     {SERIES_FILTER}";
+
+        public static readonly string GET_AVAILABLE_QR_BY_LNITEM_DRAWING_COUNT = @"
+            SELECT COUNT(*)"
+            + GET_AVAILABLE_QR_FROM_WHERE + ";";
+
+        // Per-drawing TotalQrQuantity/TotalQrNumber are computed here via window functions (over the
+        // whole matching set, not just the page) so the API can page at the SQL level instead of
+        // fetching every matching row and paging/aggregating in memory.
+        private const string GET_AVAILABLE_QR_FROM_WHERE_WITH_DISPLAY_JOINS = @"
+   FROM tbl_qrcodedetails q
+   INNER JOIN tbl_drawingnumber d
+       ON q.drawingnumberid = d.id
+   INNER JOIN tbl_productionseries tps
+       ON tps.id = q.productionseriesid
+   LEFT JOIN tbl_drawingnlnitemlocationmapping l
+       ON d.id = l.drawingnumberid
+   LEFT JOIN tbl_storeitemlocation stl
+       ON stl.id = l.racklocationid
+   LEFT JOIN tbl_qrcodestatus qs
+       ON q.qrcodestatusid = qs.id
+   LEFT JOIN tbl_unit u
+       ON q.unitid = u.id
+   WHERE q.qrcodestatusid = 1
+     AND q.isactive = 1
+     AND (
+           @QrType IS NULL
+        OR (@QrType = 1 AND d.lnitemcode NOT LIKE 'WJD%')
+        OR (@QrType = 2 AND d.lnitemcode LIKE 'WJD%')
+     )
+     {SEARCH_FILTER}
+     {SERIES_FILTER}";
+
+        public static readonly string GET_AVAILABLE_QR_BY_LNITEM_DRAWING_PAGED = @"
+            SELECT
       q.drawingnumberid,
       d.drawingnumber,
       d.lnitemcode AS LnItemCode,
@@ -1241,41 +1432,11 @@ WHERE tadm.drawingnumber = @DrawingNumberId";
       q.productionordernumber,
       qs.qrcodestatus as Status,
       u.unitname AS Unit,
-      ROW_NUMBER() OVER (
-           PARTITION BY q.drawingnumberid, q.productionseriesid
-           ORDER BY
-               CASE
-                   WHEN d.isexpiry = 1 THEN q.expirydate
-                   ELSE q.manufacturingdate
-               END DESC
-      ) AS rnk
-   FROM tbl_qrcodedetails q
-   INNER JOIN tbl_drawingnumber d
-       ON q.drawingnumberid = d.id
-   INNER JOIN tbl_productionseries tps
-       ON tps.id = q.productionseriesid
-   LEFT JOIN tbl_drawingnlnitemlocationmapping l
-       ON d.id = l.drawingnumberid
-   LEFT JOIN tbl_storeitemlocation stl
-       ON stl.id = l.racklocationid
-   LEFT JOIN tbl_qrcodestatus qs
-       ON q.qrcodestatusid = qs.id
-   LEFT JOIN tbl_unit u
-       ON q.unitid = u.id
-   WHERE q.qrcodestatusid = 1
-     AND q.isactive = 1
-     AND (@LnItemCode IS NULL OR LTRIM(RTRIM(@LnItemCode)) = '' OR d.lnitemcode = @LnItemCode)
-     AND (@DrawingNumber IS NULL OR LTRIM(RTRIM(@DrawingNumber)) = '' OR d.drawingnumber = @DrawingNumber)
-     AND (@ProdSeriesId IS NULL OR q.productionseriesid = @ProdSeriesId)
-     AND (
-           @QrType IS NULL
-        OR (@QrType = 1 AND d.lnitemcode NOT LIKE 'WJD%')
-        OR (@QrType = 2 AND d.lnitemcode LIKE 'WJD%')
-     )
-)
-SELECT * FROM RankedQRCodes
-ORDER BY expirydate, manufacturingdate;
- ";
+      SUM(q.quantity) OVER (PARTITION BY q.drawingnumberid) AS TotalQrQuantity,
+      COUNT(*) OVER (PARTITION BY q.drawingnumberid) AS TotalQrNumber"
+            + GET_AVAILABLE_QR_FROM_WHERE_WITH_DISPLAY_JOINS + @"
+ORDER BY q.expirydate, q.manufacturingdate
+{PAGING_CLAUSE};";
         #endregion
     }
 }

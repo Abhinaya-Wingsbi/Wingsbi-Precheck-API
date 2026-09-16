@@ -136,13 +136,13 @@ namespace Godrej.Precheck.Host.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [Route("GetAllUsers")]
-        public async Task<IActionResult> GetAllUsers()
+        public async Task<IActionResult> GetAllUsers([FromQuery] string? searchQuery = null)
         {
-            _logger.LogInformation("[GetAllUsers] Request received");
+            _logger.LogInformation("[GetAllUsers] Request received SearchQuery: {SearchQuery}", searchQuery);
 
             try
             {
-                var result = await _commonService.GetAllUsersService();
+                var result = await _commonService.GetAllUsersService(searchQuery);
 
                 if (result == null || !result.Any())
                 {
@@ -679,7 +679,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //[Authorize]
         [HttpPost("Delete-Unit/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -717,7 +716,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //[Authorize]
         [HttpPost("Delete-Shape/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -755,7 +753,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //[Authorize]
         [HttpPost("Delete-Stage/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -862,7 +859,7 @@ namespace Godrej.Precheck.Host.Controllers
                 return Ok(new
                 {
                     userId = userId,
-                    signature = signature ?? string.Empty  // empty string when no signature exists
+                    signature = signature ?? string.Empty
                 });
             }
             catch (ArgumentException ex)

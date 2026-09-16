@@ -278,7 +278,9 @@ WHERE drawingnumberid IN (
       ,child.[createddate]
       ,child.[modifiedby]
       ,child.[modifieddate]
-	  ,child.idnumber  
+      ,child.[precheckdate] as [PrecheckDate]
+      ,child.[remainingquantity] as [RemainingQuantity]
+	  ,child.idnumber
 	  ,child.[consumedindrawing]
 	  ,parent.drawingnumberid as consumedindrawingnumberId
 	  ,parent.prodseriesid as consumedinprodseriesid

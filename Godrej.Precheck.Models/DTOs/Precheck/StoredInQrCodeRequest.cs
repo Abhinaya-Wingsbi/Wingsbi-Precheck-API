@@ -10,5 +10,6 @@ namespace Godrej.Precheck.Models.DTOs.Precheck
     {
         public DateTime? StoreInDate { get; set; }
         public string? DrawingNumber { get; set; }
+        public List<string>? SelectedColumns { get; set; }
     }
 }

@@ -274,7 +274,6 @@ namespace Godrej.Precheck.Host.Controllers
 
                 _logger.LogInformation($"MaterialRequisitionController:ExportMaterialRequisitionsToExcel - Successfully generated Excel file {fileName} with {materialRequisitions.Count} records");
 
-                // Add headers to ensure proper file download
                 Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{fileName}\"");
                 Response.Headers.Add("Access-Control-Expose-Headers", "Content-Disposition");
 

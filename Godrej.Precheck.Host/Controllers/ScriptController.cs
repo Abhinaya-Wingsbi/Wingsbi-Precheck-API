@@ -75,7 +75,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "ScriptController:UploadExcel - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -106,7 +106,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "ScriptController:RunSTDQRGeneration - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -137,7 +137,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "ScriptController:RunQRCodeImport - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -195,7 +195,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "ScriptController:UploadMasterDataExcel - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -238,7 +238,6 @@ namespace Godrej.Precheck.Host.Controllers
 
                 var result = ExecuteScript(_masterDataScriptPath, scriptDirCopy1, "RunMasterData", scriptDirCopy2, userId.ToString());
 
-                // Clean up original uploads after script completes
                 TryDeleteFile(excelPath1, "RunMasterData", "uploaded file1");
                 TryDeleteFile(excelPath2, "RunMasterData", "uploaded file2");
 
@@ -252,11 +251,10 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "ScriptController:RunMasterData - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
             finally
             {
-                // Ensure script-folder copies are always cleaned up
                 if (scriptDirCopy1 != null) TryDeleteFile(scriptDirCopy1, "RunMasterData", "script folder copy1");
                 if (scriptDirCopy2 != null) TryDeleteFile(scriptDirCopy2, "RunMasterData", "script folder copy2");
             }
@@ -303,9 +301,6 @@ namespace Godrej.Precheck.Host.Controllers
                 fileName);
         }
 
-       
-        #region
-
         // Single-file variant
         private ActionResult ExecuteScript(string scriptPath, string excelPath, string apiName)
             => ExecuteScript(scriptPath, excelPath, apiName, null);
@@ -322,7 +317,6 @@ namespace Godrej.Precheck.Host.Controllers
             if (excelPath2 != null && !System.IO.File.Exists(excelPath2))
                 return BadRequest(new { message = "Uploaded Excel (file2) not found." });
 
-            // Build arguments with absolute paths
             var argParts = new List<string> { $"\"{excelPath}\"" };
             if (excelPath2 != null)
                 argParts.Add($"\"{excelPath2}\"");
@@ -373,12 +367,14 @@ namespace Godrej.Precheck.Host.Controllers
 
             try
             {
-                // Cleanup uploaded files after script finishes
                 TryDeleteFile(excelPath, apiName, "uploaded file1");
                 if (excelPath2 != null)
                     TryDeleteFile(excelPath2, apiName, "uploaded file2");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"[{apiName}] Could not clean up uploaded files after script execution.");
+            }
 
             // Merge stderr into output so all script messages are visible on the frontend
             var combinedOutput = string.IsNullOrWhiteSpace(stderr)
@@ -392,6 +388,7 @@ namespace Godrej.Precheck.Host.Controllers
             else
                 return Ok(new { success = false, message = "Script execution completed with errors.", output = combinedOutput, exitCode = process.ExitCode });
         }
+
 
         private void TryDeleteDirectory(string dirPath, string apiName)
         {
@@ -424,7 +421,5 @@ namespace Godrej.Precheck.Host.Controllers
                 _logger.LogWarning(ex, $"[{apiName}] Could not delete {label}: {filePath}");
             }
         }
-
-        #endregion
     }
 }

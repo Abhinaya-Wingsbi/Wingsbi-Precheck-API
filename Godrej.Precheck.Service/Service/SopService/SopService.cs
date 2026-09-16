@@ -49,7 +49,6 @@ namespace Godrej.Precheck.Service.Service.SopService
         {
             try
             {
-                // Get all assemblies from cache or repository with mapping
                 var assemblies = await _cacheService.GetOrSetAsync(
                     CacheSettings.AssemblyCacheKey,
                     async () =>
@@ -81,7 +80,6 @@ namespace Godrej.Precheck.Service.Service.SopService
             }
 
             var result = await _sopRepository.GetAllSopTemplate(request.AssemblyDrawingId);
-            // Process the SOP template to get the multiple row
            var properTemplateResult = ProcessSopTemplateResponse(result);
 
             if (excludeRawMaterial)
@@ -92,7 +90,6 @@ namespace Godrej.Precheck.Service.Service.SopService
                 properTemplateResult = properTemplateResult.Where(t => !IsRawMaterial(t.LnItemCode)).ToList();
             }
 
-            // GEt the SOP data for the template drawing Ids
             string drawingNumbers = GetUniqueDrawingNumbers(properTemplateResult, request);
 
             var sopData = await _sopRepository.GetSopPrecheckData(drawingNumbers);
@@ -108,6 +105,26 @@ namespace Godrej.Precheck.Service.Service.SopService
         // manufactured/assembly items (LnItemCode like "WJD...") from raw material (LnItemCode like
         // "46121600FM..."). A missing LnItemCode is treated as raw material too, since it can't contain
         // either marker.
+        // Pending: precheck hasn't consumed anything yet (no remainingquantity recorded, or it still
+        // equals the full quantity). Completed: fully consumed (remainingquantity = 0). Partial:
+        // some but not all of the quantity has been consumed.
+        private static string GetPrecheckStatus(decimal quantity, decimal? remainingQuantity)
+        {
+            if (remainingQuantity == null)
+            {
+                return "Pending";
+            }
+            if (remainingQuantity == 0)
+            {
+                return "Completed";
+            }
+            if (remainingQuantity < quantity)
+            {
+                return "Partial";
+            }
+            return "Pending";
+        }
+
         private static bool IsRawMaterial(string? lnItemCode)
         {
             if (string.IsNullOrWhiteSpace(lnItemCode))
@@ -129,7 +146,6 @@ namespace Godrej.Precheck.Service.Service.SopService
             {
                 if (row.DrawingComponentTypeId == 3 && row.Quantity > 1)
                 {
-                    // Add the original row with updated quantity
                     var originalRow = new GetSopTemplateResponse
                     {
                         Assembly = row.Assembly,
@@ -149,7 +165,6 @@ namespace Godrej.Precheck.Service.Service.SopService
                     };
                     result.Add(originalRow);
 
-                    // Create additional rows with quantity = 1
                     for (int i = 1; i < row.Quantity; i++)
                     {
                         result.Add(new GetSopTemplateResponse
@@ -173,7 +188,6 @@ namespace Godrej.Precheck.Service.Service.SopService
                 }
                 else
                 {
-                    // For all other rows, add them as is without any modification
                     result.Add(row);
                 }
             }
@@ -202,7 +216,6 @@ namespace Godrej.Precheck.Service.Service.SopService
             }
         }
 
-        // Model classes
         public class ConsumptionDetailsModel
         {
             public string AssemblyNumber { get; set; }
@@ -221,6 +234,8 @@ namespace Godrej.Precheck.Service.Service.SopService
             public string Unit { get; set; }
             public string ComponentType { get; set; }
             public int ComponentTypeId { get; set; }
+            public DateTime? PrecheckDate { get; set; }
+            public string PrecheckStatus { get; set; }
             public string ProjectDescription { get; set; }
             public string ProductionOrderNumber { get; set; }
             public string? Build { get; set; }
@@ -229,13 +244,10 @@ namespace Godrej.Precheck.Service.Service.SopService
             public string? QrBuildNumber { get; set; }
             public string? ConsumedQrCodeNumber { get; set; }
         }
-        // Refactored methods
         public async Task<List<GetSopResponseDto>> GetSopResponse(GetSopRequestDto request, List<GetSopTemplateResponse> templates, List<SopConsumptionResponse> consumptions, string rootBuild, string rootSnagSheetNo)
         {
             var result = new List<GetSopResponseDto>();
             var serialNumberCounter = new SerialNumberCounter { Value = 1 };
-
-            //build top level node 
 
             var topConsumptionDetails = await GetTopConsumptionDetails(request.AssemblyDrawingId, request.ProdSeriesId, request.SerielNumberId.ToString(), request.SerielNumberId, consumptions, 0);
 
@@ -246,8 +258,6 @@ namespace Godrej.Precheck.Service.Service.SopService
                 IdNumber = topConsumptionDetails.IdNumber.ToString(),
                 Nomenclature =topConsumptionDetails.Nomenclature,
                 Quantity = topConsumptionDetails.Quantity.ToString(),
-                //IrNumber = topConsumptionDetails.IrNumber,
-                //MsnNumber = topConsumptionDetails.MsnNumber,
                 Remarks = topConsumptionDetails.Remarks,
                 AssemblyNumber = null,
                 Unit = topConsumptionDetails.Unit,
@@ -256,7 +266,10 @@ namespace Godrej.Precheck.Service.Service.SopService
                 Id = request.SerielNumberId.ToString(),
                 Level = 0,
                 Build = topConsumptionDetails.Build ?? rootBuild,
-                Snag_Sheet_No = topConsumptionDetails.SnagSheetNo ?? rootSnagSheetNo
+                Snag_Sheet_No = topConsumptionDetails.SnagSheetNo ?? rootSnagSheetNo,
+                ComponentType = topConsumptionDetails.ComponentType,
+                PrecheckDate = topConsumptionDetails.PrecheckDate,
+                PrecheckStatus = topConsumptionDetails.PrecheckStatus
             };
             result.Add(topItem);
 
@@ -269,7 +282,6 @@ namespace Godrej.Precheck.Service.Service.SopService
                 .GroupBy(c => (DrawingNumberId: c.DrawingNumberId ?? 0, ConsumedinDrawingNumberId: c.ConsumedinDrawingNumberId))
                 .ToDictionary(g => g.Key, g => g.ToList());
 
-            // Recursively build the tree
             await AppendFlatChildren(
                 topItem.DrawingNumberId,
                 topItem.ProdSeriesId,
@@ -311,7 +323,6 @@ namespace Godrej.Precheck.Service.Service.SopService
                     List<GetSopResponseDto> accumulator,
                     GetSopResponseDto parentNode)
         {
-            // Find child templates
             var childTemplates = templates
                 .Where(t =>
                     t.Assembly == parentDrawingnumber
@@ -320,7 +331,6 @@ namespace Godrej.Precheck.Service.Service.SopService
 
             foreach (var tmpl in childTemplates)
             {
-                // Get consumption details from the root's precheck data
                 var consumptionDetails = GetConsumptionDetails(
                     rootDrawingnumber,
                     parentProdSeries,
@@ -333,7 +343,6 @@ namespace Godrej.Precheck.Service.Service.SopService
                 {
                     SerialNumber = serialNumberCounter.Value++,
                     DrawingNumber = tmpl.DrawingNumber,
-                    //ProdSeries = tmpl.ParentProdSeries,
                     IdNumber = consumptionDetails.IdNumber,
                     Nomenclature = tmpl.DrawingNomenclature,
                     Quantity = Convert.ToString(consumptionDetails.Quantity),
@@ -355,7 +364,10 @@ namespace Godrej.Precheck.Service.Service.SopService
                     // no build number here, so this is left blank rather than inherited from the parent.
                     Build = consumptionDetails.QrBuildNumber,
                     Snag_Sheet_No = consumptionDetails.SnagSheetNo,
-                    FindNo = tmpl.FindNo
+                    FindNo = tmpl.FindNo,
+                    ComponentType = consumptionDetails.ComponentType,
+                    PrecheckDate = consumptionDetails.PrecheckDate,
+                    PrecheckStatus = consumptionDetails.PrecheckStatus
                 };
                 accumulator.Add(childItem);
                 
@@ -409,7 +421,6 @@ namespace Godrej.Precheck.Service.Service.SopService
                     }
                 }
 
-                //// Recurse further
                 await AppendFlatChildren(
                     consumptionDetails.DrawingNumberId,
                     consumptionDetails.ProdSeriesId,
@@ -466,6 +477,10 @@ namespace Godrej.Precheck.Service.Service.SopService
                 Remarks = matchingConsumption?.Remarks,
                 ComponentType = matchingConsumption?.ComponentType,
                 ComponentTypeId = matchingConsumption?.ComponentTypeId ?? 0,
+                PrecheckDate = matchingConsumption?.PrecheckDate,
+                PrecheckStatus = matchingConsumption == null
+                    ? "Pending"
+                    : GetPrecheckStatus(matchingConsumption.Quantity, matchingConsumption.RemainingQuantity),
                 ProjectDescription = matchingConsumption?.Remarks,
                 Build = matchingConsumption?.Build,
                 SnagSheetNo = matchingConsumption?.SnagSheetNo
@@ -513,7 +528,6 @@ namespace Godrej.Precheck.Service.Service.SopService
                 // thousands of synchronous writes inside a recursive tree-walk, which was the dominant
                 // cost behind GetSop's slow response on large BOMs.
 
-                // Return an empty model if there's no match
                 return new ConsumptionDetailsModel
                 {
                     DrawingNumberId = childdrawingNumber,
@@ -527,13 +541,14 @@ namespace Godrej.Precheck.Service.Service.SopService
                     Remarks = string.Empty,
                     ComponentType = string.Empty,
                     ComponentTypeId = 0,
+                    PrecheckDate = null,
+                    PrecheckStatus = "Pending",
                     ProjectDescription = string.Empty
                 };
             }
-            
+
             candidates.Remove(matchingConsumption);
 
-            // Just convert Quantity to string (or store as decimal in the model if you prefer)
             return new ConsumptionDetailsModel
             {
 
@@ -550,10 +565,11 @@ namespace Godrej.Precheck.Service.Service.SopService
                 ProdSeriesId = matchingConsumption.ProdSeriesId ?? 0,
                 IrNumber = IsNullOrEmptyOrNA(matchingConsumption.IrNumber) ? string.Empty : matchingConsumption.IrNumber,
                 Nomenclature = matchingConsumption.NomenclatureId?.ToString() ?? string.Empty,
-                // Return the direct consumption fields as well
                 DrawingId = matchingConsumption.DrawingNumberId ?? 0,
                 ComponentType = matchingConsumption.ComponentType,
                 ComponentTypeId = matchingConsumption.ComponentTypeId,
+                PrecheckDate = matchingConsumption.PrecheckDate,
+                PrecheckStatus = GetPrecheckStatus(matchingConsumption.Quantity, matchingConsumption.RemainingQuantity),
                 ProjectDescription = matchingConsumption.Remarks?.ToString() ?? string.Empty,
                 Build = matchingConsumption.Build,
                 SnagSheetNo = matchingConsumption.SnagSheetNo,
@@ -564,8 +580,56 @@ namespace Godrej.Precheck.Service.Service.SopService
 
 
 
-        public byte[] ExportToExcel(List<GetSopResponseDto> items, string projectId)
+        // Every exportable table column, keyed by camelCase name. LeftAligned controls whether
+        // the column uses left or center alignment (matching the original fixed layout); Width
+        // is in the same "characters * 256" units SetColumnWidth expects. When selectedColumns
+        // is empty/null, all of these are exported (in this order); otherwise only the requested
+        // keys are used, in the order the caller specified. Does not affect the fixed header
+        // block above the table (logo/title/doc no./assembly no./ID no.).
+        private static readonly (string Key, string Header, int Width, bool LeftAligned, Func<GetSopResponseDto, string> GetValue)[] SopExportColumnDefinitions = new (string, string, int, bool, Func<GetSopResponseDto, string>)[]
         {
+            ("srNo", "Sr No", 6, false, item => item.SerialNumber.ToString()),
+            ("level", "Level", 8, false, item => item.Level.ToString()),
+            ("positionNumber", "Position Number", 14, false, item => item.FindNo),
+            ("drawingNumber", "Drawing No.", 20, true, item => item.DrawingNumber),
+            ("nomenclature", "Nomenclature", 25, true, item => item.Nomenclature),
+            ("buildNumber", "Build number", 10, false, item => item.Build),
+            ("quantity", "Qty", 6, false, item => item.Quantity),
+            ("idNumber", "ID No", 12, false, item => item.IdNumber),
+            ("irNumber", "IR No", 15, false, item => item.IrNumber),
+            ("msn", "MSN", 12, false, item => item.MsnNumber),
+            ("mrirNumber", "MRIR Number", 15, false, item => item.MrirNumber),
+            ("snagSheetNumber", "Snag Sheet Number", 15, false, item => item.Snag_Sheet_No),
+            ("remarks", "Remarks", 20, true, item => item.Remarks),
+        };
+
+        public byte[] ExportToExcel(List<GetSopResponseDto> items, string projectId, List<string>? selectedColumns = null)
+        {
+            var activeColumns = SopExportColumnDefinitions;
+            if (selectedColumns != null && selectedColumns.Count > 0)
+            {
+                // Accept either the camelCase key ("drawingNumber") or the literal header text
+                // ("Drawing No.") -- callers keep sending display labels instead of keys, so both
+                // resolve to the same column instead of the header-text form silently dropping.
+                var byKey = new Dictionary<string, (string Key, string Header, int Width, bool LeftAligned, Func<GetSopResponseDto, string> GetValue)>(StringComparer.OrdinalIgnoreCase);
+                foreach (var col in SopExportColumnDefinitions)
+                {
+                    byKey[col.Key] = col;
+                    byKey[col.Header] = col;
+                }
+
+                var resolved = selectedColumns
+                    .Where(k => !string.IsNullOrWhiteSpace(k) && byKey.ContainsKey(k))
+                    .Select(k => byKey[k])
+                    .Distinct()
+                    .ToArray();
+
+                if (resolved.Length > 0)
+                {
+                    activeColumns = resolved;
+                }
+            }
+
             var flatItems = new List<GetSopResponseDto>();
             void Flatten(GetSopResponseDto node)
             {
@@ -597,7 +661,6 @@ namespace Godrej.Precheck.Service.Service.SopService
             {
                 var sheet = workbook.CreateSheet("SOP");
 
-                // Create fonts
                 var boldFont = workbook.CreateFont();
                 boldFont.IsBold = true;
                 boldFont.FontHeightInPoints = 10;
@@ -610,7 +673,6 @@ namespace Godrej.Precheck.Service.Service.SopService
                 var normalFont = workbook.CreateFont();
                 normalFont.FontHeightInPoints = 10;
 
-                // Create styles
                 var borderStyleLeft = workbook.CreateCellStyle();
                 borderStyleLeft.BorderTop = BorderStyle.Thin;
                 borderStyleLeft.BorderBottom = BorderStyle.Thin;
@@ -654,7 +716,6 @@ namespace Godrej.Precheck.Service.Service.SopService
                 headerStyle.CloneStyleFrom(borderStyleCenter);
                 headerStyle.SetFont(boldFont);
 
-                // Initialize top 3 rows
                 var row0 = sheet.CreateRow(0); row0.HeightInPoints = 20;
                 var row1 = sheet.CreateRow(1); row1.HeightInPoints = 20;
                 var row2 = sheet.CreateRow(2); row2.HeightInPoints = 20;
@@ -670,20 +731,17 @@ namespace Godrej.Precheck.Service.Service.SopService
                     }
                 }
 
-                // Add merged regions
                 sheet.AddMergedRegion(new NPOI.SS.Util.CellRangeAddress(0, 2, 0, 1)); // Logo (A1:B3)
                 sheet.AddMergedRegion(new NPOI.SS.Util.CellRangeAddress(0, 2, 2, 5)); // Title (C1:F3)
                 sheet.AddMergedRegion(new NPOI.SS.Util.CellRangeAddress(0, 0, 6, 9)); // Doc No (G1:J1)
                 sheet.AddMergedRegion(new NPOI.SS.Util.CellRangeAddress(1, 1, 6, 9)); // Assembly No (G2:J2)
                 sheet.AddMergedRegion(new NPOI.SS.Util.CellRangeAddress(2, 2, 6, 9)); // ID No (G3:J3)
 
-                // Title Cell (C1)
                 var titleCell = row0.GetCell(2);
                 string titleNomenclature = items?.FirstOrDefault()?.Nomenclature ?? "Assembly";
                 titleCell.SetCellValue($"Standard of Preparation for \"{titleNomenclature}\"\nProject: - GLP/4");
                 titleCell.CellStyle = titleStyle;
 
-                // Right top cells
                 var docCell = row0.GetCell(6);
                 docCell.SetCellValue("Doc.No. SOP/F3/SH/ 02");
                 docCell.CellStyle = rightTopStyle;
@@ -698,8 +756,7 @@ namespace Godrej.Precheck.Service.Service.SopService
                 idCell.SetCellValue($"ID No: {idNumber}");
                 idCell.CellStyle = rightBottomStyle;
 
-                // Logo
-                try 
+                try
                 {
                     string contentPath = Path.Combine(Directory.GetCurrentDirectory(), "Content", "godrej_logo.jpeg");
                     if(File.Exists(contentPath))
@@ -719,23 +776,16 @@ namespace Godrej.Precheck.Service.Service.SopService
                 } 
                 catch { /* Ignore logo if not found */ }
 
-                // Table Headers
                 var tableHeaderRow = sheet.CreateRow(3);
                 tableHeaderRow.HeightInPoints = 25;
-                string[] headers = new string[]
-                {
-                    "Sr No","Level", "Position Number", "Drawing No.", "Nomenclature", "Build number",
-                    "Qty", "ID No", "IR No", "MSN", "MRIR Number", "Snag Sheet Number", "Remarks"
-                };
 
-                for (int i = 0; i < headers.Length; i++)
+                for (int i = 0; i < activeColumns.Length; i++)
                 {
                     var cell = tableHeaderRow.CreateCell(i);
-                    cell.SetCellValue(headers[i]);
+                    cell.SetCellValue(activeColumns[i].Header);
                     cell.CellStyle = headerStyle;
                 }
 
-                // Add data rows
                 int rowNum = 4;
                 foreach (var item in sortedFlatItems)
                 {
@@ -747,37 +797,18 @@ namespace Godrej.Precheck.Service.Service.SopService
                     var cellStyleCenter = isParentAssembly ? boldStyleCenter : borderStyleCenter;
 
                     var row = sheet.CreateRow(rowNum++);
-                    CreateCell(row, 0, item.SerialNumber.ToString(), cellStyleCenter);
-                    CreateCell(row, 1, item.Level.ToString(), cellStyleCenter); // NEW
-                    CreateCell(row, 2, item.FindNo, cellStyleCenter);
-                    CreateCell(row, 3, item.DrawingNumber, cellStyleLeft);
-                    CreateCell(row, 4, item.Nomenclature, cellStyleLeft);
-                    CreateCell(row, 5, item.Build, cellStyleCenter);
-                    CreateCell(row, 6, item.Quantity, cellStyleCenter);
-                    CreateCell(row, 7, item.IdNumber, cellStyleCenter);
-                    CreateCell(row, 8, item.IrNumber, cellStyleCenter);
-                    CreateCell(row, 9, item.MsnNumber, cellStyleCenter);
-                    CreateCell(row, 10, item.MrirNumber, cellStyleCenter);
-                    CreateCell(row, 11, item.Snag_Sheet_No, cellStyleCenter);
-                    CreateCell(row, 12, item.Remarks, cellStyleLeft);
+                    for (int c = 0; c < activeColumns.Length; c++)
+                    {
+                        var column = activeColumns[c];
+                        CreateCell(row, c, column.GetValue(item), column.LeftAligned ? cellStyleLeft : cellStyleCenter);
+                    }
                 }
 
-                // Column Widths
-                sheet.SetColumnWidth(0, 6 * 256);   // Sr No
-                sheet.SetColumnWidth(1, 8 * 256);   // Level (NEW)
-                sheet.SetColumnWidth(2, 14 * 256);  // Position Number
-                sheet.SetColumnWidth(3, 20 * 256);  // Drawing No
-                sheet.SetColumnWidth(4, 25 * 256);  // Nomenclature
-                sheet.SetColumnWidth(5, 10 * 256);  // Build
-                sheet.SetColumnWidth(6, 6 * 256);   // Qty
-                sheet.SetColumnWidth(7, 12 * 256);  // ID No
-                sheet.SetColumnWidth(8, 15 * 256);  // IR No
-                sheet.SetColumnWidth(9, 12 * 256);  // MSN
-                sheet.SetColumnWidth(10, 15 * 256); // MRIR Number
-                sheet.SetColumnWidth(11, 15 * 256); // Snag Sheet No
-                sheet.SetColumnWidth(12, 20 * 256); // Remarks
+                for (int c = 0; c < activeColumns.Length; c++)
+                {
+                    sheet.SetColumnWidth(c, activeColumns[c].Width * 256);
+                }
 
-                // Convert to byte array
                 using (var ms = new MemoryStream())
                 {
                     workbook.Write(ms);
@@ -811,7 +842,6 @@ namespace Godrej.Precheck.Service.Service.SopService
 
                 var result = await _sopRepository.GetRecursiveBomByAssembly(assemblyNumber);
 
-                // Process result to identify which items have children
                 if (result != null && result.Any())
                 {
                     var childDrawingIds = result.Select(r => r.ChildDrawingId).ToHashSet();
@@ -851,18 +881,53 @@ namespace Godrej.Precheck.Service.Service.SopService
             }
         }
 
+        // Every exportable column for ExportBomToExcel, keyed by the camelCase name the client sends
+        // in selectedColumn. When selectedColumn is empty/null, all of these are exported (in this
+        // order); otherwise only the requested keys are used, in the order the caller specified.
+        private static readonly (string Key, string Header, Func<BomDetailsResponseDto, string> GetValue)[] BomExportColumnDefinitions = new (string, string, Func<BomDetailsResponseDto, string>)[]
+        {
+            ("level", "Level", item => item.Level.ToString()),
+            ("childDrawingNumber", "Drawing Number", item => item.ChildDrawingNumber ?? string.Empty),
+            ("nomenclature", "Nomenclature", item => item.Nomenclature ?? string.Empty),
+            ("lnItemCode", "LN Item Code", item => item.LnItemCode ?? string.Empty),
+            ("componentType", "Component Type", item => item.ComponentType ?? string.Empty),
+            ("quantity", "Qty", item => item.Quantity?.ToString() ?? string.Empty),
+            ("findNo", "Find No", item => item.FindNo ?? string.Empty),
+            ("parentDrawingNumber", "Parent Drawing", item => item.ParentDrawingNumber ?? string.Empty),
+            ("idNumber", "ID Number", item => item.IdNumber ?? string.Empty),
+            ("irNumber", "IR Number", item => item.IrNumber ?? string.Empty),
+            ("msnNumber", "MSN Number", item => item.MsnNumber ?? string.Empty),
+            ("unit", "Unit", item => item.Unit ?? string.Empty),
+            ("remarks", "Remarks", item => item.Remarks ?? string.Empty),
+        };
+
         /// <summary>
         /// Export BOM details to Excel.
         /// </summary>
-        public byte[] ExportBomToExcel(List<BomDetailsResponseDto> items, string assemblyNumber)
+        public byte[] ExportBomToExcel(List<BomDetailsResponseDto> items, string assemblyNumber, List<string>? selectedColumn = null)
         {
             _logger.LogInformation($"SopService:ExportBomToExcel - Exporting {items?.Count ?? 0} items for assembly: {assemblyNumber}");
-            
+
+            var activeColumns = BomExportColumnDefinitions;
+            if (selectedColumn != null && selectedColumn.Count > 0)
+            {
+                var byKey = BomExportColumnDefinitions.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
+                var resolved = selectedColumn
+                    .Where(k => !string.IsNullOrWhiteSpace(k) && byKey.ContainsKey(k))
+                    .Select(k => byKey[k])
+                    .Distinct()
+                    .ToArray();
+
+                if (resolved.Length > 0)
+                {
+                    activeColumns = resolved;
+                }
+            }
+
             using (var workbook = new XSSFWorkbook())
             {
                 var sheet = workbook.CreateSheet("BOM Details");
 
-                // Create styles
                 var headerStyle = workbook.CreateCellStyle();
                 var headerFont = workbook.CreateFont();
                 headerFont.IsBold = true;
@@ -883,7 +948,6 @@ namespace Godrej.Precheck.Service.Service.SopService
                 borderStyle.BorderLeft = BorderStyle.Thin;
                 borderStyle.BorderRight = BorderStyle.Thin;
 
-                // Title row
                 var titleRow = sheet.CreateRow(0);
                 var titleCell = titleRow.CreateCell(0);
                 titleCell.SetCellValue($"BOM Details for Assembly: {assemblyNumber}");
@@ -893,42 +957,27 @@ namespace Godrej.Precheck.Service.Service.SopService
                 titleFont.FontHeightInPoints = 14;
                 titleStyle.SetFont(titleFont);
                 titleCell.CellStyle = titleStyle;
-                sheet.AddMergedRegion(new NPOI.SS.Util.CellRangeAddress(0, 0, 0, 12));
+                sheet.AddMergedRegion(new NPOI.SS.Util.CellRangeAddress(0, 0, 0, Math.Max(activeColumns.Length - 1, 0)));
 
-                // Add table headers
                 var tableHeaderRow = sheet.CreateRow(2);
-                string[] headers = new string[]
-                {
-                    "Level", "Drawing Number", "Nomenclature", "LN Item Code", "Component Type",
-                    "Qty", "Parent Drawing", "Find No"
-                };
-
-                for (int i = 0; i < headers.Length; i++)
+                for (int i = 0; i < activeColumns.Length; i++)
                 {
                     var cell = tableHeaderRow.CreateCell(i);
-                    cell.SetCellValue(headers[i]);
+                    cell.SetCellValue(activeColumns[i].Header);
                     cell.CellStyle = headerStyle;
                 }
 
-                // Add data rows
                 int rowNum = 3;
-                int serialNumber = 1;
                 foreach (var item in items ?? new List<BomDetailsResponseDto>())
                 {
                     var row = sheet.CreateRow(rowNum++);
-                    CreateCell(row, 0, item.Level.ToString(), borderStyle);
-                    CreateCell(row, 1, item.ChildDrawingNumber ?? "", borderStyle);
-                    CreateCell(row, 2, item.Nomenclature ?? "", borderStyle);
-                    CreateCell(row, 3, item.LnItemCode ?? "", borderStyle);
-                    CreateCell(row, 4, item.ComponentType ?? "", borderStyle);
-                    CreateCell(row, 5, item.Quantity?.ToString() ?? "", borderStyle);
-                    CreateCell(row, 6, item.ParentDrawingNumber ?? "", borderStyle);
-                    CreateCell(row, 7, item.FindNo ?? "", borderStyle);
-                    serialNumber++;
+                    for (int c = 0; c < activeColumns.Length; c++)
+                    {
+                        CreateCell(row, c, activeColumns[c].GetValue(item), borderStyle);
+                    }
                 }
 
-                // Auto-size columns
-                for (int i = 0; i < headers.Length; i++)
+                for (int i = 0; i < activeColumns.Length; i++)
                 {
                     sheet.AutoSizeColumn(i);
                     if (sheet.GetColumnWidth(i) < 3000)
@@ -937,7 +986,6 @@ namespace Godrej.Precheck.Service.Service.SopService
                     }
                 }
 
-                // Convert to byte array
                 using (var ms = new MemoryStream())
                 {
                     workbook.Write(ms);

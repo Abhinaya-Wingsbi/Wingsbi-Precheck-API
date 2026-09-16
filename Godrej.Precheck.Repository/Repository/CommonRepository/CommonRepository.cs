@@ -4,6 +4,7 @@ using Godrej.Precheck.Models.DataModel.Common;
 using Godrej.Precheck.Models.DataModel.Precheck;
 using Godrej.Precheck.Models.DTOs.Assembly;
 using Godrej.Precheck.Models.DTOs.DrawingNumber;
+using Godrej.Precheck.Models.DTOs.IdentifierReports;
 using Godrej.Precheck.Models.DTOs.IRNumber;
 using Godrej.Precheck.Models.DTOs.MSNNumber;
 using Godrej.Precheck.Models.DTOs.Precheck;
@@ -48,7 +49,6 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
                 var indianTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
                 var indianTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, indianTimeZone);
 
-                // Step 1 — Check if user already exists
                 var existingUser = await _db.GetSingle<int>(
                     Common.CHECK_USER_EXISTS_QUERY,
                     new { UserId = request.UserId, UserName = request.UserName });
@@ -59,8 +59,7 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
                     throw new ApplicationException($"User '{request.UserName}' already exists.");
                 }
 
-                // Step 2 — Insert user and get new ID
-                var newUserId = await _db.ExecuteScalar<int>(   
+                var newUserId = await _db.ExecuteScalar<int>(
                     Common.ADD_USER_QUERY,
                     new
                     {
@@ -80,7 +79,6 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
                     return null;
                 }
 
-                // Step 3 — Fetch and return inserted user
                 var result = await _db.GetSingle<AddUserResponseDto>(
                     Common.GET_USER_BY_ID_QUERY,
                     new { Id = newUserId });
@@ -147,7 +145,6 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
             return results.ToList();
         }
 
-        //GetProductionSeriesByName 
         public async Task<ProductionSeriess?> GetProductionSeriesByName(string query)
         {
             _logger.LogInformation($"Request for CommonRepository:GetProductionSeriesByName");
@@ -225,6 +222,119 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
             return results.ToList();
         }
 
+        public async Task<(List<ViewIrMsnResponseDto> Items, int TotalCount)> GetViewIrMsn(ViewIrMsnRequestDto request, int pageNumber, int pageSize)
+        {
+            _logger.LogInformation($"Request for CommonRepository:GetViewIrMsn");
+
+            var seriesFilter = " AND 1=1";
+            var deptFilter = " AND 1=1";
+            var searchFilter = " AND 1=1";
+
+            var productionSeries = request?.ProductionSeries;
+            if (productionSeries != null && productionSeries.Count > 0)
+            {
+                seriesFilter = " AND ps.productionseries IN @ProductionSeries";
+            }
+
+            var departmentTypeId = request?.DepartmentTypeId;
+            if (departmentTypeId != null && departmentTypeId.Count > 0)
+            {
+                deptFilter = " AND d.id IN @DepartmentTypeId";
+            }
+
+            // Applied against combined.createddate in the outer query, not inside each inner block:
+            // several of the joined tables (tbl_productionseries, tbl_department, tbl_drawing_lnitem_map)
+            // have their own createddate column, so an unqualified createddate inside the IR/MSN blocks is
+            // ambiguous. The unioned "combined" projection only exposes one createddate column, so it's safe there.
+            var fromDate = request?.FromDate;
+            var toDate = request?.ToDate;
+            var outerFilter = " AND 1=1";
+            if (fromDate.HasValue || toDate.HasValue)
+            {
+                outerFilter = @" AND (@FromDate IS NULL OR CAST(combined.createddate AS DATE) >= CAST(@FromDate AS DATE))
+                                  AND (@ToDate IS NULL OR CAST(combined.createddate AS DATE) <= CAST(@ToDate AS DATE))";
+            }
+
+            var searchQuery = string.IsNullOrWhiteSpace(request?.SearchQuery) ? null : request.SearchQuery;
+            if (searchQuery != null)
+            {
+                outerFilter += @" AND (
+                    combined.productionordernumber LIKE '%' + @SearchQuery + '%'
+                    OR combined.drawingnumber LIKE '%' + @SearchQuery + '%'
+                    OR combined.lnitemcode LIKE '%' + @SearchQuery + '%'
+                    OR combined.irnumber LIKE '%' + @SearchQuery + '%'
+                    OR combined.msnnumber LIKE '%' + @SearchQuery + '%'
+                )";
+            }
+            searchFilter = outerFilter;
+
+            var documentTypes = request?.DocumentType;
+            var includeIr = documentTypes == null || documentTypes.Count == 0 || documentTypes.Contains("IR", StringComparer.OrdinalIgnoreCase);
+            var includeMsn = documentTypes == null || documentTypes.Count == 0 || documentTypes.Contains("MSN", StringComparer.OrdinalIgnoreCase);
+
+            var blocks = new List<string>();
+            if (includeIr)
+            {
+                blocks.Add(Common.VIEW_IR_MSN_IR_BLOCK
+                    .Replace("{SERIES_FILTER}", seriesFilter)
+                    .Replace("{DEPT_FILTER}", deptFilter));
+            }
+            if (includeMsn)
+            {
+                blocks.Add(Common.VIEW_IR_MSN_MSN_BLOCK
+                    .Replace("{SERIES_FILTER}", seriesFilter)
+                    .Replace("{DEPT_FILTER}", deptFilter));
+            }
+
+            if (blocks.Count == 0)
+            {
+                return (new List<ViewIrMsnResponseDto>(), 0);
+            }
+
+            var unionBlock = string.Join(" UNION ALL ", blocks);
+
+            var countQuery = Common.VIEW_IR_MSN_COUNT_QUERY
+                .Replace("{UNION_BLOCK}", unionBlock)
+                .Replace("{SEARCH_FILTER}", searchFilter);
+
+            var pagedQuery = Common.VIEW_IR_MSN_PAGED_QUERY
+                .Replace("{UNION_BLOCK}", unionBlock)
+                .Replace("{SEARCH_FILTER}", searchFilter);
+
+            var queryParams = new
+            {
+                ProductionSeries = productionSeries,
+                DepartmentTypeId = departmentTypeId,
+                FromDate = fromDate,
+                ToDate = toDate,
+                SearchQuery = searchQuery
+            };
+
+            var offset = (pageNumber - 1) * pageSize;
+            var pagedParams = new
+            {
+                ProductionSeries = productionSeries,
+                DepartmentTypeId = departmentTypeId,
+                FromDate = fromDate,
+                ToDate = toDate,
+                SearchQuery = searchQuery,
+                Offset = offset,
+                PageSize = pageSize
+            };
+
+            // Count and page are independent reads (each opens its own connection), so run them
+            // concurrently instead of paying for the UNION ALL + joins twice, back to back.
+            var countTask = _db.ExecuteScalar<int>(countQuery, queryParams, commandTimeout: 300);
+            var resultsTask = _db.GetAll<ViewIrMsnResponseDto>(pagedQuery, pagedParams);
+            await Task.WhenAll(countTask, resultsTask);
+
+            var totalCount = countTask.Result;
+            var results = resultsTask.Result;
+
+            _logger.LogInformation($"Result for CommonRepository:GetViewIrMsn, count: {results.Count()}, totalCount: {totalCount}");
+            return (results.ToList(), totalCount);
+        }
+
         public async Task<List<MSNNumbers>> GetMSNNuber(GetAllMSNNumberRequestDto getAllMSNNumberRequestDto)
         {
             _logger.LogInformation($"Request for CommonRepository:GetAllIRnumber");
@@ -256,7 +366,6 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
             return results.ToList();
         }
 
-        //Get Drawing number by ID
         public async Task<DrawingNumbers> GetDrawingNumberById(int drawingId)
         {
             _logger.LogInformation($"Request for CommonRepository:GetDrawingNumber");
@@ -390,6 +499,7 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
                     ChildLnItemCode  = request.DrawingNumberLnitemcode,
                     ParentLnItemCode = request.ParentDrawingNumberLnitemcode,
                     FindNo           = request.FindNo,
+                    UpdatedFindNo    = request.UpdatedFindNo,
                     Quantity         = request.Quantity,
                     ModifiedBy       = modifiedBy
                 });
@@ -432,9 +542,10 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
                 Common.DELETE_DRAWING_NUMBER_QUERY,
                 new
                 {
-                    DrawingNumber = request.DrawingNumber,
-                    LnItemCode    = request.LnItemCode,
-                    ModifiedBy    = modifiedBy
+                    DrawingNumber  = request.DrawingNumber,
+                    LnItemCode     = request.LnItemCode,
+                    AssemblyNumber = request.AssemblyNumber ?? new List<string>(),
+                    ModifiedBy     = modifiedBy
                 });
 
             _logger.LogInformation("Result for CommonRepository:DeleteDrawingNumberAsync, DeletedRecordId: {Id}", deletedId);
@@ -614,12 +725,12 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
             return rowsAffected > 0;
         }
 
-        public async Task<List<User>> GetAllUsers()
+        public async Task<List<User>> GetAllUsers(string? searchQuery = null)
         {
-            _logger.LogInformation("Request for CommonRepository:GetAllUsers");
+            _logger.LogInformation("Request for CommonRepository:GetAllUsers SearchQuery: {SearchQuery}", searchQuery);
             var results = await _db.GetAll<User>(
                 Common.GET_ALL_USERS_QUERY,
-                new { });
+                new { SearchQuery = string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery.Trim() });
             _logger.LogInformation($"Result for CommonRepository:GetAllUsers: Retrieved {results.Count()} users");
             return results.ToList();
         }
@@ -729,7 +840,6 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
 
                 var allPages = result.ToList();
 
-                // Build parent-child hierarchy
                 var parentPages = allPages
                     .Where(p => p.ParentId == null)
                     .OrderBy(p => p.DisplayOrder)

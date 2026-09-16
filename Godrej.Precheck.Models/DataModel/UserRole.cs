@@ -10,8 +10,6 @@ namespace Godrej.Precheck.Models.DataModel
     {
         public int Id { get; set; }
 
-        //public int UserId { get; set; }
-
         public string Role { get; set; }
 
         public string Description { get; set; }
@@ -21,7 +19,5 @@ namespace Godrej.Precheck.Models.DataModel
         public int? ModifiedBy { get; set; }
         public DateTime? ModifiedDate { get; set; }
         public bool? IsActive { get; set; }
-
-        //public User User { get; set; }
     }
 }

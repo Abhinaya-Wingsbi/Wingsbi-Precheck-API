@@ -38,7 +38,6 @@ namespace Godrej.Precheck.Host.Controllers
 
             try
             {
-                // Get drawing number details which includes all mappings
                 var drawingNumber = await _drawingNumberService.GetDrawingMappingsAsync(drawingNumberId);
 
                 if (drawingNumber == null)

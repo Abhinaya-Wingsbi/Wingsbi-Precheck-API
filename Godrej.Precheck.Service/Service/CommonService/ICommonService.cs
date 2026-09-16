@@ -4,6 +4,7 @@ using Godrej.Precheck.Models.DataModel.Common;
 using Godrej.Precheck.Models.DataModel.Precheck;
 using Godrej.Precheck.Models.DTOs.Assembly;
 using Godrej.Precheck.Models.DTOs.DrawingNumber;
+using Godrej.Precheck.Models.DTOs.IdentifierReports;
 using Godrej.Precheck.Models.DTOs.IRNumber;
 using Godrej.Precheck.Models.DTOs.MSNNumber;
 using Godrej.Precheck.Models.DTOs.Precheck;
@@ -50,11 +51,13 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
         Task<Nomenclatures> NomenclatureService(string query);
 
         Task<User> UserService(int Id);
-        //Task<List<IRNumbers>> IRNumberByDrawingNumberService(string query);
         Task<List<IRNumbers>> IRNumberByDrawingNumberService(GetIRNumberByDrawingNumberRequest getIRNumberByDrawingNumberRequest);
 
-        //Task<List<MSNNumbers>> MSNNumberByDrawingNumberService(string query);
         Task<List<MSNNumbers>> MSNNumberByDrawingNumberService(GetMSNNumberByDrawingNumberRequest getMSNNumberByDrawingNumberRequest);
+
+        Task<ViewIrMsnPagedResponse> ViewIrMsnService(ViewIrMsnRequestDto request, int pageNumber, int pageSize);
+
+        Task<byte[]> ExportIrMsnService(ExportIrMsnRequestDto request);
 
         Task<User> UserByNameService(string name);
 
@@ -86,7 +89,7 @@ namespace Godrej.Precheck.Service.Service.CommonSevice
         Task<int> AddUserRole(UserRole role);
         Task<bool> UpdateUserRole(UserRole role);
         Task<bool> DeleteUserRole(int id, int modifiedBy);
-        Task<List<User>> GetAllUsersService();
+        Task<List<User>> GetAllUsersService(string? searchQuery = null);
         Task<List<User>> GetPendingUsersService();
         Task<bool> ApproveUserService(int id, int modifiedBy);
         Task<bool> UpdateUserService(UserUpdateDto user);

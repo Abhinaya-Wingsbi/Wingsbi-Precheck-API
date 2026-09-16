@@ -13,5 +13,6 @@ namespace Godrej.Precheck.Models.DTOs.Precheck
         public int? Id { get; set; }
         public int? DrawingNumberId { get; set; }
         public bool RemainingPrecheck { get; set; }
+        public List<string>? SelectedColumns { get; set; }
     }
 }

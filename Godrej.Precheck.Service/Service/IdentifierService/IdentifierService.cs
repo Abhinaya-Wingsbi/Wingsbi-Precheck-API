@@ -55,8 +55,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
 
                 irNumber.SequenceNo = finalSequenceNo;
 
-                // Enhanced validation: Check for duplicate ID numbers
-                // Check for duplicate ID number if provided
                 if (!string.IsNullOrEmpty(irNumberDto.IdNumberRange))
                 {
                     var result = await _repository.ExistsIrIdNumberAsync(irNumberDto.ProdSeriesId, irNumberDto.DrawingNumberId ?? 0, irNumberDto.IdNumberRange, irNumberDto.DepartmentId ?? 0, irNumberDto.OperationNumber ?? string.Empty, irNumberDto.StageId ?? 0);
@@ -67,7 +65,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
                     }
                 }
 
-                // Check for overlapping ID number ranges
                 int idStart = irNumberDto.IdNumberStart ?? 0;
                 int idEnd = irNumberDto.IdNumberEnd ?? 0;
                 if (idStart > 0 && idEnd > 0)
@@ -85,7 +82,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
                 }
                 irNumber.IrNumber = generatedIRNumber;
 
-                // Populate stage name from stageid if stageid is provided
                 if (irNumber.StageId.HasValue && irNumber.StageId.Value > 0)
                 {
                     var stage = await _commonRepository.GetStageById(irNumber.StageId.Value);
@@ -140,8 +136,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
 
                 msnNumber.SequenceNo = finalSequenceNo;
 
-                // Enhanced validation: Check for duplicate MSN ID numbers
-                // Check for duplicate ID number if provided
                 if (!string.IsNullOrEmpty(msnNumberDto.IdNumberRange))
                 {
                     if (await _repository.ExistsMsnIdNumberAsync(msnNumberDto.ProdSeriesId, msnNumberDto.DrawingNumberId ?? 0, msnNumberDto.IdNumberRange, msnNumberDto.DepartmentId ?? 0, msnNumberDto.OperationNumber ?? string.Empty, msnNumberDto.StageId ?? 0))
@@ -151,7 +145,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
                     }
                 }
 
-                // Check for overlapping ID number ranges
                 int msnStart = msnNumberDto.IdNumberStart ?? 0;
                 int msnEnd = msnNumberDto.IdNumberEnd ?? 0;
                 if (msnStart > 0 && msnEnd > 0)
@@ -171,7 +164,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
 
                 msnNumber.MsnNumber = generatedMSNNumber;
 
-                // Populate stage name from stageid if stageid is provided
                 if (msnNumber.StageId.HasValue && msnNumber.StageId.Value > 0)
                 {
                     var stage = await _commonRepository.GetStageById(msnNumber.StageId.Value);
@@ -205,14 +197,12 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
             _logger.LogInformation("Starting UpdateIRNumberAsync with data: {@UpdateIRDto}", updateIR);
             try
             {
-                // Fetch the existing record to get ProdSeriesId and DrawingNumberId and current ID
                 var existingRecord = await _commonRepository.GetSingleIRnumber(updateIR.IrNumber);
                 if (existingRecord == null)
                 {
                      throw new Exception($"IR Number {updateIR.IrNumber} not found.");
                 }
 
-                // Parse range if provided
                 if (!string.IsNullOrEmpty(updateIR.IdNumberRange) && (!updateIR.IdNumberStart.HasValue || !updateIR.IdNumberEnd.HasValue))
                 {
                    var parts = updateIR.IdNumberRange.Split('-');
@@ -228,10 +218,8 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
                    }
                 }
 
-                // Validation logic (only if ID range is being updated)
                 if (!string.IsNullOrEmpty(updateIR.IdNumberRange))
                 {
-                     // Check for duplicate ID number
                      if (await _repository.ExistsIrIdNumberUpdateAsync(
                          existingRecord.ProdSeriesId ?? 0,
                          existingRecord.DrawingNumberId ?? 0,
@@ -245,7 +233,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
                         throw new ValidationException("IR number already exists for this combination of Production Series, Drawing Number, Department, Operation, and Stage.");
                      }
 
-                     // Check for overlaps
                      int updIdStart = updateIR.IdNumberStart ?? 0;
                      int updIdEnd = updateIR.IdNumberEnd ?? 0;
                      if (updIdStart > 0 && updIdEnd > 0)
@@ -269,7 +256,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
                 var updateNumber = updateIR.Adapt<IRNumbers>();
                 _logger.LogDebug("Mapped UpdateIRDto to IRNumbers model");
 
-                // Populate stage name from stageid if stageid is provided
                 if (updateNumber.StageId.HasValue && updateNumber.StageId.Value > 0)
                 {
                     var stage = await _commonRepository.GetStageById(updateNumber.StageId.Value);
@@ -302,14 +288,12 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
             _logger.LogInformation("Starting UpdateMSNNumber with data: {@UpdateMSNDto}", updateMSN);
             try
             {
-                // Fetch the existing record to get ProdSeriesId and DrawingNumberId and current ID
                 var existingRecord = await _commonRepository.GetSingleMSNNuber(updateMSN.MsnNumber);
                 if (existingRecord == null)
                 {
                      throw new Exception($"MSN Number {updateMSN.MsnNumber} not found.");
                 }
 
-                // Parse range if provided
                 if (!string.IsNullOrEmpty(updateMSN.IdNumberRange) && (!updateMSN.IdNumberStart.HasValue || !updateMSN.IdNumberEnd.HasValue))
                 {
                    var parts = updateMSN.IdNumberRange.Split('-');
@@ -325,10 +309,8 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
                    }
                 }
 
-                // Validation logic (only if ID range is being updated)
                  if (!string.IsNullOrEmpty(updateMSN.IdNumberRange))
                  {
-                      // Check for duplicate ID number
                       if (await _repository.ExistsMsnIdNumberUpdateAsync(
                           existingRecord.ProdSeriesId ?? 0,
                           existingRecord.DrawingNumberId ?? 0,
@@ -342,7 +324,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
                          throw new ValidationException("MSN number already exists for this combination of Production Series, Drawing Number, Department, Operation, and Stage.");
                       }
 
-                      // Check for overlaps
                       int msnUpdStart = updateMSN.IdNumberStart ?? 0;
                       int msnUpdEnd = updateMSN.IdNumberEnd ?? 0;
                       if (msnUpdStart > 0 && msnUpdEnd > 0)
@@ -366,7 +347,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
                 var updateNumber = updateMSN.Adapt<MSNNumbers>();
                 _logger.LogDebug("Mapped UpdateMSNDto to MSNNumbers model");
 
-                // Populate stage name from stageid if stageid is provided
                 if (updateNumber.StageId.HasValue && updateNumber.StageId.Value > 0)
                 {
                     var stage = await _commonRepository.GetStageById(updateNumber.StageId.Value);
@@ -399,7 +379,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
             _logger.LogInformation("Starting InsertStandardIRNumberAsync with data: {@StandardIRNumberDto}", standardIRNumberDto);
             try
             {
-                // Helper to parse range
                 if (!string.IsNullOrEmpty(standardIRNumberDto.IdNumberRange) && (!standardIRNumberDto.IdNumberStart.HasValue || !standardIRNumberDto.IdNumberEnd.HasValue))
                 {
                    var parts = standardIRNumberDto.IdNumberRange.Split('-');
@@ -437,8 +416,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
 
                 irNumber.SequenceNo = finalSequenceNo;
 
-                // Enhanced validation: Check for duplicate ID numbers
-                // Check for duplicate ID number if provided
                 if (!string.IsNullOrEmpty(standardIRNumberDto.IdNumberRange))
                 {
                     var existingIrNumber = await _repository.ExistsIrIdNumberAsync(standardIRNumberDto.ProdSeriesId, standardIRNumberDto.DrawingNumberId ?? 0, standardIRNumberDto.IdNumberRange, standardIRNumberDto.DepartmentId ?? 0, standardIRNumberDto.OperationNumber ?? string.Empty, standardIRNumberDto.StageId ?? 0);
@@ -449,7 +426,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
                     }
                 }
 
-                // Check for overlapping ID number ranges
                 int standIdStart = standardIRNumberDto.IdNumberStart ?? 0;
                 int standIdEnd = standardIRNumberDto.IdNumberEnd ?? 0;
                 if (standIdStart > 0 && standIdEnd > 0)
@@ -469,7 +445,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
 
                 irNumber.IrNumber = generatedIRNumber;
 
-                // Populate stage name from stageid if stageid is provided
                 if (irNumber.StageId.HasValue && irNumber.StageId.Value > 0)
                 {
                     var stage = await _commonRepository.GetStageById(irNumber.StageId.Value);
@@ -503,7 +478,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
             _logger.LogInformation("Starting InsertStandardMSNNumberAsync with data: {@StandardMSNNumberDto}", standardMSNNumberDto);
             try
             {
-                // Helper to parse range
                 if (!string.IsNullOrEmpty(standardMSNNumberDto.IdNumberRange) && (!standardMSNNumberDto.IdNumberStart.HasValue || !standardMSNNumberDto.IdNumberEnd.HasValue))
                 {
                    var parts = standardMSNNumberDto.IdNumberRange.Split('-');
@@ -540,8 +514,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
 
                 msnNumber.SequenceNo = finalSequenceNo;
 
-                // Enhanced validation: Check for duplicate MSN ID numbers
-                // Check for duplicate ID number if provided
                 if (!string.IsNullOrEmpty(standardMSNNumberDto.IdNumberRange))
                 {
                     if (await _repository.ExistsMsnIdNumberAsync(standardMSNNumberDto.ProdSeriesId, standardMSNNumberDto.DrawingNumberId ?? 0, standardMSNNumberDto.IdNumberRange, standardMSNNumberDto.DepartmentId ?? 0, standardMSNNumberDto.OperationNumber ?? string.Empty, standardMSNNumberDto.StageId ?? 0))
@@ -551,7 +523,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
                     }
                 }
 
-                // Check for overlapping ID number ranges
                 int msnStandStart = standardMSNNumberDto.IdNumberStart ?? 0;
                 int msnStandEnd = standardMSNNumberDto.IdNumberEnd ?? 0;
                 if (msnStandStart > 0 && msnStandEnd > 0)
@@ -571,7 +542,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
 
                 msnNumber.MsnNumber = generatedMSNNumber;
 
-                // Populate stage name from stageid if stageid is provided
                 if (msnNumber.StageId.HasValue && msnNumber.StageId.Value > 0)
                 {
                     var stage = await _commonRepository.GetStageById(msnNumber.StageId.Value);
@@ -752,7 +722,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
                 request ??= new DownloadMSNMemoDto();
                 string drawingNumber = _repository.GetDrawingNumberByID(request.DrawingNumberId).Result;
 
-                // Fetch user signature from DB if CreatedBy is set
                 string signatureImgTag = "";
                 if (request.CreatedBy > 0)
                 {
@@ -875,9 +844,6 @@ namespace Godrej.Precheck.Service.Service.IdentifierService
                 return File.ReadAllText(templatePath);
             }
 
-            // Option A: return the raw string as before (fine for now)
-            // Option B (recommended): read from a .html file in wwwroot/Templates/
-            //   return File.ReadAllText("wwwroot/Templates/MSNMemo.html");
             return @"<!DOCTYPE html>
 <html lang=""en"">
 

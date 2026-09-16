@@ -100,6 +100,22 @@ namespace Godrej.Precheck.Repository.Queries
               AND lnitemcode = @LnItemCode
               AND isactive = 1";
 
+        // tbl_drawing_lnitem_map's unique constraint on (drawingnumber, lnitemcode) applies regardless of
+        // isactive, so a row that was soft-deleted (isactive = 0) still blocks a plain INSERT of the same
+        // pair with a raw SQL error. Callers must check this (not CHECK_DRAWING_LNITEM_MAP_EXISTS, which
+        // only looks at active rows) before deciding whether to insert or reactivate.
+        public static readonly string GET_DRAWING_LNITEM_MAP_STATUS = @"
+            SELECT TOP 1 isactive
+            FROM tbl_drawing_lnitem_map
+            WHERE drawingnumber = @DrawingNumber
+              AND lnitemcode = @LnItemCode";
+
+        public static readonly string REACTIVATE_DRAWING_LNITEM_MAP = @"
+            UPDATE tbl_drawing_lnitem_map
+            SET isactive = 1
+            WHERE drawingnumber = @DrawingNumber
+              AND lnitemcode = @LnItemCode";
+
         public static readonly string INSERT_DRAWING_LNITEM_MAP = @"
             INSERT INTO tbl_drawing_lnitem_map (drawingnumber, lnitemcode, createdby, createddate, isactive)
             VALUES (@DrawingNumber, @LnItemCode, @CreatedBy, @CreatedDate, 1)";

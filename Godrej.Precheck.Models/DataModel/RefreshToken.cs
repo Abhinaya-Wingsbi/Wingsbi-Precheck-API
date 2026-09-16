@@ -20,8 +20,8 @@ namespace Godrej.Precheck.Models.DataModel
         public DateTime CreatedAt { get; set; }
         public DateTime ExpiryDate { get; set; }
         public DateTime? LastLoginAt { get; set; }
-        public DateTime? LastActivity { get; set; } // Optional: Last time the token was used
-        public DateTime? RevokedAt { get; set; } // Optional: When the token was revoked
+        public DateTime? LastActivity { get; set; }
+        public DateTime? RevokedAt { get; set; }
 
     }
 }

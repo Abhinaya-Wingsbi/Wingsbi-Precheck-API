@@ -26,8 +26,10 @@ namespace Godrej.Precheck.Models.DTOs.Sop
         public string Build { get; set; }
         public string Snag_Sheet_No { get; set; }
         public string FindNo { get; set; }
+        public string ComponentType { get; set; }
+        public DateTime? PrecheckDate { get; set; }
+        public string PrecheckStatus { get; set; }
 
-        //for tree representation
         public List<GetSopResponseDto> Children { get; set; } = new List<GetSopResponseDto>();
     }
 }

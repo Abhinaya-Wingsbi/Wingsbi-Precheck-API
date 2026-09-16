@@ -13,7 +13,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace QRCodeApi.Controllers
+namespace Godrej.Precheck.Host.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -122,7 +122,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in InsertQRCodeDetails for request: {request}");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -159,7 +159,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in UpdateQRCode for QR code: {request.QRCodeNumber}");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -187,7 +187,6 @@ namespace QRCodeApi.Controllers
                 _logger.LogInformation("DisableQRCode successful for QR code: {QRCodeNumber}", request.QRCodeNumber);
                 return Ok(new
                 {
-                    statusCode = StatusCodes.Status200OK,
                     message = "QR code disabled successfully.",
                     data = response
                 });
@@ -195,16 +194,12 @@ namespace QRCodeApi.Controllers
             catch (ApplicationException ex)
             {
                 _logger.LogError(ex, "Business validation error in DisableQRCode for QR code: {QRCodeNumber}", request.QRCodeNumber);
-                return BadRequest(new
-                {
-                    statusCode = StatusCodes.Status400BadRequest,
-                    message = ex.Message
-                });
+                return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error in DisableQRCode for QR code: {QRCodeNumber}", request.QRCodeNumber);
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -231,7 +226,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in GenerateBatchQRCode for request: {request}");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -280,7 +275,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in GenerateStandardFieldQRCodeDetails for request: {request}");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -308,35 +303,44 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in GetQRcodeDetailsAsync for QRCodeNumber: {QRCodeNumber}");
-                return BadRequest("An error occurred while processing your request. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
         [Authorize]
-        [HttpGet("GetBarcodeDetailsWithParameters")]
+        [HttpPost("GetBarcodeDetailsWithParameters")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetQRcodeDetailsWithParametersAsync([FromQuery] GetQRCodeRequestDto getQRCodeRequestDto)
+        public async Task<IActionResult> GetQRcodeDetailsWithParametersAsync(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] GetBarcodeDetailsRequestDto? request = null)
         {
-            _logger.LogInformation($"Request received for GetQRcodeDetailsWithParametersAsync with getQRCodeRequestDto: {getQRCodeRequestDto}");
+            _logger.LogInformation($"Request received for GetQRcodeDetailsWithParametersAsync with request: {request}");
+
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 200) pageSize = 200;
 
             try
             {
-                var result = await _qrCodeService.GetQRCodeDetailsWithParameterService(getQRCodeRequestDto);
+                var result = await _qrCodeService.GetBarcodeDetailsWithParametersService(
+                    request?.SearchQuery, request?.ProdSeries, request?.CreatedBy, request?.FromDate, request?.ToDate,
+                    pageNumber, pageSize);
 
-                if (result == null)
+                if (result.Data.Count == 0)
                 {
-                    _logger.LogInformation("No QR code details found for Request {Request}", getQRCodeRequestDto);
+                    _logger.LogInformation("No QR code details found for Request {Request}", request);
                     return NotFound("No QR code details found.");
                 }
 
-                _logger.LogInformation($"GetQRcodeDetailsWithParametersAsync successful for Request: {getQRCodeRequestDto}, response: {result}");
+                _logger.LogInformation($"GetQRcodeDetailsWithParametersAsync successful for Request: {request}, page {result.PageNumber} of {result.TotalPages}, response count: {result.Data.Count}");
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Unexpected error in GetQRcodeDetailsWithParametersAsync for Request: {getQRCodeRequestDto}");
-                return BadRequest("An error occurred while processing your request. Please try again later.");
+                _logger.LogError(ex, $"Unexpected error in GetQRcodeDetailsWithParametersAsync for Request: {request}");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -364,7 +368,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in GetConsumedQRcodeDetailsWithParametersAsync for Request: {getQRCodeRequestDto}");
-                return BadRequest("An error occurred while processing your request. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -393,7 +397,6 @@ namespace QRCodeApi.Controllers
             {
                 _logger.LogError(ex, $"Error in ComponentStoreIn for QRCodeNumber: {QRCodeNumber}");
 
-                // Handle known messages
                 if (ex.Message == "Invalid QR code number.")
                 {
                     return NotFound(new { message = ex.Message });
@@ -403,7 +406,6 @@ namespace QRCodeApi.Controllers
                     return BadRequest(new { message = ex.Message });
                 }
 
-                // Generic fallback
                 return StatusCode(500, new { message = "An error occurred while processing your request. Please try again later." });
             }
         }
@@ -413,7 +415,7 @@ namespace QRCodeApi.Controllers
         [HttpPost("GetStoredComponentsByDate")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetStoreInComponenetByDate([FromBody] StoredInQrCodeRequest storeindate)
+        public async Task<IActionResult> GetStoreInComponentByDate([FromBody] StoredInQrCodeRequest storeindate)
         {
           
             _logger.LogInformation($"Request received for GetStoreInQRCodeByDate:");
@@ -428,7 +430,6 @@ namespace QRCodeApi.Controllers
                     return NotFound($"No ComponentStoreIn details found for date");
                 }
 
-                // Get only unique QR code entries
                 var uniqueQrCodeList = result
                     .GroupBy(x => x.QrCodeNumber)
                     .Select(g => g.First())
@@ -441,25 +442,21 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in GetStoreInQRCodeByDate");
-                return BadRequest("An error occurred while GetStoreInQRCodeByDate. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
-
-        //Export ConsumedIn API
 
         [Authorize]
         [HttpPost("ExportStoredInComponentsByDate")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> ExportStoreInComponenetByDate([FromBody] StoredInQrCodeRequest storeInRequest)
+        public async Task<IActionResult> ExportStoreInComponentByDate([FromBody] StoredInQrCodeRequest storeInRequest)
         {
-            _logger.LogInformation($"Request received for ExportStoreInComponenetByDate:");
+            _logger.LogInformation($"Request received for ExportStoreInComponentByDate:");
 
             try
             {
-                  
-                //Get StoredIn Component by Date
                 var result = await _qrCodeService.GetComponentStoreInByDateService(storeInRequest);
 
                 if (result == null)
@@ -468,7 +465,6 @@ namespace QRCodeApi.Controllers
                     return NotFound($"No ComponentStoreIn details found for date:");
                 }
 
-                // Get only unique QR code entries
                 var storedInComponent = result
                     .GroupBy(x => x.QrCodeNumber)
                     .Select(g => g.First())
@@ -479,7 +475,7 @@ namespace QRCodeApi.Controllers
                     return NotFound($"No Stored In Component (QR code) data found for");
                 }
                 DateTime currentDate = DateTime.UtcNow;
-                var excelContent = _qrCodeService.ExportQRCodeToExcel(storedInComponent);
+                var excelContent = _qrCodeService.ExportQRCodeToExcel(storedInComponent, storeInRequest.SelectedColumns);
                 var fileName = $"StoredInQRCode_{currentDate:yyyy-MM-dd}.xlsx";
 
                 _logger.LogInformation($"Successfully exported StoredIn {storedInComponent.Count} QR codes.");
@@ -488,8 +484,8 @@ namespace QRCodeApi.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Unexpected error in ExportStoreInComponenetByDate:");
-                return BadRequest("An error occurred while ExportStoreInComponenetByDate. Please try again later.");
+                _logger.LogError(ex, $"Unexpected error in ExportStoreInComponentByDate:");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -505,19 +501,15 @@ namespace QRCodeApi.Controllers
 
             try
             {
-                // Check if QR codes are Standard or Manufacturing type
-                // We'll check the first QR code to determine the type
                 if (!qrCodeNumbers.Any())
                 {
                     return NotFound("No QR code data found.");
                 }
 
-                // Detect type from first QR code
                 bool isStandardType = await _qrCodeService.GetQRCodeDetailsService(qrCodeNumbers.First()) == null;
-                
+
                 if (!isStandardType)
                 {
-                    // Try to get it as old QR code
                     var testOld = await _qrCodeService.GetQRCodeDetailsService(qrCodeNumbers.First());
                     if (testOld != null && testOld.Shapes == null)
                     {
@@ -531,10 +523,8 @@ namespace QRCodeApi.Controllers
 
                 _logger.LogInformation($"Detected QR codes as {(isStandardType ? "Standard" : "Manufacturing")} type");
 
-                // Export based on type
                 if (isStandardType)
                 {
-                    // Handle Standard QR codes
                     var allStandardQRCodeDetails = new List<StandardQRDetailsResponseDto>();
                     var standardDetailsCache = new Dictionary<string, StandardQRDetailsResponseDto?>();
                     var standardPairs = BuildQrBatchPairs(qrCodeNumbers, batchIdNumbers);
@@ -565,7 +555,7 @@ namespace QRCodeApi.Controllers
                     }
 
                     var orderedStandardQrCodes = OrderByLatestCreatedStandardAscending(allStandardQRCodeDetails);
-                    var excelContent = _qrCodeService.ExportStandardQRCodeToExcel(orderedStandardQrCodes);
+                    var excelContent = _qrCodeService.ExportStandardQRCodeToExcel(orderedStandardQrCodes, payload.SelectedColumns);
                     
                     var firstDetail = orderedStandardQrCodes.First();
                     var userName = User.FindFirst("username")?.Value ?? "User";
@@ -580,7 +570,6 @@ namespace QRCodeApi.Controllers
                 }
                 else
                 {
-                    // Handle Manufacturing (old) QR codes
                     var allQRCodeDetails = new List<QRCodeDetailsResponseDto>();
                     var qrDetailsCache = new Dictionary<string, QRCodeDetailsResponseDto?>();
                     var qrPairs = BuildQrBatchPairs(qrCodeNumbers, batchIdNumbers);
@@ -611,7 +600,7 @@ namespace QRCodeApi.Controllers
                     }
 
                     var orderedQrCodes = OrderByLatestCreatedAscending(allQRCodeDetails);
-                    var excelContent = _qrCodeService.ExportQRCodeToExcel(orderedQrCodes);
+                    var excelContent = _qrCodeService.ExportQRCodeToExcel(orderedQrCodes, payload.SelectedColumns);
                     
                     var firstDetail = orderedQrCodes.First();
                     var userName = User.FindFirst("username")?.Value ?? "User";
@@ -628,7 +617,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error during ExportQrCodesAsync");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -664,28 +653,15 @@ namespace QRCodeApi.Controllers
 
         private static List<string> ExtractQrCodeNumbers(ExportQrCodeRequestDto payload)
         {
-            var numbers = new List<string>();
-
-            if (payload.QRCodeNumbers != null)
+            if (payload.QRCodeNumbers == null)
             {
-                numbers.AddRange(payload.QRCodeNumbers.Where(n => !string.IsNullOrWhiteSpace(n))!);
+                return new List<string>();
             }
 
-            if (payload.SerialNumberSummary != null)
-            {
-                numbers.AddRange(payload.SerialNumberSummary
-                    .Where(s => !string.IsNullOrWhiteSpace(s?.QrCodeNumber))
-                    .Select(s => s!.QrCodeNumber!));
-            }
-
-            if (payload.QrCodeDetails != null)
-            {
-                numbers.AddRange(payload.QrCodeDetails
-                    .Where(d => !string.IsNullOrWhiteSpace(d?.QrCodeNumber))
-                    .Select(d => d!.QrCodeNumber!));
-            }
-
-            return numbers.Distinct().ToList();
+            return payload.QRCodeNumbers
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct()
+                .ToList();
         }
 
         [Authorize]
@@ -712,7 +688,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error in GetConsumedInAsync for request: {getConsumedInRequest}");
-                return BadRequest("An error occurred while processing your request. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -721,7 +697,8 @@ namespace QRCodeApi.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> ExportViewQrCodeAsync([FromBody] GetQRCodeRequestDto request)
+        public async Task<IActionResult> ExportViewQrCodeAsync(
+            [FromBody] ExportViewQrCodeRequestDto request)
         {
             _logger.LogInformation($"Request received for ExportViewQrCode with request: {request}");
 
@@ -816,7 +793,7 @@ namespace QRCodeApi.Controllers
                         }
 
                         var orderedQrCodes = OrderByLatestCreated(allQRCodeDetails);
-                        var excelContent = _qrCodeService.ExportQRCodeToExcel(orderedQrCodes);
+                        var excelContent = _qrCodeService.ExportQRCodeToExcel(orderedQrCodes, request.SelectedColumns);
 
                         var firstDetail = orderedQrCodes.First();
                         var userName = User.FindFirst("username")?.Value ?? "User";
@@ -832,8 +809,13 @@ namespace QRCodeApi.Controllers
                 }
                 else
                 {
-                    // Use existing parameter-based query (for backward compatibility)
-                    var allQRCodeDetails = await _qrCodeService.GetQRCodeDetailsWithParameterService(request);
+                    // Same filter shape as GetBarcodeDetailsWithParameters -- every filter ANDed
+                    // together, searchQuery a single free-text value, ProdSeries an array.
+                    // pageSize: null == no pagination, export needs every matching row.
+                    var pagedResult = await _qrCodeService.GetBarcodeDetailsWithParametersService(
+                        request.SearchQuery, request.ProdSeries, request.CreatedBy, request.FromDate, request.ToDate,
+                        pageNumber: 1, pageSize: null);
+                    var allQRCodeDetails = pagedResult.Data;
 
                     if (allQRCodeDetails == null || !allQRCodeDetails.Any())
                     {
@@ -842,7 +824,7 @@ namespace QRCodeApi.Controllers
                     }
 
                     var orderedQrCodes = OrderByLatestCreated(allQRCodeDetails);
-                    var excelContent = _qrCodeService.ExportQRCodeToExcel(orderedQrCodes);
+                    var excelContent = _qrCodeService.ExportQRCodeToExcel(orderedQrCodes, request.SelectedColumns);
 
                     var firstDetail = orderedQrCodes.First();
                     var userName = User.FindFirst("username")?.Value ?? "User";
@@ -859,7 +841,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Unexpected error during ExportViewQrCodeAsync for request: {request}");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -888,7 +870,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error in GetAllUsersAsync");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -916,7 +898,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error in GetDistinctBatchIdNumbersAsync");
-                return BadRequest("An error occurred while processing your request. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -944,7 +926,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error in GetAllFanManSerialNumbersAsync");
-                return BadRequest("An error occurred while processing your request. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -979,7 +961,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error in ExportConsumedInAsync for request: {@Request}", request);
-                return BadRequest("An error occurred while exporting data. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -1016,33 +998,29 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error in BulkUpdateQRCode");
-                return StatusCode(500, "Something went wrong");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
         [Authorize]
-        [HttpGet("GetAvailableQr")]
+        [HttpPost("GetAvailableQr")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult> GetAvailableQr(
-            [FromQuery] string? lnItemCode = null,
-            [FromQuery] string? drawingNumber = null,
-            [FromQuery] int? prodSeriesId = null,
-            [FromQuery] int? qrType = null)
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] GetAvailableQrRequest? request,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
         {
-            _logger.LogInformation($"Request received for QRCodeController:GetAvailableQr LnItemCode={lnItemCode}, DrawingNumber={drawingNumber}, ProdSeriesId={prodSeriesId}, QrType={qrType}");
+            request ??= new GetAvailableQrRequest();
+            _logger.LogInformation("Request received for QRCodeController:GetAvailableQr {@Request}, pageNumber: {PageNumber}, pageSize: {PageSize}", request, pageNumber, pageSize);
 
             try
             {
-                var request = new GetAvailableQrRequest
-                {
-                    LnItemCode = lnItemCode,
-                    DrawingNumber = drawingNumber,
-                    ProdSeriesId = prodSeriesId,
-                    QrType = qrType
-                };
+                if (pageNumber < 1) pageNumber = 1;
+                if (pageSize < 1) pageSize = 20;
+                if (pageSize > 200) pageSize = 200;
 
-                var response = await _qrCodeService.GetAvailableQrService(request);
+                var response = await _qrCodeService.GetAvailableQrPagedService(request, pageNumber, pageSize);
 
                 if (response == null)
                 {
@@ -1061,7 +1039,7 @@ namespace QRCodeApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "QRCodeController:GetAvailableQr - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
     }

@@ -1,5 +1,6 @@
 using Godrej.Precheck.Models.DataModel;
 using Godrej.Precheck.Models.DTOs.Identifier;
+using Godrej.Precheck.Models.DTOs.IdentifierReports;
 using Godrej.Precheck.Models.DTOs.IRNumber;
 using Godrej.Precheck.Models.DTOs.MSNNumber;
 using Godrej.Precheck.Repository.Queries;
@@ -14,7 +15,7 @@ using DinkToPdf.Contracts;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 
-namespace Godrej.Precheck.Api.Controllers
+namespace Godrej.Precheck.Host.Controllers
 {
 
     [ApiController]
@@ -34,7 +35,6 @@ namespace Godrej.Precheck.Api.Controllers
             _converter = converter;
         }
 
-        //GET ALL IRNUMBER - View accessible to all authenticated users
         [Authorize]
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -106,7 +106,6 @@ namespace Godrej.Precheck.Api.Controllers
             }
         }
 
-        //GET ALL MSNNUMBER - View accessible to all authenticated users
         [Authorize]
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -169,8 +168,6 @@ namespace Godrej.Precheck.Api.Controllers
                     return NotFound();
                 }
 
-                //var MSNNumberResponse = result.Adapt<List<MSNNumberDto>>();
-
                 _logger.LogInformation($"Response for IdentifierController:GetMSNNumberByDrawingNumber method: {result}");
                 return Ok(result);
             }
@@ -179,6 +176,84 @@ namespace Godrej.Precheck.Api.Controllers
                 _logger.LogError($"Exception Error for IdentifierController:GetMSNNumberByDrawingNumber method: {ex}");
                 return BadRequest(ex);
 
+            }
+        }
+
+        // Combined, multi-select replacement for GetIRNumberByDrawingNumber + GetMSNNumberByDrawingNumber.
+        [Authorize]
+        [HttpPost("viewIrMsn")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ViewIrMsn(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ViewIrMsnRequestDto? request = null)
+        {
+            try
+            {
+                _logger.LogInformation($"Request for IdentifierController:ViewIrMsn method: {request}, pageNumber: {pageNumber}, pageSize: {pageSize}");
+
+                if (pageNumber < 1) pageNumber = 1;
+                if (pageSize < 1) pageSize = 20;
+                if (pageSize > 200) pageSize = 200;
+
+                var result = await _commonService.ViewIrMsnService(request ?? new ViewIrMsnRequestDto(), pageNumber, pageSize);
+
+                if (result.Data.Count == 0)
+                {
+                    _logger.LogInformation("Response for IdentifierController:ViewIrMsn method: No IR/MSN records found.");
+                    return NotFound("No IR/MSN records found.");
+                }
+
+                _logger.LogInformation($"Response for IdentifierController:ViewIrMsn method: page {result.PageNumber} of {result.TotalPages}, count: {result.Data.Count}");
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Exception Error for IdentifierController:ViewIrMsn method: {ex}");
+                return BadRequest(ex);
+            }
+        }
+
+        // Export version of ViewIrMsn: same filters, plus SelectedColumns to pick exported columns.
+        [Authorize]
+        [HttpPost("ExportIrMsn")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ExportIrMsn(
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ExportIrMsnRequestDto? request = null)
+        {
+            try
+            {
+                _logger.LogInformation($"Request for IdentifierController:ExportIrMsn method: {request}");
+
+                var excelContent = await _commonService.ExportIrMsnService(request ?? new ExportIrMsnRequestDto());
+
+                if (excelContent == null || excelContent.Length == 0)
+                {
+                    _logger.LogInformation("Response for IdentifierController:ExportIrMsn method: No IR/MSN records found.");
+                    return NotFound("No IR/MSN records found.");
+                }
+
+                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var fileName = $"IR_MSN_{timestamp}.xlsx";
+
+                Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{fileName}\"");
+                Response.Headers.Add("Access-Control-Expose-Headers", "Content-Disposition");
+
+                _logger.LogInformation($"Response for IdentifierController:ExportIrMsn method: generated {fileName}");
+
+                return File(
+                    excelContent,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    fileName
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Exception Error for IdentifierController:ExportIrMsn method: {ex}");
+                return BadRequest(ex);
             }
         }
 

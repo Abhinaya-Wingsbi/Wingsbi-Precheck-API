@@ -37,8 +37,7 @@ namespace Godrej.Precheck.Models.DTOs.QRCodeDetails
         public int Id { get; set; }
         public int DrawingNumberId { get; set; }
 
-        //extra       
-        public string IrNumber { get; set; }        
+        public string IrNumber { get; set; }
         public string MsnNumber { get; set; }
         public string Nomenclature { get; set; }  
         public string ComponentType { get; set; }
