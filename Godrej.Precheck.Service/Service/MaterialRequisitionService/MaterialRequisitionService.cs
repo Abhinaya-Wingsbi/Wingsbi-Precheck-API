@@ -156,11 +156,13 @@ namespace Godrej.Precheck.Service.Service.MaterialRequisitionService
         }
 
 
-        public byte[] ExportToExcel(List<MaterialRequisitionResponse> materialRequisitions)
+        public byte[] ExportToExcel(List<MaterialRequisitionResponse> materialRequisitions, List<string>? selectedColumns = null)
         {
             try
             {
                 _logger.LogInformation("Starting Excel export for {Count} material requisitions", materialRequisitions.Count);
+
+                var columns = ResolveColumns(selectedColumns);
 
                 using (var workbook = new XSSFWorkbook())
                 {
@@ -169,14 +171,14 @@ namespace Godrej.Precheck.Service.Service.MaterialRequisitionService
                     var headerStyle = CreateHeaderStyle(workbook);
                     var borderStyle = CreateBorderStyle(workbook);
 
-                    WriteHeaders(sheet, headerStyle);
+                    WriteHeaders(sheet, headerStyle, columns);
 
                     for (int i = 0; i < materialRequisitions.Count; i++)
                     {
-                        WriteDataRow(sheet, materialRequisitions[i], borderStyle, i + 1);
+                        WriteDataRow(sheet, materialRequisitions[i], borderStyle, i + 1, columns);
                     }
 
-                    AutoSizeColumns(sheet, Headers.Length);
+                    AutoSizeColumns(sheet, columns.Count);
 
                     using (var ms = new MemoryStream())
                     {
@@ -216,59 +218,96 @@ namespace Godrej.Precheck.Service.Service.MaterialRequisitionService
             return style;
         }
 
-        private static readonly string[] Headers = new string[]
+        private sealed class ColumnDefinition
         {
-            "Material Requisition ID", "Request Number", "Project Number", "Production Order Number",
-            "Production Series", "Drawing Number", "Nomenclature", "LN Item Code",
-            "ID Number", "IR Number", "MSN Number", "MRIR Number", "Consumed In Drawing",
-            "Remarks", "Quantity", "Unit", "Date", "Component Code ID", "Component Type",
-            "SR Number", "Username", "HW No", "Request Owner", "Status",
-            "Precheck Date", "Created Date", "Modified Date"
+            public string Header { get; }
+            public Func<MaterialRequisitionResponse, string?> ValueSelector { get; }
+
+            public ColumnDefinition(string header, Func<MaterialRequisitionResponse, string?> valueSelector)
+            {
+                Header = header;
+                ValueSelector = valueSelector;
+            }
+        }
+
+        private static readonly Dictionary<string, ColumnDefinition> ColumnMap =
+            new Dictionary<string, ColumnDefinition>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "materialRequisitionId", new ColumnDefinition("Material Requisition ID", i => i.MaterialRequisitionId.ToString()) },
+                { "requestNumber", new ColumnDefinition("Request Number", i => i.RequestNumber) },
+                { "projectNumber", new ColumnDefinition("Project Number", i => i.ProjectNumber) },
+                { "productionOrderNumber", new ColumnDefinition("Production Order Number", i => i.ProductionOrderNumber) },
+                { "productionSeries", new ColumnDefinition("Production Series", i => i.ProductionSeries) },
+                { "drawingNumber", new ColumnDefinition("Drawing Number", i => i.DrawingNumber) },
+                { "nomenclature", new ColumnDefinition("Nomenclature", i => i.Nomenclature) },
+                { "lnItemCode", new ColumnDefinition("LN Item Code", i => i.LnItemCode) },
+                { "idNumber", new ColumnDefinition("ID Number", i => i.IdNumber) },
+                { "irNumber", new ColumnDefinition("IR Number", i => i.IrNumber) },
+                { "msnNumber", new ColumnDefinition("MSN Number", i => i.MsnNumber) },
+                { "mrirNumber", new ColumnDefinition("MRIR Number", i => i.MrirNumber) },
+                { "consumedInDrawing", new ColumnDefinition("Consumed In Drawing", i => i.ConsumedInDrawing) },
+                { "remarks", new ColumnDefinition("Remarks", i => i.Remarks) },
+                { "quantity", new ColumnDefinition("Quantity", i => i.Quantity?.ToString()) },
+                { "unit", new ColumnDefinition("Unit", i => i.Unit) },
+                { "date", new ColumnDefinition("Date", i => i.MyDate?.ToString("yyyy-MM-dd")) },
+                { "componentCodeId", new ColumnDefinition("Component Code ID", i => i.ComponentCodeId?.ToString()) },
+                { "componentType", new ColumnDefinition("Component Type", i => i.ComponentType) },
+                { "srNumber", new ColumnDefinition("SR Number", i => i.SrNumber?.ToString()) },
+                { "username", new ColumnDefinition("Username", i => i.Username) },
+                { "hwno", new ColumnDefinition("HW No", i => i.Hwno) },
+                { "requestOwner", new ColumnDefinition("Request Owner", i => i.RequestOwner) },
+                { "status", new ColumnDefinition("Status", i => i.Status) },
+                { "precheckDate", new ColumnDefinition("Precheck Date", i => i.PrecheckDate?.ToString("yyyy-MM-dd")) },
+                { "createdDate", new ColumnDefinition("Created Date", i => i.CreatedDate?.ToString("yyyy-MM-dd HH:mm:ss")) },
+                { "modifiedDate", new ColumnDefinition("Modified Date", i => i.ModifiedDate?.ToString("yyyy-MM-dd HH:mm:ss")) },
+            };
+
+        private static readonly string[] DefaultColumnOrder = new[]
+        {
+            "materialRequisitionId", "requestNumber", "projectNumber", "productionOrderNumber",
+            "productionSeries", "drawingNumber", "nomenclature", "lnItemCode",
+            "idNumber", "irNumber", "msnNumber", "mrirNumber", "consumedInDrawing",
+            "remarks", "quantity", "unit", "date", "componentCodeId", "componentType",
+            "srNumber", "username", "hwno", "requestOwner", "status",
+            "precheckDate", "createdDate", "modifiedDate"
         };
 
-        private static void WriteHeaders(ISheet sheet, ICellStyle headerStyle)
+        private static List<ColumnDefinition> ResolveColumns(List<string>? selectedColumns)
+        {
+            var keys = (selectedColumns != null && selectedColumns.Any())
+                ? selectedColumns
+                : DefaultColumnOrder.ToList();
+
+            var columns = new List<ColumnDefinition>();
+            foreach (var key in keys)
+            {
+                if (!string.IsNullOrWhiteSpace(key) && ColumnMap.TryGetValue(key.Trim(), out var definition))
+                {
+                    columns.Add(definition);
+                }
+            }
+
+            return columns.Any() ? columns : DefaultColumnOrder.Select(k => ColumnMap[k]).ToList();
+        }
+
+        private static void WriteHeaders(ISheet sheet, ICellStyle headerStyle, List<ColumnDefinition> columns)
         {
             var headerRow = sheet.CreateRow(0);
-            for (int i = 0; i < Headers.Length; i++)
+            for (int i = 0; i < columns.Count; i++)
             {
                 var cell = headerRow.CreateCell(i);
-                cell.SetCellValue(Headers[i]);
+                cell.SetCellValue(columns[i].Header);
                 cell.CellStyle = headerStyle;
             }
         }
 
-        private static void WriteDataRow(ISheet sheet, MaterialRequisitionResponse item, ICellStyle borderStyle, int rowIndex)
+        private static void WriteDataRow(ISheet sheet, MaterialRequisitionResponse item, ICellStyle borderStyle, int rowIndex, List<ColumnDefinition> columns)
         {
             var row = sheet.CreateRow(rowIndex);
-            int colIndex = 0;
-            
-            CreateCell(row, colIndex++, item.MaterialRequisitionId.ToString(), borderStyle);
-            CreateCell(row, colIndex++, item.RequestNumber, borderStyle);
-            CreateCell(row, colIndex++, item.ProjectNumber, borderStyle);
-            CreateCell(row, colIndex++, item.ProductionOrderNumber, borderStyle);
-            CreateCell(row, colIndex++, item.ProductionSeries, borderStyle);
-            CreateCell(row, colIndex++, item.DrawingNumber, borderStyle);
-            CreateCell(row, colIndex++, item.Nomenclature, borderStyle);
-            CreateCell(row, colIndex++, item.LnItemCode, borderStyle);
-            CreateCell(row, colIndex++, item.IdNumber, borderStyle);
-            CreateCell(row, colIndex++, item.IrNumber, borderStyle);
-            CreateCell(row, colIndex++, item.MsnNumber, borderStyle);
-            CreateCell(row, colIndex++, item.MrirNumber, borderStyle);
-            CreateCell(row, colIndex++, item.ConsumedInDrawing, borderStyle);
-            CreateCell(row, colIndex++, item.Remarks, borderStyle);
-            CreateCell(row, colIndex++, item.Quantity?.ToString(), borderStyle);
-            CreateCell(row, colIndex++, item.Unit, borderStyle);
-            CreateCell(row, colIndex++, item.MyDate?.ToString("yyyy-MM-dd"), borderStyle);
-            CreateCell(row, colIndex++, item.ComponentCodeId?.ToString(), borderStyle);
-            CreateCell(row, colIndex++, item.ComponentType, borderStyle);
-            CreateCell(row, colIndex++, item.SrNumber?.ToString(), borderStyle);
-            CreateCell(row, colIndex++, item.Username, borderStyle);
-            CreateCell(row, colIndex++, item.Hwno, borderStyle);
-            CreateCell(row, colIndex++, item.RequestOwner, borderStyle);
-            CreateCell(row, colIndex++, item.Status, borderStyle);
-            CreateCell(row, colIndex++, item.PrecheckDate?.ToString("yyyy-MM-dd"), borderStyle);
-            CreateCell(row, colIndex++, item.CreatedDate?.ToString("yyyy-MM-dd HH:mm:ss"), borderStyle);
-            CreateCell(row, colIndex++, item.ModifiedDate?.ToString("yyyy-MM-dd HH:mm:ss"), borderStyle);
+            for (int i = 0; i < columns.Count; i++)
+            {
+                CreateCell(row, i, columns[i].ValueSelector(item), borderStyle);
+            }
         }
 
         private static void CreateCell(IRow row, int column, string value, ICellStyle style)

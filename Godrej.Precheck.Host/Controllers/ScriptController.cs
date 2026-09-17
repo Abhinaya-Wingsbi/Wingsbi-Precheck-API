@@ -269,7 +269,7 @@ namespace Godrej.Precheck.Host.Controllers
 
             var templatePath = scriptType.ToLower() switch
             {
-                "stdqrgeneration" => Path.Combine(Path.GetDirectoryName(_stdQRScriptPath)!, "STDqrcodesample.xlsx"),
+                "stdqrgeneration" => Path.Combine(Path.GetDirectoryName(_stdQRScriptPath)!, "qrcodesample.xlsx"),
                 "qrcodeimport" => Path.Combine(Path.GetDirectoryName(_qrImportScriptPath)!, "qrcodesample.xlsx"),
                 "masterdata1" => Path.Combine(Path.GetDirectoryName(_masterDataScriptPath)!, "masterdata-drawing-assembly.xlsx"),
                 "masterdata2" => Path.Combine(Path.GetDirectoryName(_masterDataScriptPath)!, "masterdata-drawing.xlsx"),
