@@ -33,7 +33,6 @@ namespace Godrej.Precheck.Models.DataModel
         public int? ProdSeriesId { get; set; }
         public int? IdNumberStart { get; set; }
         public int? IdNumberEnd { get; set; }
-        //public int CreatedById { get; set; }
         public string? UserName { get; set; }
         public int? DepartmentId { get; set; }
 
@@ -45,7 +44,6 @@ namespace Godrej.Precheck.Models.DataModel
 
         public string? DepartmentName { get; set; }
 
-        // Purchase Item fields
         public string? ItemDescription { get; set; }
         public string? LnItemCode { get; set; }
         public string? OperationNumber { get; set; }

@@ -20,7 +20,6 @@ namespace Godrej.Precheck.Models.DTOs.Precheck
         public int? DrawingNumberId { get; set; }
         public string? Unit { get; set; }
         public string ConsumedDrawingNo { get; set; }
-        //project detail specific field
         public int? ProjectNumberId { get; set; }
         public int? ProductionOrderNumberId { get; set; }
         public string? ShortDescription { get; set; }

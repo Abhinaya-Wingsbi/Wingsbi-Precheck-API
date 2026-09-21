@@ -1,7 +1,7 @@
 using Godrej.Precheck.Models.DTOs.Precheck;
 using Godrej.Precheck.Models.DTOs.Sop;
 using Godrej.Precheck.Models.DTOs.Bom;
-using Godrej.Precheck.Service.Service.CommonSevice;
+using Godrej.Precheck.Service.Service.CommonService;
 using Godrej.Precheck.Service.Service.SopService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,7 +25,6 @@ namespace Godrej.Precheck.Host.Controllers
         }
 
         [Authorize]
-        // GET api/<SopController>/5
         [HttpGet("allassemblies")]
         public async Task<IActionResult> GetAllModulesAsync()
         {
@@ -53,7 +52,6 @@ namespace Godrej.Precheck.Host.Controllers
         }
 
         [Authorize]
-        // GET api/<SopController>/5
         [HttpPost("GetSop")]
         public async Task<IActionResult> GetSopForAssembly([FromBody] GetSopRequestDto request)
         {
@@ -134,17 +132,14 @@ namespace Godrej.Precheck.Host.Controllers
 
             try
             {
-               var drawingNumbers =await _commonService.GetAllDrawingNumberService();
-                var AssemblyDrawing = drawingNumbers.Where(x => x.Id == request.AssemblyDrawingId).First().AssemblyNumber;
-                var sopResponse = await _sopService.GetSopForAssembly(request);
-                var response = _sopService.ExportToExcel(sopResponse, request.AssemblyDrawing);
+               var sopResponse = await _sopService.GetSopForAssembly(request);
+                var response = _sopService.ExportToExcel(sopResponse, request.AssemblyDrawing, request.SelectedColumns);
 
-                var timestamp = DateTime.Now.ToString("dd-MM-yy HH mm ss");
-                var fileName = $"{AssemblyDrawing}_{request.SerielNumberId}_{timestamp}.xlsx";
+                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var fileName = $"SOP_Assembly_Export_{request.AssemblyDrawing}_{timestamp}.xlsx";
 
                 _logger.LogInformation($"PrecheckController:ExportSopForAssembly - Successfully generated Excel file {fileName}");
 
-                // Add these headers to ensure proper file download
                 Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{fileName}\"");
                 Response.Headers.Add("Access-Control-Expose-Headers", "Content-Disposition");
 
@@ -175,17 +170,14 @@ namespace Godrej.Precheck.Host.Controllers
 
             try
             {
-                var drawingNumbers = await _commonService.GetAllDrawingNumberService();
-                var AssemblyDrawing = drawingNumbers.Where(x => x.Id == request.AssemblyDrawingId).First().AssemblyNumber;
                 var sopResponse = await _sopService.GetSopForAssembly(request, excludeRawMaterial: true);
-                var response = _sopService.ExportToExcel(sopResponse, request.AssemblyDrawing);
+                var response = _sopService.ExportToExcel(sopResponse, request.AssemblyDrawing, request.SelectedColumns);
 
-                var timestamp = DateTime.Now.ToString("dd-MM-yy HH mm ss");
-                var fileName = $"{AssemblyDrawing}_{request.SerielNumberId}_{timestamp}.xlsx";
+                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var fileName = $"SOP_Assembly_Export_{request.AssemblyDrawing}_{timestamp}.xlsx";
 
                 _logger.LogInformation($"PrecheckController:ExportSopForAssemblyExcludingRawMaterial - Successfully generated Excel file {fileName}");
 
-                // Add these headers to ensure proper file download
                 Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{fileName}\"");
                 Response.Headers.Add("Access-Control-Expose-Headers", "Content-Disposition");
 
@@ -277,9 +269,12 @@ namespace Godrej.Precheck.Host.Controllers
         /// Export BOM details to Excel file.
         /// </summary>
         [Authorize]
-        [HttpGet("ExportBom")]
-        public async Task<IActionResult> ExportBomAsync([FromQuery] string assemblyNumber)
+        [HttpPost("ExportBom")]
+        public async Task<IActionResult> ExportBomAsync(
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ExportBomRequestDto? request)
         {
+            request ??= new ExportBomRequestDto();
+            var assemblyNumber = request.AssemblyNumber;
             _logger.LogInformation($"SopController:ExportBom - Request for assembly: {assemblyNumber}");
 
             try
@@ -290,14 +285,13 @@ namespace Godrej.Precheck.Host.Controllers
                 }
 
                 var bomData = await _sopService.GetBomDetails(assemblyNumber);
-                var response = _sopService.ExportBomToExcel(bomData, assemblyNumber);
+                var response = _sopService.ExportBomToExcel(bomData, assemblyNumber, request.SelectedColumn);
 
                 var timestamp = DateTime.Now.ToString("dd-MM-yy_HH-mm-ss");
                 var fileName = $"BOM_{assemblyNumber}_{timestamp}.xlsx";
 
                 _logger.LogInformation($"SopController:ExportBom - Successfully generated Excel file {fileName}");
 
-                // Add these headers to ensure proper file download
                 Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{fileName}\"");
                 Response.Headers.Add("Access-Control-Expose-Headers", "Content-Disposition");
 

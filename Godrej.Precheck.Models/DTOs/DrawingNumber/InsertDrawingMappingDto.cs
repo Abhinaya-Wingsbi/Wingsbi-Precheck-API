@@ -14,23 +14,17 @@ namespace Godrej.Precheck.Models.DTOs.DrawingNumber
         // Used only when DrawingNumberId is 0, to look up or create the tbl_drawingnumber row
         public string? DrawingNumber { get; set; }
 
-        // LnItemCode related
         public string? LnItemCode { get; set; }
         public string? LnItemNomenclature { get; set; }
 
-        // Nomenclature
         public string? Nomenclature { get; set; }
 
-        // Rack Location (Store Item Location)
         public string? RackLocation { get; set; }
 
-        // Component Type
         public string? ComponentType { get; set; }
 
-        // Document Type
         public string? DocumentType { get; set; }
 
-        // Unit
         public string? UnitName { get; set; }
 
         // Production series this drawing is available for (e.g. "H")

@@ -485,7 +485,6 @@ namespace Godrej.Precheck.Service.Service.TestingService
                     .GroupBy(f => f.FieldName, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
 
-                // Validate stage row field names
                 var invalidFields = request.Rows
                     .SelectMany(r => r.Fields)
                     .Where(f => !string.IsNullOrWhiteSpace(f.FieldName)
@@ -528,7 +527,6 @@ namespace Godrej.Precheck.Service.Service.TestingService
                     }
                 }
 
-                // Build row values
                 var rowValuesToInsert = request.Rows
                     .SelectMany(row => row.Fields
                         .Where(f => !string.IsNullOrWhiteSpace(f.FieldName)
@@ -776,7 +774,6 @@ namespace Godrej.Precheck.Service.Service.TestingService
 
             var fieldValues = await _testingRepository.GetFieldValuesForExportAsync(drawingNumber);
 
-            // Extract placeholder keys from the template
             var templateKeys = Regex.Matches(
                     exportData.HtmlTemplate ?? string.Empty,
                     @"\{\{(?:this\.)?([a-zA-Z0-9_]+)\}\}",
@@ -802,7 +799,6 @@ namespace Godrej.Precheck.Service.Service.TestingService
 
             var templateHtml = exportData.HtmlTemplate ?? string.Empty;
 
-            // Detect common placeholder formats in the template
             var curlyDouble = Regex.Matches(templateHtml, @"\{\{[^}]+\}\}").Count;
             var curlySingle = Regex.Matches(templateHtml, @"\{[a-zA-Z0-9_]+\}").Count;
             var squareBracket = Regex.Matches(templateHtml, @"\[[a-zA-Z0-9_]+\]").Count;
@@ -810,24 +806,20 @@ namespace Godrej.Precheck.Service.Service.TestingService
             var hashTag = Regex.Matches(templateHtml, @"#[a-zA-Z0-9_]+#").Count;
             var dataAttr = Regex.Matches(templateHtml, @"data-field=""([^""]+)""").Count;
 
-            // Sample first 1000 chars of template to see its structure
             var templateSample = templateHtml.Length > 1000
                 ? templateHtml.Substring(0, 1000)
                 : templateHtml;
 
-            // Extract all input/textarea name attributes to see exact naming pattern
             var inputNames = Regex.Matches(templateHtml, @"<(?:input|textarea)\b[^>]*\bname=""([^""]+)""", RegexOptions.IgnoreCase)
                 .Cast<Match>()
                 .Select(m => m.Groups[1].Value)
                 .ToList();
 
-            // Extract all input id attributes
             var inputIds = Regex.Matches(templateHtml, @"<(?:input|textarea)\b[^>]*\bid=""([^""]+)""", RegexOptions.IgnoreCase)
                 .Cast<Match>()
                 .Select(m => m.Groups[1].Value)
                 .ToList();
 
-            // Extract the first 5 full <input> tags to see their structure
             var sampleInputTags = Regex.Matches(templateHtml, @"<input\b[^>]*/?>", RegexOptions.IgnoreCase)
                 .Cast<Match>()
                 .Take(5)

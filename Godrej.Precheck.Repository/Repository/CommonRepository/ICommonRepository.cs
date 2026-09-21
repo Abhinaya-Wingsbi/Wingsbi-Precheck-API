@@ -4,6 +4,7 @@ using Godrej.Precheck.Models.DataModel.Common;
 using Godrej.Precheck.Models.DataModel.Precheck;
 using Godrej.Precheck.Models.DTOs.Assembly;
 using Godrej.Precheck.Models.DTOs.DrawingNumber;
+using Godrej.Precheck.Models.DTOs.IdentifierReports;
 using Godrej.Precheck.Models.DTOs.IRNumber;
 using Godrej.Precheck.Models.DTOs.MSNNumber;
 using Godrej.Precheck.Models.DTOs.Precheck;
@@ -52,11 +53,10 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
         Task<ProductionSeriess?> GetProductionSeriesById(int Id);
         Task<Nomenclatures?> GetNomenclatureByName(string query);
         Task<User?> GetUserById(int UserId);
-        
-        //Task<List<IRNumbers>> GetIRNumberByDrawingNumber(string query);
+
         Task<List<IRNumbers>> GetIRNumberByDrawingNumber(GetIRNumberByDrawingNumberRequest getIRNumberByDrawingNumberRequest);
         Task<List<MSNNumbers>> GetMSNNuberByDrawingNumber(GetMSNNumberByDrawingNumberRequest getMSNNumberByDrawingNumberRequest);
-        //Task<List<MSNNumbers>> GetMSNNuberByDrawingNumber(string query);
+        Task<(List<ViewIrMsnResponseDto> Items, int TotalCount)> GetViewIrMsn(ViewIrMsnRequestDto request, int pageNumber, int pageSize);
         Task<User?> GetUserByName(string name);
         Task<Department> GetDepartmentById(int departmentId);
 
@@ -77,7 +77,7 @@ namespace Godrej.Precheck.Repository.Repository.CommonRepository
         Task<int> AddUserRole(UserRole role);
         Task<bool> UpdateUserRole(UserRole role);
         Task<bool> DeleteUserRole(int id, int modifiedBy);
-        Task<List<User>> GetAllUsers();
+        Task<List<User>> GetAllUsers(string? searchQuery = null);
         Task<List<User>> GetPendingUsersAsync();
         Task<bool> ApproveUserAsync(int id, int modifiedBy);
         Task<bool> UpdateUser(UserUpdateDto user);

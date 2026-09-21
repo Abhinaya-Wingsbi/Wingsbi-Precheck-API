@@ -42,6 +42,7 @@ namespace Godrej.Precheck.Models.DTOs.DrawingNumber
         public bool AssemblyDrawingMappingCreated { get; set; }
         public bool AssemblyDrawingMappingUpdated { get; set; }
         public bool DrawingLnItemMapCreated { get; set; }
+        public bool DrawingLnItemMapReactivated { get; set; }
     }
 }
 

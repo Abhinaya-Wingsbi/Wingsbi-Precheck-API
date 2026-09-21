@@ -26,13 +26,12 @@ namespace Godrej.Precheck.Models.DTOs.Archive
         // Separated ConsumedIn fields
         public string AssemblyNumber { get; set; } // ConsumedInAssembly
         public string ProductionSeries { get; set; } // ConsumedInProdSeries
-        public string ConsumedIn { get; set; } // Original ConsumedIn field
-        
+        public string ConsumedIn { get; set; }
+
         public string Remarks { get; set; }
         public string UserName { get; set; }
         
-        // Additional fields from backup database
-        public string CompTableName { get; set; } // Source COMP table
+        public string CompTableName { get; set; }
         public string ComponentId { get; set; }
         public string ItemCode { get; set; }
         public string ComponentType { get; set; }

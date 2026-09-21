@@ -29,10 +29,8 @@ namespace Godrej.Precheck.Repository.Repository.ArchiveRepository
                 _logger.LogInformation($"Getting archive data with filters: ProductionSeriesId={request.ProductionSeriesId}, AssemblyNumberId={request.AssemblyNumberId}, IdNumber={request.IdNumber}");
 
                 // DEPRECATED: This method should not be used - use GetAllArchiveDataAsync() instead
-                // Fallback to non-paginated query for any remaining calls
                 _logger.LogWarning("GetArchiveDataAsync() is deprecated - use GetAllArchiveDataAsync() for better performance");
-                
-                // Convert to non-paginated call
+
                 var allData = await GetAllArchiveDataAsync(request);
                 return new ArchiveDataPagedResponse
                 {
@@ -48,12 +46,6 @@ namespace Godrej.Precheck.Repository.Repository.ArchiveRepository
                 throw;
             }
         }
-
-        // REMOVED: GetArchiveDataOptimizedAsync() - stored procedure doesn't support nomenclature field
-        // Use GetAllArchiveDataAsync() instead for optimized performance
-
-        // REMOVED: GetArchiveDataOriginalAsync() - replaced by GetAllArchiveDataAsync()
-        // The new method is optimized for large datasets and has no pagination overhead
 
         public async Task<ArchiveDropdownResponse> GetDropdownOptionsAsync()
         {
@@ -277,7 +269,6 @@ namespace Godrej.Precheck.Repository.Repository.ArchiveRepository
             {
                 _logger.LogInformation($"Getting ALL archive data without pagination - ProductionSeriesId={request.ProductionSeriesId}, AssemblyNumberId={request.AssemblyNumberId}, IdNumber={request.IdNumber}");
 
-                // Get all data without pagination
                 var data = await _db.GetAll<ArchiveDataResponse>(
                     ArchiveQueries.GET_ALL_ARCHIVE_DATA,
                     new

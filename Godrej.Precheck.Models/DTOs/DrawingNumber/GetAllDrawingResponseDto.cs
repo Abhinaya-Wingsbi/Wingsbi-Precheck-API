@@ -22,7 +22,6 @@ namespace Godrej.Precheck.Models.DTOs.DrawingNumber
         public string DocumentType { get; set; }
         public int? LnItemCodeId { get; set; }
 
-        //// Newly Added Properties (as per query)
         public int? RackLocationId { get; set; }
         public int? UnitId { get; set; }
         public string UnitName { get; set; }

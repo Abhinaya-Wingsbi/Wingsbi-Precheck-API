@@ -9,10 +9,7 @@ using Godrej.Precheck.Service.Service.QRCodeService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using QRCodeApi.Controllers;
 using System.ComponentModel.DataAnnotations;
-
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
 namespace Godrej.Precheck.Host.Controllers
 {
@@ -58,7 +55,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:GetAssemblyDrawing - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -100,7 +97,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:MakePrecheckForAssembly - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -152,7 +149,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:BulkPrecheck - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -196,7 +193,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:MakePrecheckFromExcel - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -221,7 +218,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:DownloadTemplate - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -251,7 +248,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:DeletePrecheckDetails - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -281,7 +278,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:RemovePrecheckDetails - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -306,9 +303,11 @@ namespace Godrej.Precheck.Host.Controllers
                 var createdBy = Convert.ToInt32(User.FindFirst("id")?.Value);
                 var response = await _service.AddPrecheckComponentAsync(request, createdBy);
 
-                var message = response.ComponentsAdded == 0
-                    ? "Component already present in this assembly."
-                    : "Component added successfully.";
+                var message = !request.UserInput
+                    ? "Component not applied to existing production orders."
+                    : response.ComponentsAdded == 0
+                        ? "Component already present in this assembly."
+                        : "Component added successfully.";
 
                 _logger.LogInformation("PrecheckController:AddPrecheckComponent - Completed successfully");
                 return Ok(new { message, data = response });
@@ -321,7 +320,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:AddPrecheckComponent - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -364,11 +363,10 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:ConsumedInComponents - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
-        //export precheck api
         [Authorize]
         [HttpPost("ExportPrecheckdetails")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -378,7 +376,6 @@ namespace Godrej.Precheck.Host.Controllers
             _logger.LogInformation("Request received for PrecheckController:ExportPrecheckDetails {@Request}", request);
             try
             {
-                // Call service
                 var response = await _service.ExportViewPrecheckDetailsService(request);
 
                 if (response == null || !response.Any())
@@ -389,13 +386,12 @@ namespace Godrej.Precheck.Host.Controllers
 
                 _logger.LogInformation("PrecheckController:ExportPrecheckDetails - {Count} records fetched", response.Count);
 
-                // Generate the PDF
-                var pdfContent = await _service.GeneratePrecheckPdfAsync(response, request);
+                var excelContent = _service.GeneratePrecheckExcel(response, request.SelectedColumns);
 
-                var fileName = "PrecheckDetailsReport.pdf";
-                _logger.LogInformation("PrecheckController:ExportPrecheckDetails - Successfully generated PDF: {FileName}", fileName);
+                var fileName = "PrecheckDetailsReport.xlsx";
+                _logger.LogInformation("PrecheckController:ExportPrecheckDetails - Successfully generated Excel: {FileName}", fileName);
 
-                return File(pdfContent, "application/pdf", fileName); 
+                return File(excelContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
             }
             catch (ApplicationException ex)
             {
@@ -445,7 +441,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:MakeOrder - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -478,7 +474,79 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:ViewPrecheckDetails - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("ViewPrechekByParameters")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult> ViewPrechekByParameters(
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ViewPrecheckFilterRequestDto? request,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            request ??= new ViewPrecheckFilterRequestDto();
+            _logger.LogInformation($"Request received for PrecheckController:ViewPrechekByParameters- {request}, pageNumber: {pageNumber}, pageSize: {pageSize}");
+
+            try
+            {
+                if (pageNumber < 1) pageNumber = 1;
+                if (pageSize < 1) pageSize = 20;
+                if (pageSize > 200) pageSize = 200;
+
+                var response = await _service.ViewPrecheckByParametersService(request, pageNumber, pageSize);
+
+                if (response == null)
+                {
+                    _logger.LogWarning($"PrecheckController:ViewPrechekByParameters - Failed for {request}");
+                    return BadRequest(new { message = "Failed ViewPrechekByParameters." });
+                }
+
+                _logger.LogInformation($"PrecheckController:ViewPrechekByParameters - Successfully Get details, page {response.PageNumber} of {response.TotalPages}, count: {response.Data.Count}");
+                return Ok(response);
+            }
+            catch (ApplicationException ex)
+            {
+                _logger.LogError(ex, "PrecheckController:ViewPrechekByParameters - Application error occurred");
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "PrecheckController:ViewPrechekByParameters - Unexpected error occurred");
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("ExportViewPrecheckdetails")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult> ExportViewPrecheckdetails(
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ExportViewPrecheckFilterRequestDto? request)
+        {
+            request ??= new ExportViewPrecheckFilterRequestDto();
+            _logger.LogInformation("Request received for PrecheckController:ExportViewPrecheckdetails {@Request}", request);
+
+            try
+            {
+                var excelContent = await _service.ExportViewPrecheckByParametersService(request);
+
+                var fileName = "PrecheckDetailsReport.xlsx";
+                _logger.LogInformation("PrecheckController:ExportViewPrecheckdetails - Successfully generated Excel: {FileName}", fileName);
+
+                return File(excelContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+            catch (ApplicationException ex)
+            {
+                _logger.LogError(ex, "PrecheckController:ExportViewPrecheckdetails - Application error occurred");
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "PrecheckController:ExportViewPrecheckdetails - Unexpected error occurred");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -505,7 +573,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:PendingPrecheck - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -532,7 +600,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:ExportPendingPrecheck - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -565,7 +633,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:ViewPrecheckDetails - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -573,18 +641,25 @@ namespace Godrej.Precheck.Host.Controllers
         [HttpPost("GetStoreAvailablComponents")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult> GetAvailableComponents([FromBody] AvailableComponentFilterDto filter)
+        public async Task<ActionResult> GetAvailableComponents(
+            [FromBody] AvailableComponentFilterDto filter,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
         {
-            _logger.LogInformation($"Request received for PrecheckController:GetAvailableComponents {filter.QrCode}");
+            _logger.LogInformation($"Request received for PrecheckController:GetAvailableComponents {filter.QrCode}, pageNumber: {pageNumber}, pageSize: {pageSize}");
             try
             {
-                var response = await _service.AvailableComponentDetailsService(filter);
+                if (pageNumber < 1) pageNumber = 1;
+                if (pageSize < 1) pageSize = 20;
+                if (pageSize > 200) pageSize = 200;
+
+                var response = await _service.AvailableComponentDetailsPagedService(filter, pageNumber, pageSize);
                 if (response == null)
                 {
                     _logger.LogWarning($"PrecheckController:GetAvailableComponents - Failed for {filter.QrCode}");
                     return BadRequest(new { message = "Failed GetAvailableComponents." });
                 }
-                _logger.LogInformation($"PrecheckController:GetAvailableComponents - Successfully retrieved details");
+                _logger.LogInformation($"PrecheckController:GetAvailableComponents - Successfully retrieved details, page {response.PageNumber} of {response.TotalPages}, count: {response.Data.Count}");
                 return Ok(response);
             }
             catch (ApplicationException ex)
@@ -595,7 +670,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:GetAvailableComponents - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -628,7 +703,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:GetAvailableComponents - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -682,7 +757,6 @@ namespace Godrej.Precheck.Host.Controllers
 
             try
             {
-                // Set CreatedBy from the authenticated user if not provided
                 if (request.CreatedBy == 0)
                 {
                     var userId = Convert.ToInt32(User.FindFirst("id")?.Value);
@@ -712,7 +786,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:RejectAndDuplicatePrecheck - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -758,7 +832,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "UpdateQuantity - Unexpected error");
-                return StatusCode(500, "An unexpected error occurred.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -772,7 +846,6 @@ namespace Godrej.Precheck.Host.Controllers
 
             try
             {
-                // Set CreatedBy from the authenticated user if not provided
                 if (request.CreatedBy == 0)
                 {
                     var userId = Convert.ToInt32(User.FindFirst("id")?.Value);
@@ -802,7 +875,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:RejectAndDuplicatePrecheck - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
@@ -833,7 +906,7 @@ namespace Godrej.Precheck.Host.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PrecheckController:ResetRemainingQuantity - Unexpected error occurred");
-                return StatusCode(500, "An unexpected error occurred. Please try again later.");
+                return StatusCode(500, new { message = ex.Message });
             }
         }
     }

@@ -41,7 +41,6 @@ namespace Godrej.Precheck.Models.DataModel.Archive
 
         public DateTime? ModifiedDate { get; set; }
 
-        // Navigation properties
         public virtual ICollection<ArchiveCompData> ArchiveCompData { get; set; } = new List<ArchiveCompData>();
     }
 }

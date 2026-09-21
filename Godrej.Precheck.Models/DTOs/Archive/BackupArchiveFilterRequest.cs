@@ -30,9 +30,6 @@ namespace Godrej.Precheck.Models.DTOs.Archive
         /// </summary>
         public string ConsumedInId { get; set; }
 
-        /// <summary>
-        /// Drawing Number for filtering by specific drawing
-        /// </summary>
         public string DrawingNumber { get; set; }
 
         /// <summary>
@@ -45,34 +42,16 @@ namespace Godrej.Precheck.Models.DTOs.Archive
         /// </summary>
         public string Nomenclature { get; set; }
 
-        /// <summary>
-        /// IDNos field for exact matching
-        /// </summary>
         public string IDNos { get; set; }
 
-        /// <summary>
-        /// COMP table name for filtering by source table
-        /// </summary>
         public string CompTableName { get; set; }
 
-        /// <summary>
-        /// IR Number for filtering
-        /// </summary>
         public string IRNumber { get; set; }
 
-        /// <summary>
-        /// MSN Number for filtering
-        /// </summary>
         public string MSNNumber { get; set; }
 
-        /// <summary>
-        /// Item Code for filtering
-        /// </summary>
         public string ItemCode { get; set; }
 
-        /// <summary>
-        /// Component Type for filtering
-        /// </summary>
         public string ComponentType { get; set; }
 
         /// <summary>
@@ -80,14 +59,8 @@ namespace Godrej.Precheck.Models.DTOs.Archive
         /// </summary>
         public string SearchTerm { get; set; }
 
-        /// <summary>
-        /// Page number for pagination (optional)
-        /// </summary>
         public int? PageNumber { get; set; }
 
-        /// <summary>
-        /// Page size for pagination (optional)
-        /// </summary>
         public int? PageSize { get; set; }
     }
 
@@ -115,19 +88,10 @@ namespace Godrej.Precheck.Models.DTOs.Archive
         /// </summary>
         public string ComponentId { get; set; }
 
-        /// <summary>
-        /// Production Series name (for direct filtering)
-        /// </summary>
         public string ProductionSeries { get; set; }
 
-        /// <summary>
-        /// Assembly Number (for direct filtering)
-        /// </summary>
         public string AssemblyNumber { get; set; }
 
-        /// <summary>
-        /// Drawing Number (for direct filtering)
-        /// </summary>
         public string DrawingNumber { get; set; }
     }
 }

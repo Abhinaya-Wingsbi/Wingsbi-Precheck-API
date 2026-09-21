@@ -183,6 +183,38 @@ namespace Godrej.Precheck.Repository.Repository.DrawingNumberRepository
             }
         }
 
+        public async Task<bool?> GetDrawingLnItemMapStatus(string drawingNumber, string lnItemCode)
+        {
+            _logger.LogInformation($"Getting tbl_drawing_lnitem_map status: DrawingNumber={drawingNumber}, LnItemCode={lnItemCode}");
+            try
+            {
+                return await _db.GetSingle<bool?>(
+                    DrawingNumberQueries.GET_DRAWING_LNITEM_MAP_STATUS,
+                    new { DrawingNumber = drawingNumber, LnItemCode = lnItemCode });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting tbl_drawing_lnitem_map status");
+                throw;
+            }
+        }
+
+        public async Task ReactivateDrawingLnItemMap(string drawingNumber, string lnItemCode)
+        {
+            _logger.LogInformation($"Reactivating tbl_drawing_lnitem_map: DrawingNumber={drawingNumber}, LnItemCode={lnItemCode}");
+            try
+            {
+                await _db.Execute(
+                    DrawingNumberQueries.REACTIVATE_DRAWING_LNITEM_MAP,
+                    new { DrawingNumber = drawingNumber, LnItemCode = lnItemCode });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reactivating tbl_drawing_lnitem_map");
+                throw;
+            }
+        }
+
         public async Task InsertDrawingLnItemMap(string drawingNumber, string lnItemCode, int createdBy, DateTime createdDate)
         {
             _logger.LogInformation($"Inserting tbl_drawing_lnitem_map: DrawingNumber={drawingNumber}, LnItemCode={lnItemCode}");

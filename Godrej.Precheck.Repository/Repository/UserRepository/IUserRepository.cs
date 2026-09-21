@@ -10,10 +10,6 @@ namespace Godrej.Precheck.Repository.Repository.UserRepository
 {
     public interface IUserRepository
     {
-        //Task AddRefreshTokenAsync(RefreshToken refreshToken);
-        //Task<User?> GetUserByEmailAndPasswordAsync(string email, string password);
-
-
         Task<User?> GetUserByEmail(string email);
 
         Task<User?> GetUserByUserName(string UserName);
@@ -22,14 +18,11 @@ namespace Godrej.Precheck.Repository.Repository.UserRepository
 
         Task UpdateUserAsync(ResetModel user);
 
-        //new Implementation 
         Task<User> RegisterUserAsync(User Usermodel);
         Task AddUserAsync(User user);
 
-        //Task<User> AddUserAsync(User user);
         Task AddRefreshTokenAsync(RefreshToken refreshToken);
 
-        //helper 
         Task<User?> GetUserByIdAsync(int userId);
         Task UpdateRefreshTokenAsync(RefreshToken refreshToken);
         Task AddUserRoleAsync(UserRole userRole);

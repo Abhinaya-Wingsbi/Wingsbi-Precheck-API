@@ -83,7 +83,6 @@ namespace Godrej.Precheck.Models.DataModel.Archive
 
         public DateTime? ModifiedDate { get; set; }
 
-        // Navigation property
         public virtual DrawingCompMapping DrawingCompMapping { get; set; }
     }
 }

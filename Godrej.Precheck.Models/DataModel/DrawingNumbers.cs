@@ -22,8 +22,7 @@ namespace Godrej.Precheck.Models.DataModel
         public string DocumentType { get; set; }
          public int? LnItemCodeId { get; set; }
 
-        //// Newly Added Properties (as per query)
-        public int? RackLocationId { get; set; } 
+        public int? RackLocationId { get; set; }
         public int? NomenclatureId { get; set; } 
         public int? ComponentTypeId { get; set; } 
         public int? DocumentTypeId { get; set; } 

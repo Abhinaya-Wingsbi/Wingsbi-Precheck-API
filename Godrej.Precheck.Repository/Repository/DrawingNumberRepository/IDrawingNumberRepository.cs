@@ -21,6 +21,8 @@ namespace Godrej.Precheck.Repository.Repository.DrawingNumberRepository
         Task<string?> GetDrawingNumberTextById(int drawingNumberId);
         Task<bool> CheckDrawingLnItemMapExists(string drawingNumber, string lnItemCode);
         Task InsertDrawingLnItemMap(string drawingNumber, string lnItemCode, int createdBy, DateTime createdDate);
+        Task<bool?> GetDrawingLnItemMapStatus(string drawingNumber, string lnItemCode);
+        Task ReactivateDrawingLnItemMap(string drawingNumber, string lnItemCode);
 
         // Get master ID from mapping (by drawing number)
         Task<int?> GetNomenclatureIdFromMapping(int drawingNumberId);

@@ -146,7 +146,6 @@ namespace Godrej.Precheck.Service.Service.AuthService
 
             try
             {
-                   //validation for EmailId 
                     var UserByEmail = await _userRepository.GetUserByEmail(request.Email);
 
                     if (UserByEmail != null)
@@ -155,7 +154,6 @@ namespace Godrej.Precheck.Service.Service.AuthService
                         throw new ValidationException("Email already exists");                       
                     }
 
-                    //validation for UserId
                     var UserByUserId = await _userRepository.GetUserByUserid(request.UserId);
 
                     if (UserByUserId != null)
@@ -195,21 +193,18 @@ namespace Godrej.Precheck.Service.Service.AuthService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Exception occurred during registration for UserName: {UserName}, Email: {Email}", request.UserName, request.Email);
-                return false;
+                throw;
             }
         }
 
-        // Updated secure password hashing method
         private (string Hash, string SecurityStamp) HashPassword(string password)
         {
-            // Generate a cryptographically secure random salt
             byte[] salt = new byte[SaltSize];
             using (var rng = RandomNumberGenerator.Create())
             {
                 rng.GetBytes(salt);
             }
 
-            // Hash the password using PBKDF2 with HMAC-SHA256
             byte[] hash = KeyDerivation.Pbkdf2(
                 password: password,
                 salt: salt,
@@ -218,14 +213,12 @@ namespace Godrej.Precheck.Service.Service.AuthService
                 numBytesRequested: HashSize
             );
 
-            // Store both hash and salt as Base64 strings
             string hashString = Convert.ToBase64String(hash);
             string saltString = Convert.ToBase64String(salt);
 
             return (Hash: hashString, SecurityStamp: saltString);
         }
 
-        // Updated secure password verification method
         private bool VerifyPasswordHash(string password, string storedHash, string storedSalt)
         {
             try
@@ -233,7 +226,6 @@ namespace Godrej.Precheck.Service.Service.AuthService
                 byte[] salt = Convert.FromBase64String(storedSalt);
                 byte[] expectedHash = Convert.FromBase64String(storedHash);
 
-                // Hash the input password with the stored salt
                 byte[] actualHash = KeyDerivation.Pbkdf2(
                     password: password,
                     salt: salt,
@@ -252,7 +244,6 @@ namespace Godrej.Precheck.Service.Service.AuthService
             }
         }
 
-        // Existing methods remain the same
         private string GenerateJwtToken(User user)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -265,18 +256,16 @@ namespace Godrej.Precheck.Service.Service.AuthService
                     new Claim("userid", user.UserId),
                     new Claim("username", user.UserName),
                     new Claim("roleid", user.UserRoleId.ToString()),
-            new Claim(ClaimTypes.Role, user.Role),  // Instead of "role"
-                    //new Claim("plantid", user.PlantId.ToString()),
-                    //new Claim("email", user.Email),
+            new Claim(ClaimTypes.Role, user.Role),
             new Claim("deptid",Convert.ToString(user.DepartmentId)),
                     new Claim("department", user.DepartmentName)
                 }),
                 Expires = DateTime.UtcNow.AddDays(Convert.ToInt32(_configuration["Jwt:ExpiryTimeInDays"])),
-                Issuer = _configuration["Jwt:Issuer"],         // Add this
-                Audience = _configuration["Jwt:Audience"],      // Add this
+                Issuer = _configuration["Jwt:Issuer"],
+                Audience = _configuration["Jwt:Audience"],
                 SigningCredentials = new SigningCredentials(
                     new SymmetricSecurityKey(key),
-                    SecurityAlgorithms.HmacSha256)  // Changed to HmacSha256 from HmacSha256Signature
+                    SecurityAlgorithms.HmacSha256)
             };
 
             var token = tokenHandler.CreateToken(tokenDescriptor);
@@ -290,7 +279,5 @@ namespace Godrej.Precheck.Service.Service.AuthService
             rng.GetBytes(randomBytes);
             return Convert.ToBase64String(randomBytes);
         }
-
-        // Removed unused GenerateSecurityStamp method since we now use the salt as SecurityStamp
     }
 }

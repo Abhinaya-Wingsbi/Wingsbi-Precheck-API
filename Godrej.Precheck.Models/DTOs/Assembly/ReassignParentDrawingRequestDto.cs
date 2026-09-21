@@ -8,6 +8,8 @@ namespace Godrej.Precheck.Models.DTOs.Assembly
 
         public string? FindNo { get; set; }
 
+        public string? UpdatedFindNo { get; set; }
+
         public decimal? Quantity { get; set; }
     }
 }

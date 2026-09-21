@@ -17,7 +17,7 @@ namespace Godrej.Precheck.Service.Service.MaterialRequisitionService
         Task<int> CancelMaterialRequisition(CancelMaterialRequisitionRequestDto request, int modifiedBy);
         Task<(int NewId, string RequestNumber)> CreateMaterialRequisition(CreateMaterialRequisitionRequestDto request, int createdBy);
         Task<int> CreateSwappedDrawingNumber(CreateSwappedDrawingNumberRequestDto request, int createdBy);
-        byte[] ExportToExcel(List<MaterialRequisitionResponse> materialRequisitions);
+        byte[] ExportToExcel(List<MaterialRequisitionResponse> materialRequisitions, List<string>? selectedColumns = null);
     }
 }
 

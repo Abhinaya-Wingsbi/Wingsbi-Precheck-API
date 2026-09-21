@@ -9,7 +9,7 @@ using Godrej.Precheck.Models.DTOs.MSNNumber;
 using Godrej.Precheck.Models.DTOs.Precheck;
 using Godrej.Precheck.Models.DTOs.ProductionSeries;
 using Godrej.Precheck.Models.DTOs.Stage;
-using Godrej.Precheck.Service.Service.CommonSevice;
+using Godrej.Precheck.Service.Service.CommonService;
 using Mapster;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -61,8 +61,6 @@ namespace Godrej.Precheck.Host.Controllers
 
             }
         }
-
-        //Get componenttypes
 
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -116,8 +114,6 @@ namespace Godrej.Precheck.Host.Controllers
                     return NotFound();
                 }
 
-                //var DrawingNumberResponse = result.Adapt<DrawingNumberResponseDto>();
-
                 _logger.LogInformation($"Response for CommonController:GetDrawingNumberAsync method: {result}");
                 return Ok(result);
             }
@@ -130,28 +126,58 @@ namespace Godrej.Precheck.Host.Controllers
         }
 
 
-        //Fetch all Drawing Number Witoutany paramter
-
-        [HttpGet]
+        [HttpPost]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [Route("FetchAllDrawingNumbers")]
-        public async Task<IActionResult> GetAllDrawingNumberAsync()
+        public async Task<IActionResult> GetAllDrawingNumberAsync(
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] GetAllDrawingRequestDto? request,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
         {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 200) pageSize = 200;
+
             try
             {
-                _logger.LogInformation("Request for CommonController:GetAllDrawingNumberAsync method (no parameters)");
+                _logger.LogInformation("Request for CommonController:GetAllDrawingNumberAsync method, searchQuery {SearchQuery}, page {PageNumber} size {PageSize}", request?.Search, pageNumber, pageSize);
 
-                var result = await _commonService.GetAllDrawingNumberService(null);
+                // GetAllDrawingNumberService returns the full cached list when request is null -- other
+                // callers need it unpaginated for full-list lookups, so pagination is applied here, not
+                // in the shared service. Search matches DrawingNumber, LnItemCode, Nomenclature and
+                // ComponentType (see GetAllDrawingNumberService's Search filter).
+                if (request != null
+                    && string.IsNullOrWhiteSpace(request.Search)
+                    && string.IsNullOrWhiteSpace(request.ComponentType)
+                    && (request.ProdSeries == null || request.ProdSeries.Count == 0)
+                    && (request.Unit == null || request.Unit.Count == 0))
+                {
+                    request = null;
+                }
+                var result = await _commonService.GetAllDrawingNumberService(request);
 
                 if (result == null || result.Count == 0)
                 {
                     _logger.LogInformation("No DrawingNumber found.");
-                    return NotFound();
+                    return NotFound(new { message = "No result found." });
                 }
 
-                _logger.LogInformation($"Retrieved {result.Count} drawing numbers.");
-                return Ok(result);
+                var paged = result
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                var response = new DrawingNumberPagedResponse
+                {
+                    Data = paged,
+                    TotalRecords = result.Count,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize
+                };
+
+                _logger.LogInformation($"Retrieved {paged.Count} of {result.Count} drawing numbers (page {pageNumber}).");
+                return Ok(response);
             }
             catch (Exception ex)
             {
@@ -193,7 +219,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //GetComponentTypeByName
         [NonAction]
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -228,7 +253,6 @@ namespace Godrej.Precheck.Host.Controllers
         }
 
 
-        //GetComponentTypeById
         [NonAction]
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -263,7 +287,6 @@ namespace Godrej.Precheck.Host.Controllers
         }
 
 
-        //Get Prod Series
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -329,7 +352,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //GetProdSeriesById
         [NonAction]
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -431,7 +453,6 @@ namespace Godrej.Precheck.Host.Controllers
        
 
         [NonAction]
-        //GetProductionOrderByName
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -462,7 +483,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //GetUnitByName
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -688,7 +708,6 @@ namespace Godrej.Precheck.Host.Controllers
             }
         }
 
-        //Get All Assembly
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

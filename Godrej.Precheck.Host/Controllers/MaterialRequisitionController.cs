@@ -249,17 +249,26 @@ namespace Godrej.Precheck.Host.Controllers
         }
 
         [Authorize]
-        [HttpGet("export")]
+        [HttpPost("export")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> ExportMaterialRequisitionsToExcel()
+        public async Task<IActionResult> ExportMaterialRequisitionsToExcel([FromBody] ExportMaterialRequisitionRequestDto? request)
         {
             _logger.LogInformation("Request received for MaterialRequisitionController:ExportMaterialRequisitionsToExcel");
 
             try
             {
-                var materialRequisitions = await _materialRequisitionService.GetMaterialRequisitions();
+                List<Models.DataModel.MaterialRequisition.MaterialRequisitionResponse> materialRequisitions;
+
+                if (!string.IsNullOrEmpty(request?.Status))
+                {
+                    materialRequisitions = await _materialRequisitionService.GetMaterialRequisitionsByStatus(request.Status, request.StatusId);
+                }
+                else
+                {
+                    materialRequisitions = await _materialRequisitionService.GetMaterialRequisitions();
+                }
 
                 if (materialRequisitions == null || !materialRequisitions.Any())
                 {
@@ -267,14 +276,13 @@ namespace Godrej.Precheck.Host.Controllers
                     return NotFound("No material requisition data found.");
                 }
 
-                var excelContent = _materialRequisitionService.ExportToExcel(materialRequisitions);
+                var excelContent = _materialRequisitionService.ExportToExcel(materialRequisitions, request?.SelectedColumns);
 
                 var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 var fileName = $"MaterialRequisition_{timestamp}.xlsx";
 
                 _logger.LogInformation($"MaterialRequisitionController:ExportMaterialRequisitionsToExcel - Successfully generated Excel file {fileName} with {materialRequisitions.Count} records");
 
-                // Add headers to ensure proper file download
                 Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{fileName}\"");
                 Response.Headers.Add("Access-Control-Expose-Headers", "Content-Disposition");
 
