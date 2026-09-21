@@ -51,6 +51,7 @@ namespace Godrej.Precheck.Models.DataModel.Precheck
         public int? LnItemCodeId { get; set; }
         public string? LnItemCode { get; set; }
         public bool? IsRejected { get; set; }
+        public string? RejectedUserName { get; set; }
         public bool ReadyForRejection { get; set; }
         public string? MaterialRequisitionStatus { get; set; }
         public int EnableRejectButton { get; set; }

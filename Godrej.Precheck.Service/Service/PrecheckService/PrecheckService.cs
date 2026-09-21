@@ -1423,7 +1423,7 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
             ("mrirNumber", "MRIR Number", item => item.MrirNumber ?? string.Empty),
             ("componentType", "Component Type", item => item.ComponentType ?? string.Empty),
             ("precheckStatus", "Precheck Status", item => item.PrecheckStatus ?? string.Empty),
-            ("remark", "Remark", item => item.Remarks ?? string.Empty),
+            ("remarks", "Remark", item => item.Remarks ?? string.Empty),
         };
 
         public byte[] GeneratePrecheckExcel(List<ViewPreCheckResponse> preCheckResponses, List<string>? selectedColumns)
