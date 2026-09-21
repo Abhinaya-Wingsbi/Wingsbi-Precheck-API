@@ -262,6 +262,16 @@ namespace Godrej.Precheck.Service.Service.MaterialRequisitionService
                 { "modifiedDate", new ColumnDefinition("Modified Date", i => i.ModifiedDate?.ToString("yyyy-MM-dd HH:mm:ss")) },
             };
 
+        private static readonly Dictionary<string, string> ColumnAliases =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "requestId", "requestNumber" },
+                { "poNumber", "productionOrderNumber" },
+                { "materialCode", "lnItemCode" },
+                { "itemDescription", "nomenclature" },
+                { "minDate", "date" },
+            };
+
         private static readonly string[] DefaultColumnOrder = new[]
         {
             "materialRequisitionId", "requestNumber", "projectNumber", "productionOrderNumber",
@@ -281,7 +291,14 @@ namespace Godrej.Precheck.Service.Service.MaterialRequisitionService
             var columns = new List<ColumnDefinition>();
             foreach (var key in keys)
             {
-                if (!string.IsNullOrWhiteSpace(key) && ColumnMap.TryGetValue(key.Trim(), out var definition))
+                if (string.IsNullOrWhiteSpace(key))
+                {
+                    continue;
+                }
+
+                var resolvedKey = ColumnAliases.TryGetValue(key.Trim(), out var alias) ? alias : key.Trim();
+
+                if (ColumnMap.TryGetValue(resolvedKey, out var definition))
                 {
                     columns.Add(definition);
                 }
