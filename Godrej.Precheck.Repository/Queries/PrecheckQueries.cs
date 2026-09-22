@@ -419,12 +419,13 @@ WHERE asdmapping.parentdrawingnumber   = @assemblyNumber and asdmapping.isactive
     WHEN ppd.remainingquantity < ppd.quantity THEN 'Updated'
     END AS PrecheckStatus,
     ppd.isrejected AS IsRejected,
+    CASE WHEN ppd.isrejected = 1 THEN rju.username ELSE NULL END AS RejectedUserName,
 
    CASE
     WHEN EXISTS (
        SELECT 1
         FROM tbl_material_requestion mr
-        INNER JOIN tbl_productionordermaster pom 
+        INNER JOIN tbl_productionordermaster pom
             ON pom.productionordernumber = @productionordernumber
             AND pom.isactive = 1
         WHERE mr.rejectedcomponentdrawingnumberid = ppd.drawingnumberid
@@ -455,6 +456,12 @@ INNER JOIN tbl_productionseries ps
 
 LEFT JOIN tbl_users tu
     ON ppd.modifiedby = tu.id
+
+LEFT JOIN tbl_material_requestion rmr
+    ON rmr.rejectedcomponentid = ppd.id AND rmr.isactive = 1
+
+LEFT JOIN tbl_users rju
+    ON rmr.modifiedby = rju.id
 
 INNER JOIN tbl_drawingnumber dn
     ON ppd.drawingnumberid = dn.id
@@ -647,6 +654,7 @@ ORDER BY pd.productionordernumber, TRY_CAST(adm.findno AS INT) ASC;
     adm.findno AS FindNo,
     qd.qrcodenumber AS QrCodeNumber,
     ppd.isrejected AS IsRejected,
+    CASE WHEN ppd.isrejected = 1 THEN rju.username ELSE NULL END AS RejectedUserName,
     CASE
         WHEN ppd.componenttype = 'ID' AND ppd.remainingquantity IS NULL AND ppd.isprecheckcomplete = 1
             THEN 'Completed'
@@ -697,6 +705,8 @@ LEFT JOIN
      ON nommap.nomenclatureid = nom.id
 LEFT JOIN
     tbl_material_requestion mr ON ppd.Id = mr.rejectedcomponentid AND mr.isactive = 1
+LEFT JOIN
+    tbl_users rju ON mr.modifiedby = rju.id
 OUTER APPLY (
     SELECT TOP 1 adm2.findno, adm2.unit
     FROM tbl_assemblydrawingmapping adm2
@@ -1108,8 +1118,7 @@ BEGIN
     UPDATE tbl_projectprecheckdetails
     SET
         quantity = @OriginalQuantity - @NewQuantity,
-        modifieddate = GETDATE(),
-        modifiedby = @CreatedBy
+        modifieddate = GETDATE()
     WHERE Id = @PrecheckDetailsId;
 
     -- 2b️⃣ Insert a new row that is a full, exact copy of every column on the original row
@@ -1121,7 +1130,7 @@ BEGIN
     INSERT INTO tbl_projectprecheckdetails
     (
         projectdetailsid, drawingnumberid, prodseriesid, nomenclatureid, isactive,
-        isprecheckcomplete, oldrow, modifiedby, modifieddate, createdby, createddate,
+        isprecheckcomplete, oldrow, modifieddate, createdby, createddate,
         irnumber, msnnumber, mrirnumber, username, consumedindrawing,
         consumedinproductionordernumber, remarks, quantity, unit, idnumber,
         idnumbers, precheckdate, remainingquantity, qrcodeid, mydate,
@@ -1130,7 +1139,7 @@ BEGIN
     )
     SELECT
         projectdetailsid, drawingnumberid, prodseriesid, nomenclatureid, 1,
-        isprecheckcomplete, oldrow, @CreatedBy, GETDATE(), @CreatedBy, GETDATE(),
+        isprecheckcomplete, oldrow, GETDATE(), @CreatedBy, GETDATE(),
         irnumber, msnnumber, mrirnumber, username, consumedindrawing,
         consumedinproductionordernumber, @RejectedRemarks, @NewQuantity, unit, idnumber,
         idnumbers, precheckdate, remainingquantity, qrcodeid, mydate,
@@ -1143,12 +1152,12 @@ BEGIN
     INSERT INTO tbl_projectprecheckdetails
     (
         drawingnumberid, quantity, nomenclatureid, componenttype, remarks,
-        createdby, createddate, modifiedby, modifieddate, isactive,
+        createdby, createddate, modifieddate, isactive,
         prodseriesid, projectdetailsid, isprecheckcomplete, isrejected, unit
     )
     SELECT
         drawingnumberid, @NewQuantity, nomenclatureid, @ComponentType, @DuplicateRemarks,
-        @CreatedBy, GETDATE(), @CreatedBy, GETDATE(), 1,
+        @CreatedBy, GETDATE(), GETDATE(), 1,
         prodseriesid, projectdetailsid, 0, 0, unit
     FROM tbl_projectprecheckdetails
     WHERE Id = @PrecheckDetailsId;
@@ -1163,19 +1172,18 @@ BEGIN
         isrejected = 1,
         remarks = @RejectedRemarks,
         modifieddate = GETDATE(),
-        modifiedby = @CreatedBy,
         quantity = COALESCE(@NewQuantity, quantity)
     WHERE Id = @PrecheckDetailsId;
 
     INSERT INTO tbl_projectprecheckdetails
     (
         drawingnumberid, quantity, nomenclatureid, componenttype, remarks,
-        createdby, createddate, modifiedby, modifieddate, isactive,
+        createdby, createddate, modifieddate, isactive,
         prodseriesid, projectdetailsid, isprecheckcomplete, isrejected, unit
     )
     SELECT
         drawingnumberid, COALESCE(@NewQuantity, quantity), nomenclatureid, @ComponentType, @DuplicateRemarks,
-        @CreatedBy, GETDATE(), @CreatedBy, GETDATE(), 1,
+        @CreatedBy, GETDATE(), GETDATE(), 1,
         prodseriesid, projectdetailsid, 0, 0, unit
     FROM tbl_projectprecheckdetails
     WHERE Id = @PrecheckDetailsId;
