@@ -1363,79 +1363,71 @@ WHERE tadm.drawingnumber = @DrawingNumberId";
             ";
 
         #region GET_AVAILABLE_QR_BY_LNITEM_DRAWING
-        // FROM/JOIN/WHERE shared by the count and paged queries below (kept in one place so the two
-        // stay in sync -- {SEARCH_FILTER}/{SERIES_FILTER} are built dynamically in
-        // QRCodeRepository.GetAvailableQrPaged). The count query only needs the base filter columns
-        // (drawingnumber/lnitemcode/productionseries), so it skips the display-only LEFT JOINs below.
+        // Per-drawing ProductionSeries/ComponentType come from the mapping tables (not from
+        // tbl_qrcodedetails), and a drawing can have more than one active mapping row, so each is
+        // pre-aggregated (STRING_AGG) down to one row per drawingnumberid before joining -- otherwise
+        // the LEFT JOIN would multiply tbl_qrcodedetails rows and inflate SUM(quantity)/QrCount.
+        private const string GET_AVAILABLE_QR_CTE = @"
+;WITH drawing_series AS (
+    SELECT dpsm.drawingnumberid,
+           STRING_AGG(dps.productionseries, ', ') AS productionseries,
+           STRING_AGG(CAST(dpsm.availableseriesid AS varchar(20)), ', ') AS prodseriesid
+    FROM tbl_drawingprodseriesmapping dpsm
+    INNER JOIN tbl_productionseries dps
+        ON dps.id = dpsm.availableseriesid AND dps.isactive = 1
+    WHERE dpsm.isactive = 1
+    GROUP BY dpsm.drawingnumberid
+),
+drawing_componenttype AS (
+    SELECT dctm.drawingnumberid,
+           STRING_AGG(dct.componenttype, ', ') AS componenttype
+    FROM tbl_drawingcomponenttypemapping dctm
+    INNER JOIN tbl_componenttype dct
+        ON dct.id = dctm.componenttypeid AND dct.isactive = 1
+    WHERE dctm.isactive = 1
+    GROUP BY dctm.drawingnumberid
+)";
+
+        // One row per active QR code (tbl_qrcodedetails.isactive = 1 AND qrcodestatusid = 1),
+        // grouped down to one row per DrawingNumber+LnItemCode. FROM/JOIN/WHERE shared by the count
+        // and paged queries below (kept in one place so the two stay in sync -- {SEARCH_FILTER}/
+        // {SERIES_FILTER} are built dynamically in QRCodeRepository.GetAvailableQrPaged).
         private const string GET_AVAILABLE_QR_FROM_WHERE = @"
    FROM tbl_qrcodedetails q
    INNER JOIN tbl_drawingnumber d
        ON q.drawingnumberid = d.id
    INNER JOIN tbl_productionseries tps
        ON tps.id = q.productionseriesid
+   LEFT JOIN drawing_series ds
+       ON ds.drawingnumberid = d.id
+   LEFT JOIN drawing_componenttype dc
+       ON dc.drawingnumberid = d.id
    WHERE q.qrcodestatusid = 1
      AND q.isactive = 1
-     AND (
-           @QrType IS NULL
-        OR (@QrType = 1 AND d.lnitemcode NOT LIKE 'WJD%')
-        OR (@QrType = 2 AND d.lnitemcode LIKE 'WJD%')
-     )
      {SEARCH_FILTER}
      {SERIES_FILTER}";
 
-        public static readonly string GET_AVAILABLE_QR_BY_LNITEM_DRAWING_COUNT = @"
-            SELECT COUNT(*)"
-            + GET_AVAILABLE_QR_FROM_WHERE + ";";
+        public static readonly string GET_AVAILABLE_QR_BY_LNITEM_DRAWING_COUNT = GET_AVAILABLE_QR_CTE + @"
+            SELECT COUNT(*) FROM (
+                SELECT d.drawingnumber, d.lnitemcode"
+            + GET_AVAILABLE_QR_FROM_WHERE + @"
+                GROUP BY d.drawingnumber, d.lnitemcode
+            ) g;";
 
-        // Per-drawing TotalQrQuantity/TotalQrNumber are computed here via window functions (over the
-        // whole matching set, not just the page) so the API can page at the SQL level instead of
-        // fetching every matching row and paging/aggregating in memory.
-        private const string GET_AVAILABLE_QR_FROM_WHERE_WITH_DISPLAY_JOINS = @"
-   FROM tbl_qrcodedetails q
-   INNER JOIN tbl_drawingnumber d
-       ON q.drawingnumberid = d.id
-   INNER JOIN tbl_productionseries tps
-       ON tps.id = q.productionseriesid
-   LEFT JOIN tbl_drawingnlnitemlocationmapping l
-       ON d.id = l.drawingnumberid
-   LEFT JOIN tbl_storeitemlocation stl
-       ON stl.id = l.racklocationid
-   LEFT JOIN tbl_qrcodestatus qs
-       ON q.qrcodestatusid = qs.id
-   LEFT JOIN tbl_unit u
-       ON q.unitid = u.id
-   WHERE q.qrcodestatusid = 1
-     AND q.isactive = 1
-     AND (
-           @QrType IS NULL
-        OR (@QrType = 1 AND d.lnitemcode NOT LIKE 'WJD%')
-        OR (@QrType = 2 AND d.lnitemcode LIKE 'WJD%')
-     )
-     {SEARCH_FILTER}
-     {SERIES_FILTER}";
-
-        public static readonly string GET_AVAILABLE_QR_BY_LNITEM_DRAWING_PAGED = @"
+        public static readonly string GET_AVAILABLE_QR_BY_LNITEM_DRAWING_PAGED = GET_AVAILABLE_QR_CTE + @"
             SELECT
-      q.drawingnumberid,
-      d.drawingnumber,
+      d.id AS DrawingNumberId,
+      d.drawingnumber AS DrawingNumber,
       d.lnitemcode AS LnItemCode,
-      q.productionseriesid,
-      q.idnumber,
-      q.quantity,
-      q.remainingquantity,
-      tps.productionseries,
-      stl.racklocation AS Location,
-      q.qrcodenumber,
-      q.expirydate,
-      q.manufacturingdate,
-      q.projectnumber,
-      q.productionordernumber,
-      qs.qrcodestatus as Status,
-      u.unitname AS Unit,
-      SUM(q.quantity) OVER (PARTITION BY q.drawingnumberid) AS TotalQrQuantity,
-      COUNT(*) OVER (PARTITION BY q.drawingnumberid) AS TotalQrNumber"
-            + GET_AVAILABLE_QR_FROM_WHERE_WITH_DISPLAY_JOINS + @"
-ORDER BY q.expirydate, q.manufacturingdate
+      ds.prodseriesid AS ProdSeriesId,
+      ds.productionseries AS ProductionSeries,
+      dc.componenttype AS ComponentType,
+      SUM(q.quantity) AS TotalQuantity,
+      SUM(q.remainingquantity) AS TotalRemainingQuantity,
+      COUNT(*) AS QrCount"
+            + GET_AVAILABLE_QR_FROM_WHERE + @"
+GROUP BY d.id, d.drawingnumber, d.lnitemcode, ds.prodseriesid, ds.productionseries, dc.componenttype
+ORDER BY d.drawingnumber
 {PAGING_CLAUSE};";
         #endregion
     }

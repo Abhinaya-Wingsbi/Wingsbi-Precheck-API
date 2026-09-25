@@ -1074,9 +1074,64 @@ ORDER BY
      AND q.drawingnumberid = @drawingnumberid
     AND q.isactive=1
 )
-SELECT * FROM RankedQRCodes 
+SELECT * FROM RankedQRCodes
 ORDER BY expirydate, manufacturingdate;
  ";
+
+        public static readonly string GET_AVAILABLE_COMPONENT_ORDER_COUNT = @"
+            SELECT COUNT(*)
+            FROM tbl_qrcodedetails q
+            WHERE q.qrcodestatusid = 1
+              AND q.drawingnumberid = @drawingnumberid
+              AND q.isactive = 1;
+        ";
+
+        public static readonly string GET_AVAILABLE_COMPONENT_ORDER_PAGED = @"
+            WITH RankedQRCodes AS (
+   SELECT
+      q.drawingnumberid,
+      d.drawingnumber,
+      q.productionseriesid,
+      q.idnumber,
+      q.quantity,
+      q.remainingquantity,
+      tps.productionseries,
+      stl.racklocation AS Location,
+      q.qrcodenumber,
+      q.expirydate,
+      q.manufacturingdate,
+      q.projectnumber,
+      q.productionordernumber,
+      qs.qrcodestatus as Status,  -- <== Added QR Code Status here
+      q.refdocremarks AS Remarks,
+      q.fanmannumber AS FanManNo,
+      ROW_NUMBER() OVER (
+           PARTITION BY q.drawingnumberid, q.productionseriesid
+           ORDER BY
+               CASE
+                   WHEN d.isexpiry = 1 THEN q.expirydate
+                   ELSE q.manufacturingdate
+               END DESC
+      ) AS rnk
+   FROM tbl_qrcodedetails q
+   INNER JOIN tbl_drawingnumber d
+       ON q.drawingnumberid = d.id
+   INNER JOIN tbl_productionseries tps
+       ON tps.id = q.productionseriesid
+   LEFT JOIN tbl_drawingnlnitemlocationmapping l
+       ON d.id = l.drawingnumberid
+   LEFT JOIN tbl_storeitemlocation stl
+       ON stl.id = l.racklocationid
+   LEFT JOIN tbl_qrcodestatus qs  -- <== Join for QR code status
+       ON q.qrcodestatusid = qs.id
+   WHERE q.qrcodestatusid = 1
+     AND q.drawingnumberid = @drawingnumberid
+    AND q.isactive=1
+)
+SELECT * FROM RankedQRCodes
+ORDER BY expirydate, manufacturingdate
+OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+        ";
         #endregion
 
         #region REJECT_AND_DUPLICATE_PRECHECK

@@ -9,7 +9,8 @@ namespace Godrej.Precheck.Models.DTOs.QRCodeDetails
     public class GetAvailableQrRequest
     {
         /// <summary>
-        /// 1 = Raw Material only (LnItemCode NOT starting with 'WJD'); 2 = all except Raw Material (LnItemCode starting with 'WJD'); null = no filter.
+        /// No longer used for filtering -- GetAvailableQr always returns all QR codes (raw material and assemblies).
+        /// Kept so existing clients that still send this field don't break.
         /// </summary>
         public int? QrType { get; set; }
 

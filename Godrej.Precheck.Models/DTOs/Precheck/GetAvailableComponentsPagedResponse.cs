@@ -1,14 +1,14 @@
 using System;
 using System.Collections.Generic;
 
-namespace Godrej.Precheck.Models.DTOs.QRCodeDetails
+namespace Godrej.Precheck.Models.DTOs.Precheck
 {
     /// <summary>
-    /// Paginated response wrapper for POST /api/QRCode/GetAvailableQr
+    /// Paginated response wrapper for POST /api/Precheck/GetAvailablComponents
     /// </summary>
-    public class GetAvailableQrPagedResponse
+    public class GetAvailableComponentsPagedResponse
     {
-        public List<GetAvailableQrGroupedResponse> Data { get; set; } = new List<GetAvailableQrGroupedResponse>();
+        public List<GetAvailableComponentsResponse> Data { get; set; } = new List<GetAvailableComponentsResponse>();
         public int TotalRecords { get; set; }
         public int PageNumber { get; set; }
         public int PageSize { get; set; }

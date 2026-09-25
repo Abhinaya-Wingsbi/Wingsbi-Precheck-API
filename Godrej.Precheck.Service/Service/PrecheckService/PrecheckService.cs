@@ -1507,6 +1507,19 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
             return response;
         }
 
+        public async Task<GetAvailableComponentsPagedResponse> GetAvailableComponentServicePaged(GetAvailableComponentsRequest request, int pageNumber, int pageSize)
+        {
+            var (items, totalRecords) = await _precheckRepository.GetAvailableComponentForOrderPaged(request, pageNumber, pageSize);
+
+            return new GetAvailableComponentsPagedResponse
+            {
+                Data = items,
+                TotalRecords = totalRecords,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+        }
+
         public async Task<int> RejectAndDuplicatePrecheck(RejectPrecheckRequestDto request)
         {
             _logger.LogInformation($"Request for PrecheckService:RejectAndDuplicatePrecheck for PrecheckDetailsId: {request.PrecheckDetailsId}");

@@ -678,13 +678,20 @@ namespace Godrej.Precheck.Host.Controllers
         [HttpPost("GetAvailablComponents")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult> GetAvailableComponentForOrder([FromBody] GetAvailableComponentsRequest request)
+        public async Task<ActionResult> GetAvailableComponentForOrder(
+            [FromBody] GetAvailableComponentsRequest request,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
         {
-            _logger.LogInformation($"Request received for PrecheckController:GetAvailableComponents {request}");
+            _logger.LogInformation($"Request received for PrecheckController:GetAvailableComponents {request}, pageNumber: {pageNumber}, pageSize: {pageSize}");
 
             try
             {
-                var response = await _service.GetAvailableComponentService(request);
+                if (pageNumber < 1) pageNumber = 1;
+                if (pageSize < 1) pageSize = 20;
+                if (pageSize > 200) pageSize = 200;
+
+                var response = await _service.GetAvailableComponentServicePaged(request, pageNumber, pageSize);
 
                 if (response == null)
                 {

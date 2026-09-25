@@ -722,6 +722,26 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
             return results.ToList();
         }
 
+        public async Task<(List<GetAvailableComponentsResponse> Items, int TotalCount)> GetAvailableComponentForOrderPaged(GetAvailableComponentsRequest request, int pageNumber, int pageSize)
+        {
+            _logger.LogInformation("Request for PrecheckRepository:GetAvailableComponentForOrderPaged drawingnumberid: {DrawingNumberId}, pageNumber: {PageNumber}, pageSize: {PageSize}",
+                request.DrawingNumberId, pageNumber, pageSize);
+
+            var queryParams = new
+            {
+                drawingnumberid = request.DrawingNumberId,
+                Offset = (pageNumber - 1) * pageSize,
+                PageSize = pageSize
+            };
+
+            var totalCount = await _db.GetSingle<int>(PrecheckQueries.GET_AVAILABLE_COMPONENT_ORDER_COUNT, queryParams, commandTimeout: 300);
+            var items = await _db.GetAll<GetAvailableComponentsResponse>(PrecheckQueries.GET_AVAILABLE_COMPONENT_ORDER_PAGED, queryParams);
+
+            _logger.LogInformation("Successfully retrieved GetAvailableComponentForOrderPaged, totalCount: {TotalCount}", totalCount);
+
+            return (items.ToList(), totalCount);
+        }
+
         public async Task<List<ProjectDetailsResponse>> ValidateOrder(int prodSeriesId, int drawingId, string pONumber, int idNumber)
         {
             _logger.LogInformation($"Request for QRCodeRepository:ValidateOrder{pONumber}");

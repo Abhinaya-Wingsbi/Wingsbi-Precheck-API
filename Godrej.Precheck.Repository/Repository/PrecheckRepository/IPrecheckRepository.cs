@@ -47,6 +47,8 @@ namespace Godrej.Precheck.Repository.Repository.PrecheckRepository
         Task<int?> GetDrawingNumberIdByName(string drawingNumber);
         Task<List<GetAvailableComponentsResponse>> GetAvailableComponentForOrder(GetAvailableComponentsRequest request);
 
+        Task<(List<GetAvailableComponentsResponse> Items, int TotalCount)> GetAvailableComponentForOrderPaged(GetAvailableComponentsRequest request, int pageNumber, int pageSize);
+
         Task<List<ProjectDetailsResponse>> ValidateOrder(int prodSeriesId, int drawingId, string pONumber, int idNumber);
 
         Task<int> GetAvailableComponentQunatity(int DrawingId);

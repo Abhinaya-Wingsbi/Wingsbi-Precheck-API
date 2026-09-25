@@ -1149,7 +1149,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
             }
         }
 
-        public async Task<(List<GetAvailableComponentsResponse> Items, int TotalCount)> GetAvailableQrPaged(GetAvailableQrRequest request, int pageNumber, int pageSize)
+        public async Task<(List<GetAvailableQrGroupedResponse> Items, int TotalCount)> GetAvailableQrPaged(GetAvailableQrRequest request, int pageNumber, int pageSize)
         {
             _logger.LogInformation("Request for QRCodeRepository:GetAvailableQrPaged SearchQuery: {SearchQuery}, ProdSeries: {ProdSeries}, QrType: {QrType}, pageNumber: {PageNumber}, pageSize: {PageSize}",
                 request.SearchQuery, request.ProdSeries != null ? string.Join(",", request.ProdSeries) : null, request.QrType, pageNumber, pageSize);
@@ -1183,7 +1183,6 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
 
                 var queryParams = new
                 {
-                    QrType = request.QrType,
                     SearchQuery = trimmedSearchQuery,
                     ProdSeries = request.ProdSeries,
                     Offset = (pageNumber - 1) * pageSize,
@@ -1191,7 +1190,7 @@ namespace Godrej.Precheck.Repository.Repository.QRCodeRepository
                 };
 
                 var totalCount = await _db.GetSingle<int>(countQuery, queryParams, commandTimeout: 300);
-                var items = await _db.GetAll<GetAvailableComponentsResponse>(pagedQuery, queryParams);
+                var items = await _db.GetAll<GetAvailableQrGroupedResponse>(pagedQuery, queryParams);
 
                 _logger.LogInformation("Successfully retrieved GetAvailableQrPaged, totalCount: {TotalCount}", totalCount);
 

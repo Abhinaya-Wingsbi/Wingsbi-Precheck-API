@@ -28,6 +28,8 @@ namespace Godrej.Precheck.Service.Service.PrecheckService
 
         Task<int?> GetPrecheckStatusDetailsService(ViewPreCheckRequestDto request);
         Task<List<GetAvailableComponentsResponse>> GetAvailableComponentService(GetAvailableComponentsRequest request);
+
+        Task<GetAvailableComponentsPagedResponse> GetAvailableComponentServicePaged(GetAvailableComponentsRequest request, int pageNumber, int pageSize);
         Task<int> RejectAndDuplicatePrecheck(RejectPrecheckRequestDto request);
         Task<UpdateQuantityResponseDto> UpdateQuantity(string productionOrderNumber,UpdateMaterialQuantityRequestDto request, string assemblyDrawingNo,int userId);
         Task<List<ViewPreCheckResponse>> ExportViewPrecheckDetailsService(ViewPreCheckRequestDto request);
